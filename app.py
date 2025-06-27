@@ -2,6 +2,13 @@ from flask import Flask, request, render_template_string, redirect
 from datetime import datetime
 import openpyxl
 import os
+from flask import Flask, redirect, render_template, request  # make sure redirect is imported
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return redirect("/scan")
 
 app = Flask(__name__)
 EXCEL_FILE = "attendance_log.xlsx"
