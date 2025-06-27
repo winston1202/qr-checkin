@@ -1,61 +1,33 @@
-from flask import Flask, request, render_template_string, redirect
+from flask import Flask, request, redirect, render_template_string
 from datetime import datetime
-import openpyxl
-import os
-from flask import Flask, redirect, render_template, request  # make sure redirect is imported
 
 app = Flask(__name__)
 
+# Redirect root URL to /scan
 @app.route("/")
 def home():
     return redirect("/scan")
 
-app = Flask(__name__)
-EXCEL_FILE = "attendance_log.xlsx"
-
-# Create Excel file if it doesn't exist
-if not os.path.exists(EXCEL_FILE):
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.append(["Name", "Date", "Time"])
-    wb.save(EXCEL_FILE)
-
-# HTML Form Page
-form_html = """
-<!doctype html>
-<title>Check In</title>
-<h1>Scan Log Form</h1>
-<form method="POST">
-  <label>Name:</label><br>
-  <input name="name" required><br><br>
-  <button type="submit">Submit</button>
-</form>
-"""
-
-# Confirmation Page
-success_html = """
-<!doctype html>
-<title>Success</title>
-<h1>Thank you, {{ name }}!</h1>
-<p>Checked in at {{ time }}</p>
-"""
-
+# Check-in form at /scan
 @app.route("/scan", methods=["GET", "POST"])
 def scan():
     if request.method == "POST":
-        name = request.form["name"]
-        now = datetime.now()
-        date_str = now.strftime("%Y-%m-%d")
-        time_str = now.strftime("%H:%M:%S")
+        name = request.form.get("name")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Just print for now — replace this with Excel logging later
+        print(f"✅ {name} checked in at {timestamp}")
+        return f"<h2>Thanks, {name}! Checked in at {timestamp}</h2><a href='/scan'>Go back</a>"
 
-        wb = openpyxl.load_workbook(EXCEL_FILE)
-        ws = wb.active
-        ws.append([name, date_str, time_str])
-        wb.save(EXCEL_FILE)
+    # Simple form HTML
+    html = """
+    <h1>Check-In Form</h1>
+    <form method="POST">
+        <input name="name" placeholder="Enter your name" required>
+        <button type="submit">Check In</button>
+    </form>
+    """
+    return render_template_string(html)
 
-        return render_template_string(success_html, name=name, time=f"{date_str} {time_str}")
-    
-    return form_html
-
+# Run the app (optional if using gunicorn)
 if __name__ == "__main__":
-    app.run(port=5000)
+    app.run()
