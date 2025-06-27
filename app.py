@@ -38,7 +38,25 @@ def scan():
         # Log to Google Sheets
         sheet.append_row([name, timestamp])
 
-        return f"<h2>Thanks, {name}! Checked in at {timestamp}</h2><a href='/scan'>Go back</a>"
+        return render_template_string(f"""
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <script src='https://cdn.tailwindcss.com'></script>
+  <title>Checked In</title>
+</head>
+<body class='bg-gray-100 h-screen flex items-center justify-center'>
+  <div class='bg-white p-6 rounded-xl shadow-md text-center w-full max-w-md'>
+    <h2 class='text-2xl font-bold text-green-600 mb-2'>Thanks, {name}!</h2>
+    <p class='text-gray-700 mb-4'>Checked in at {timestamp}</p>
+    <a href='/scan' class='inline-block text-blue-500 hover:underline'>🔁 Back to check-in</a>
+  </div>
+</body>
+</html>
+""")
+
 
     html = """
 <!DOCTYPE html>
