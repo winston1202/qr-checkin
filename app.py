@@ -1,6 +1,7 @@
 from flask import Flask, request, redirect, render_template_string
 from datetime import datetime
 from zoneinfo import ZoneInfo # For timezone conversion
+import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import json
@@ -20,7 +21,7 @@ client = gspread.authorize(creds)
 sheet = client.open("QR Check-Ins").sheet1
 
 # --- New: Define our timezone ---
-CENTRAL_TIMEZONE = ZoneInfo("America/Chicago") # Correct IANA timezone name for USA Central Time
+CENTRAL_TIMEZONE = pytz.timezone("America/Chicago")
 
 @app.route("/")
 def home():
@@ -29,13 +30,13 @@ def home():
 @app.route("/scan", methods=["GET", "POST"])
 def scan():
     if request.method == "POST":
-        name = request.form.get("name").strip() # Use .strip() to remove accidental spaces
+        name = request.form.get("name").strip()
         botcheck = request.form.get("botcheck")
         if botcheck or not name:
             return "Bot or empty name detected", 400
 
         # --- Timezone-aware timestamp ---
-        now = datetime.now(CENTRAL_TIMEZONE)
+        now = datetime.now(CENTRAL_TIMEZONE) # <--- THIS LINE IS THE SAME, BUT NOW USES THE PYTZ OBJECT
         today_date = now.strftime("%Y-%m-%d")
         current_time = now.strftime("%H:%M:%S")
         
