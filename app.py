@@ -35,18 +35,15 @@ def get_day_with_suffix(d):
     if d % 10 == 3: return f"{d}rd"
     return f"{d}th"
 
-# This helper function contains the definitive fix
+# This helper function contains the robust logic for preparing an action
 def prepare_action(worker_name):
-    # ★★★ THE ROBUST FIX: CHECKING FOR `None` ★★★
+    # Find the user or create them if they don't exist
     user_cell = users_sheet.find(worker_name, in_column=1)
-    
     if user_cell is None:
-        # User does not exist, create them and calculate their new row number
         num_data_rows = len(users_sheet.get_all_records())
         user_row_number = num_data_rows + 2
         users_sheet.append_row([worker_name, ""])
     else:
-        # User exists, get their row number from the cell object
         user_row_number = user_cell.row
 
     expected_token = users_sheet.cell(user_row_number, 2).value
@@ -129,23 +126,18 @@ def process():
     user_cell = users_sheet.find(attempted_name, in_column=1)
 
     if user_cell is not None:
-        # The name they typed exists. Proceed normally.
         worker_name = attempted_name
     else:
-        # The name is new. Check if their device is old.
         actual_token = session.get('device_token')
         if actual_token:
             token_cell = users_sheet.find(actual_token, in_column=2)
             if token_cell is not None:
-                # CONFLICT: Device is known, but name is not.
                 correct_name = users_sheet.cell(token_cell.row, 1).value
                 session['typo_conflict'] = {'correct_name': correct_name, 'attempted_name': attempted_name}
                 return redirect(url_for('handle_typo'))
             else:
-                # Genuinely a new user with a new device.
                 worker_name = attempted_name
         else:
-            # A new user with no device token yet.
             worker_name = attempted_name
 
     prepare_action(worker_name)
@@ -258,7 +250,7 @@ def success():
 <body class='bg-gray-100 h-screen flex items-center justify-center'>
   <div class='bg-white p-6 rounded-xl shadow-md text-center w-full max-w-md'>
     {message}
-    <a href='/scan' class='mt-4 inline-block text-blue-500 hover:underline'>🔁 Back to check-in page</a>
+    <a href="{{ url_for('scan') }}" class='mt-4 inline-block text-blue-500 hover:underline'>🔁 Back to check-in page</a>
   </div>
 </body>
 </html>
