@@ -9,6 +9,7 @@ import os
 
 app = Flask(__name__)
 
+# The SECRET_KEY is required for using sessions securely
 app.secret_key = os.environ.get("SECRET_KEY")
 if not app.secret_key:
     raise Exception("Missing SECRET_KEY environment variable.")
@@ -26,7 +27,7 @@ try:
 except gspread.exceptions.WorksheetNotFound:
     raise Exception("Could not find worksheets 'Attendance' or 'Users'. Please check names in your Google Sheet.")
 
-# --- Timezone and Date Suffix Function (no changes) ---
+# --- Timezone and Date Suffix Function ---
 CENTRAL_TIMEZONE = pytz.timezone("America/Chicago")
 def get_day_with_suffix(d):
     if 11 <= d <= 13: return f"{d}th"
@@ -39,17 +40,14 @@ def get_day_with_suffix(d):
 def home():
     return redirect(url_for('scan'))
 
-# This route ONLY displays the page.
 @app.route("/scan", methods=["GET"])
 def scan():
     return render_template_string("""
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <title>Check-In</title>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script><title>Check-In</title>
 </head>
 <body class="bg-gray-100 h-screen flex items-center justify-center">
   <div class="bg-white p-6 rounded-xl shadow-md text-center w-full max-w-md">
@@ -67,7 +65,7 @@ def scan():
 </html>
 """)
 
-# This route ONLY processes the form data.
+# This route now handles the complex logic of checking for typos
 @app.route("/process", methods=["POST"])
 def process():
     first_name = request.form.get("first_name", "").strip()
@@ -76,21 +74,99 @@ def process():
     if not first_name or not last_name:
         return "First and Last Name are required.", 400
     
-    worker_name = f"{first_name} {last_name}"
+    attempted_name = f"{first_name} {last_name}"
     
-    # ★★★ BUG FIX IS HERE: Robust user finding and creation ★★★
+    # --- Check for Typo Conflict ---
+    try:
+        # Check if the name they typed exists
+        users_sheet.find(attempted_name, in_column=1)
+        # If it exists, there's no conflict. Proceed normally.
+        worker_name = attempted_name
+        
+    except gspread.exceptions.CellNotFound:
+        # The typed name is NEW. Now, check if their DEVICE is old.
+        actual_token = session.get('device_token')
+        if actual_token:
+            try:
+                token_cell = users_sheet.find(actual_token, in_column=2)
+                # CONFLICT! The device is known, but the name is not.
+                correct_name = users_sheet.cell(token_cell.row, 1).value
+                # Store the conflict info and go to the special confirmation page
+                session['typo_conflict'] = {
+                    'correct_name': correct_name,
+                    'attempted_name': attempted_name
+                }
+                return redirect(url_for('handle_typo'))
+            except gspread.exceptions.CellNotFound:
+                # This is a genuinely new user with a new device.
+                worker_name = attempted_name
+        else:
+            # A new user with no device token yet.
+            worker_name = attempted_name
+
+    # If we get here, there was no typo conflict, proceed to confirmation
+    prepare_action(worker_name)
+    return redirect(url_for('confirm'))
+
+# New route to handle the typo confirmation
+@app.route("/handle_typo", methods=["GET", "POST"])
+def handle_typo():
+    conflict = session.get('typo_conflict')
+    if not conflict:
+        return redirect(url_for('scan'))
+
+    if request.method == 'POST':
+        choice = request.form.get('choice')
+        if choice == 'yes':
+            # User confirmed they are the original person
+            worker_name = conflict['correct_name']
+        else: # Choice is 'no'
+            # User wants to create a new profile.
+            # We must clear the old device token to avoid conflicts.
+            old_user_cell = users_sheet.find(conflict['correct_name'], in_column=1)
+            users_sheet.update_cell(old_user_cell.row, 2, "") # Clear old token
+            worker_name = conflict['attempted_name']
+
+        session.pop('typo_conflict', None)
+        prepare_action(worker_name)
+        return redirect(url_for('confirm'))
+
+    # Display the special confirmation page
+    return render_template_string(f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script><title>Verify Identity</title>
+</head>
+<body class="bg-gray-100 h-screen flex items-center justify-center">
+  <div class="bg-white p-8 rounded-xl shadow-md text-center w-full max-w-md">
+    <h1 class="text-2xl font-bold mb-4">Identity Check</h1>
+    <p class="text-lg text-gray-700 mb-6">This device is registered to <strong>{conflict['correct_name']}</strong>. <br><br>Are you this person?</p>
+    <div class="flex justify-center space-x-4">
+        <form action="{{ url_for('handle_typo') }}" method="POST">
+            <input type="hidden" name="choice" value="yes">
+            <button type="submit" class="bg-green-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-green-600">Yes, that's me</button>
+        </form>
+        <form action="{{ url_for('handle_typo') }}" method="POST">
+            <input type="hidden" name="choice" value="no">
+            <button type="submit" class="bg-red-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-600">No, I'm new</button>
+        </form>
+    </div>
+  </div>
+</body>
+</html>
+""")
+
+# Helper function to avoid repeating code
+def prepare_action(worker_name):
+    # This function contains the logic from the old /process route
     try:
         user_cell = users_sheet.find(worker_name, in_column=1)
     except gspread.exceptions.CellNotFound:
-        # User does not exist, so create them
         users_sheet.append_row([worker_name, ""])
-        # To avoid API race conditions, we create a temporary "cell" object
-        # that just holds the correct new row number.
-        class TempCell:
-            def __init__(self, row): self.row = row
-        user_cell = TempCell(users_sheet.row_count)
+        user_cell = users_sheet.find(worker_name, in_column=1)
 
-    # From here, user_cell is guaranteed to have a .row attribute
     expected_token = users_sheet.cell(user_cell.row, 2).value
     actual_token = session.get('device_token')
     
@@ -101,8 +177,7 @@ def process():
         verification_status = "Yes"
     elif expected_token == actual_token:
         verification_status = "Yes"
-    
-    # --- The rest of the logic is unchanged ---
+        
     now = datetime.now(CENTRAL_TIMEZONE)
     day_with_suffix = get_day_with_suffix(now.day)
     today_date = now.strftime(f"%b. {day_with_suffix}, %Y")
@@ -129,9 +204,7 @@ def process():
         pending_action['type'] = 'Clock In'
 
     session['pending_action'] = pending_action
-    return redirect(url_for('confirm'))
 
-# The /confirm route is unchanged
 @app.route("/confirm", methods=["GET", "POST"])
 def confirm():
     pending_action = session.get('pending_action')
@@ -166,7 +239,7 @@ def confirm():
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script><title>Confirm Action</title>
 </head>
 <body class="bg-gray-100 h-screen flex items-center justify-center">
@@ -184,7 +257,6 @@ def confirm():
 </html>
 """)
 
-# The /success route is unchanged
 @app.route("/success")
 def success():
     message = session.pop('last_message', '<p>Action completed.</p>')
