@@ -1,4 +1,3 @@
-# We need to import the main render_template function
 from flask import Flask, request, redirect, render_template, session, url_for
 import uuid
 from datetime import datetime
@@ -93,23 +92,30 @@ def prepare_action(worker_name):
 
 # --- Routes ---
 
+# ★★★ THIS IS THE CORRECTED "SMART" HOME ROUTE ★★★
 @app.route("/")
 def home():
+    # Check if we recognize the user's device
     device_token = session.get('device_token')
     if device_token:
+        # Use find() which returns None if not found, preventing crashes
         token_cell = users_sheet.find(device_token, in_column=2)
         if token_cell is not None:
+            # Device recognized! Auto-fill their info.
             worker_name = users_sheet.cell(token_cell.row, 1).value
             prepare_action(worker_name)
             
+            # Check if they already clocked out to show message immediately
             if session.get('pending_action', {}).get('type') == 'Already Clocked Out':
                 message = f"<h2>Already Clocked Out</h2><p>{worker_name}, you have already clocked out for the day.</p>"
                 session.pop('pending_action', None)
                 session['final_status'] = {'message': message, 'type': 'Already Clocked Out'}
                 return redirect(url_for('success'))
 
+            # If not clocked out, go directly to confirmation
             return redirect(url_for('confirm'))
 
+    # If device is not recognized, proceed as normal to the manual entry form
     return redirect(url_for('scan'))
 
 @app.route("/scan", methods=["GET"])
