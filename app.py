@@ -7,6 +7,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import json
 import os
+from flask import Flask, request, redirect, render_template, session, url_for, flash, make_response
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "a-default-secret-key-for-development")
@@ -169,28 +170,33 @@ def handle_typo():
 
     if request.method == 'POST':
         choice = request.form.get('choice')
-        
-        # Always remove the conflict data from the session after handling it.
-        session.pop('typo_conflict', None)
+        session.pop('typo_conflict', None) # Clear the conflict from session memory
 
         if choice == 'yes':
-            # If yes, proceed as the correct user.
+            # If yes, nothing changes. Proceed as the correct user.
             worker_name = conflict['correct_name']
             prepare_action(worker_name)
             return redirect(url_for('confirm'))
         
-        else: # This is the new logic for 'no'
-            # 1. Find the old user this device was linked to.
+        else: # ★★★ THIS IS THE NEW, CORRECT LOGIC FOR 'NO' ★★★
+            # 1. Unlink the token from the old user in the Google Sheet.
             old_user_cell = users_sheet.find(conflict['correct_name'], in_column=1)
             if old_user_cell:
-                # 2. Unlink the device by clearing the token from their row.
-                users_sheet.update_cell(old_user_cell.row, 2, "")
+                users_sheet.update_cell(old_user_cell.row, 2, "") # Clear token cell
             
-            # 3. Inform the user and send them back to the start.
-            flash(f"This device has been unlinked from {conflict['correct_name']}. Please enter your name to start over.")
-            return redirect(url_for('scan'))
+            # 2. Create a redirect response object.
+            response = make_response(redirect(url_for('scan')))
+            
+            # 3. Instruct the user's browser to delete its token cookie.
+            response.set_cookie('device_token', '', expires=0, path='/')
+            
+            # 4. Flash a message to explain what happened.
+            flash(f"This device has been unlinked from {conflict['correct_name']}. A new ID has been generated for this device. Please enter your name to register.")
+            
+            # 5. Return the complete response (redirect + cookie deletion).
+            return response
 
-    # If it's a GET request, just show the identity check page.
+    # For a GET request, just show the identity check page.
     return render_template("handle_typo.html", correct_name=conflict['correct_name'])
 
 @app.route("/confirm")
