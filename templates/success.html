@@ -8,9 +8,7 @@
 <body class='bg-gray-100 h-screen flex items-center justify-center'>
   <div class='bg-white p-6 rounded-xl shadow-md text-center w-full max-w-md'>
     <div class='mb-4'>{{ message | safe }}</div>
-    {% if show_back_button %}
-      <a href="{{ url_for('scan') }}" class='bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 w-full inline-block'>Back to Check-in</a>
-    {% endif %}
+    <!-- The "Back to Check-in" button has been completely removed from this version -->
   </div>
 </body>
 </html>

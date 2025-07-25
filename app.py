@@ -1,5 +1,4 @@
-# Import make_response to be able to set cookies from the server
-from flask import Flask, request, redirect, render_template, session, url_for, make_response
+from flask import Flask, request, redirect, render_template, session, url_for, flash
 import uuid
 from datetime import datetime
 import pytz
@@ -9,7 +8,6 @@ import json
 import os
 
 app = Flask(__name__)
-
 app.secret_key = os.environ.get("SECRET_KEY")
 if not app.secret_key:
     raise Exception("Missing SECRET_KEY environment variable.")
@@ -27,8 +25,8 @@ try:
 except gspread.exceptions.WorksheetNotFound:
     raise Exception("Could not find worksheets 'Attendance' or 'Users'. Please check names.")
 
-# --- Timezone and Date Suffix Function ---
 CENTRAL_TIMEZONE = pytz.timezone("America/Chicago")
+
 def get_day_with_suffix(d):
     if 11 <= d <= 13: return f"{d}th"
     if d % 10 == 1: return f"{d}st"
@@ -36,7 +34,6 @@ def get_day_with_suffix(d):
     if d % 10 == 3: return f"{d}rd"
     return f"{d}th"
 
-# This helper function contains the robust logic for preparing an action
 def prepare_action(worker_name):
     user_cell = users_sheet.find(worker_name, in_column=1)
     if user_cell is None:
@@ -47,22 +44,19 @@ def prepare_action(worker_name):
         user_row_number = user_cell.row
 
     expected_token = users_sheet.cell(user_row_number, 2).value
-    # ★★★ Read the token from the cookie, not the session ★★★
-    actual_token = request.cookies.get('device_token')
-    
+    actual_token = session.get('device_token')
     verification_status = "No"
-    # We only mark for a new token if one is missing from the sheet
     if not expected_token:
-        if actual_token: # If the browser has a token, we'll save it
-            session['device_token_to_set'] = actual_token
+        new_token = str(uuid.uuid4())
+        session['device_token_to_set'] = new_token
         verification_status = "Yes"
     elif expected_token == actual_token:
         verification_status = "Yes"
-        
+
     now = datetime.now(CENTRAL_TIMEZONE)
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
     current_time = now.strftime("%I:%M:%S %p")
-    
+
     log_records = log_sheet.get_all_records()
     row_to_update = None
     already_clocked_out = False
@@ -75,16 +69,16 @@ def prepare_action(worker_name):
             else:
                 already_clocked_out = True
                 break
-            
+
     pending_action = {
         'name': worker_name, 'date': today_date, 'time': current_time,
         'verified': verification_status, 'user_row': user_row_number
     }
-    
+
     if already_clocked_out:
         pending_action['type'] = 'Already Clocked Out'
     elif row_to_update:
-        pending_action['type'] = 'Clock Out'
+        pending_action['type'] = 'Offer Clock Out'
         pending_action['row_to_update'] = row_to_update
         original_status = log_sheet.cell(row_to_update, 5).value
         pending_action['combined_status'] = f"{original_status} / {verification_status}"
@@ -93,28 +87,24 @@ def prepare_action(worker_name):
 
     session['pending_action'] = pending_action
 
-# --- Routes ---
 @app.route("/")
 def home():
-    # ★★★ Correctly read the token from the cookie ★★★
-    device_token = request.cookies.get('device_token')
+    device_token = session.get('device_token')
     if device_token:
         token_cell = users_sheet.find(device_token, in_column=2)
         if token_cell is not None:
             worker_name = users_sheet.cell(token_cell.row, 1).value
             prepare_action(worker_name)
-            
-            if session.get('pending_action', {}).get('type') == 'Already Clocked Out':
-                message = f"<h2>Already Clocked Out</h2><p>{worker_name}, you have already clocked out for the day.</p>"
-                session.pop('pending_action', None)
-                session['final_status'] = {'message': message, 'type': 'Already Clocked Out'}
-                return redirect(url_for('success'))
-
+            pending = session.get('pending_action', {})
+            if pending.get('type') == 'Already Clocked Out':
+                flash(f"{worker_name}, you are already clocked out for the day.")
+                return redirect(url_for('scan'))
+            elif pending.get('type') == 'Offer Clock Out':
+                return redirect(url_for('offer_clockout'))
             return redirect(url_for('confirm'))
-
     return redirect(url_for('scan'))
 
-@app.route("/scan", methods=["GET"])
+@app.route("/scan")
 def scan():
     return render_template("scan.html")
 
@@ -124,41 +114,36 @@ def process():
     last_name = request.form.get("last_name", "").strip()
     if not first_name or not last_name:
         return "First and Last Name are required.", 400
-    
+
     attempted_name = f"{first_name} {last_name}"
-    
     user_cell = users_sheet.find(attempted_name, in_column=1)
 
-    if user_cell is not None:
+    if user_cell:
         worker_name = attempted_name
     else:
-        actual_token = request.cookies.get('device_token')
+        actual_token = session.get('device_token')
         if actual_token:
             token_cell = users_sheet.find(actual_token, in_column=2)
-            if token_cell is not None:
+            if token_cell:
                 correct_name = users_sheet.cell(token_cell.row, 1).value
                 session['typo_conflict'] = {'correct_name': correct_name, 'attempted_name': attempted_name}
                 return redirect(url_for('handle_typo'))
-            else:
-                worker_name = attempted_name
-        else:
-            worker_name = attempted_name
+        worker_name = attempted_name
 
     prepare_action(worker_name)
-    
-    if session.get('pending_action', {}).get('type') == 'Already Clocked Out':
-        message = f"<h2>Already Clocked Out</h2><p>{worker_name}, you have already clocked out for the day.</p>"
-        session.pop('pending_action', None)
-        session['final_status'] = {'message': message, 'type': 'Already Clocked Out'}
-        return redirect(url_for('success'))
-
+    pending = session.get('pending_action', {})
+    if pending.get('type') == 'Already Clocked Out':
+        flash(f"{worker_name}, you are already clocked out for the day.")
+        return redirect(url_for('scan'))
+    elif pending.get('type') == 'Offer Clock Out':
+        return redirect(url_for('offer_clockout'))
     return redirect(url_for('confirm'))
 
 @app.route("/handle_typo", methods=["GET", "POST"])
 def handle_typo():
-    # ... (This route is correct and does not need changes)
     conflict = session.get('typo_conflict')
-    if not conflict: return redirect(url_for('scan'))
+    if not conflict:
+        return redirect(url_for('scan'))
 
     if request.method == 'POST':
         choice = request.form.get('choice')
@@ -178,47 +163,42 @@ def handle_typo():
 
 @app.route("/confirm")
 def confirm():
-    # ... (This route is correct and does not need changes)
-    pending_action = session.get('pending_action')
-    if not pending_action: return redirect(url_for('scan'))
-    return render_template("confirm.html",
-        action_type=pending_action.get('type', 'action'),
-        worker_name=pending_action.get('name', 'Unknown')
-    )
+    pending = session.get('pending_action')
+    if not pending:
+        return redirect(url_for('scan'))
+    return render_template("confirm.html", action_type=pending['type'], worker_name=pending['name'])
+
+@app.route("/offer_clockout")
+def offer_clockout():
+    pending = session.get('pending_action')
+    if not pending or pending.get('type') != 'Offer Clock Out':
+        return redirect(url_for('scan'))
+    return render_template("clock_out_prompt.html")
 
 @app.route("/execute", methods=["POST"])
 def execute():
     action = session.pop('pending_action', None)
-    if not action: return redirect(url_for('scan'))
+    if not action:
+        return redirect(url_for('scan'))
 
-    # We use the session to pass the prepared message and type to the success page
-    message = ""
-    if action['type'] == 'Clock Out':
-        log_sheet.update_cell(action['row_to_update'], 4, action['time'])
-        log_sheet.update_cell(action['row_to_update'], 5, action['combined_status'])
-        message = f"<h2>Goodbye, {action['name']}!</h2><p>You have been clocked out successfully.</p>"
-    else: # Clock In
-        new_row = [action['date'], action['name'], action['time'], "", action['verified']]
-        log_sheet.append_row(new_row)
-        message = f"<h2>Welcome, {action['name']}!</h2><p>You have been clocked in successfully.</p>"
-        
-    session['final_status'] = {'message': message, 'type': action['type']}
-    
-    # We still create a response to set the cookie if needed
-    response = make_response(redirect(url_for('success')))
     if 'device_token_to_set' in session:
         token = session.pop('device_token_to_set')
+        session['device_token'] = token
         users_sheet.update_cell(action['user_row'], 2, token)
-        # We don't need to set the cookie here, the JS already did it.
-        # This just syncs the server-side record.
-    
-    return response
+
+    if action['type'] in ['Clock Out', 'Offer Clock Out']:
+        log_sheet.update_cell(action['row_to_update'], 4, action['time'])
+        log_sheet.update_cell(action['row_to_update'], 5, action['combined_status'])
+        flash(f"Goodbye, {action['name']}! You have been clocked out.")
+        return redirect(url_for('scan'))
+    else:
+        new_row = [action['date'], action['name'], action['time'], "", action['verified']]
+        log_sheet.append_row(new_row)
+        session['final_status'] = {'message': f"<h2>Welcome, {action['name']}!</h2><p>You have been clocked in successfully.</p>"}
+        return redirect(url_for('success'))
 
 @app.route("/success")
 def success():
-    # ... (This route is correct and does not need changes)
     final_status = session.pop('final_status', {})
-    return render_template("success.html",
-        message=final_status.get('message', '<p>Action completed.</p>'),
-        show_back_button=(final_status.get('type') not in ['Clock Out', 'Already Clocked Out'])
-    )
+    message = final_status.get('message', '<p>Action completed.</p>')
+    return render_template("success.html", message=message)
