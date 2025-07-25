@@ -9,7 +9,6 @@ import os
 
 app = Flask(__name__)
 
-# The SECRET_KEY is required for using sessions securely
 app.secret_key = os.environ.get("SECRET_KEY")
 if not app.secret_key:
     raise Exception("Missing SECRET_KEY environment variable.")
@@ -21,13 +20,11 @@ scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 
-# ★★★ USING YOUR CORRECTED SHEET NAMES ★★★
 try:
     log_sheet = client.open("QR Check-Ins").worksheet("Attendance")
     users_sheet = client.open("QR Check-Ins").worksheet("Users")
 except gspread.exceptions.WorksheetNotFound:
     raise Exception("Could not find worksheets 'Attendance' or 'Users'. Please check names in your Google Sheet.")
-
 
 # --- Timezone and Date Suffix Function (no changes) ---
 CENTRAL_TIMEZONE = pytz.timezone("America/Chicago")
@@ -42,9 +39,10 @@ def get_day_with_suffix(d):
 def home():
     return redirect(url_for('scan'))
 
-# The main check-in page
+# This route ONLY displays the page. It only accepts GET requests.
 @app.route("/scan", methods=["GET"])
 def scan():
+    # ★★★ UPDATED HTML WITH SEPARATE NAME FIELDS ★★★
     return render_template_string("""
 <!DOCTYPE html>
 <html lang="en">
@@ -58,7 +56,9 @@ def scan():
   <div class="bg-white p-6 rounded-xl shadow-md text-center w-full max-w-md">
     <h1 class="text-2xl font-bold mb-4">Worker Check-In / Out</h1>
     <form action="{{ url_for('process') }}" method="POST" class="space-y-4">
-      <input name="name" placeholder="Enter your Full Name" required
+      <input name="first_name" placeholder="First Name" required
+        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      <input name="last_name" placeholder="Last Name" required
         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
       <button type="submit"
         class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 w-full">Submit</button>
@@ -68,14 +68,20 @@ def scan():
 </html>
 """)
 
-# ★★★ NEW: This route PREPARES the action but does not execute it ★★★
+# This route ONLY processes the form. It only accepts POST requests.
 @app.route("/process", methods=["POST"])
 def process():
-    worker_name = request.form.get("name").strip()
-    if not worker_name:
-        return "Name cannot be empty.", 400
+    # ★★★ READ AND COMBINE THE NAMES ★★★
+    first_name = request.form.get("first_name", "").strip()
+    last_name = request.form.get("last_name", "").strip()
     
-    # --- Auto-Create and Verify User ---
+    if not first_name or not last_name:
+        return "First and Last Name are required.", 400
+    
+    # Combine into a single full name for the rest of the app
+    worker_name = f"{first_name} {last_name}"
+    
+    # --- The rest of the logic is the same as before ---
     try:
         user_cell = users_sheet.find(worker_name, in_column=1)
     except gspread.exceptions.CellNotFound:
@@ -88,12 +94,11 @@ def process():
     verification_status = "No"
     if not expected_token:
         new_token = str(uuid.uuid4())
-        session['device_token_to_set'] = new_token # Prepare to set token after confirmation
+        session['device_token_to_set'] = new_token
         verification_status = "Yes"
     elif expected_token == actual_token:
         verification_status = "Yes"
     
-    # --- Prepare Clock-In or Clock-Out Data ---
     now = datetime.now(CENTRAL_TIMEZONE)
     day_with_suffix = get_day_with_suffix(now.day)
     today_date = now.strftime(f"%b. {day_with_suffix}, %Y")
@@ -106,13 +111,9 @@ def process():
             row_to_update = i + 2
             break
             
-    # ★★★ Store the pending action in the session ★★★
     pending_action = {
-        'name': worker_name,
-        'date': today_date,
-        'time': current_time,
-        'verified': verification_status,
-        'user_row': user_cell.row
+        'name': worker_name, 'date': today_date, 'time': current_time,
+        'verified': verification_status, 'user_row': user_cell.row
     }
     
     if row_to_update:
@@ -126,26 +127,22 @@ def process():
     session['pending_action'] = pending_action
     return redirect(url_for('confirm'))
 
-# ★★★ NEW: The Confirmation Page Route ★★★
+# The confirmation page logic is unchanged
 @app.route("/confirm", methods=["GET", "POST"])
 def confirm():
     pending_action = session.get('pending_action')
     if not pending_action:
         return redirect(url_for('scan'))
 
-    # --- This handles the FINAL confirmation ---
     if request.method == 'POST':
-        # Retrieve action from session
         action = session.pop('pending_action', None)
-        if not action: return redirect(url_for('scan')) # Should not happen
+        if not action: return redirect(url_for('scan'))
 
-        # Set device token if it was a first-time registration
         if 'device_token_to_set' in session:
             token = session.pop('device_token_to_set')
             session['device_token'] = token
             users_sheet.update_cell(action['user_row'], 2, token)
 
-        # ★★★ WRITE TO GOOGLE SHEETS HERE ★★★
         if action['type'] == 'Clock Out':
             log_sheet.update_cell(action['row_to_update'], 4, action['time'])
             log_sheet.update_cell(action['row_to_update'], 5, action['combined_status'])
@@ -158,7 +155,6 @@ def confirm():
         session['last_message'] = message
         return redirect(url_for('success'))
         
-    # --- This displays the confirmation page ---
     action_type = pending_action.get('type', 'action')
     worker_name = pending_action.get('name', 'Unknown')
     
@@ -175,20 +171,16 @@ def confirm():
     <p class="text-lg text-gray-700 mb-6">You are about to <strong>{action_type}</strong> for <strong>{worker_name}</strong>. Is this correct?</p>
     <div class="flex justify-center space-x-4">
         <form action="{{ url_for('confirm') }}" method="POST">
-            <button type="submit" class="bg-green-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-green-600">
-                Yes, Confirm
-            </button>
+            <button type="submit" class="bg-green-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-green-600">Yes, Confirm</button>
         </form>
-        <a href="{{ url_for('scan') }}" class="bg-red-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-600">
-            Cancel
-        </a>
+        <a href="{{ url_for('scan') }}" class="bg-red-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-600">Cancel</a>
     </div>
   </div>
 </body>
 </html>
 """)
 
-# Final success page (unchanged)
+# The final success page is unchanged
 @app.route("/success")
 def success():
     message = session.pop('last_message', '<p>Action completed.</p>')
