@@ -6,7 +6,6 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import json
 import os
-import time
 
 app = Flask(__name__)
 
@@ -36,21 +35,21 @@ def get_day_with_suffix(d):
     if d % 10 == 3: return f"{d}rd"
     return f"{d}th"
 
-# Helper function to prepare the action (reduces repeated code)
+# This helper function now contains the definitive fix
 def prepare_action(worker_name):
     user_row_number = None
-    user_cell = None
     try:
         user_cell = users_sheet.find(worker_name, in_column=1)
         user_row_number = user_cell.row
     except gspread.exceptions.CellNotFound:
+        # ★★★ THE ROBUST FIX: CALCULATE THE NEW ROW NUMBER ★★★
+        # 1. Get the current number of data rows
+        num_data_rows = len(users_sheet.get_all_records())
+        # 2. Calculate the new row number (Header is 1, so new row is count + 2)
+        user_row_number = num_data_rows + 2
+        # 3. Add the new user
         users_sheet.append_row([worker_name, ""])
-        time.sleep(1) # Give Google a moment to process
-        user_cell = users_sheet.find(worker_name, in_column=1)
-        if user_cell:
-            user_row_number = user_cell.row
-        else:
-            raise Exception("Critical Error: Failed to find user after creation.")
+        # No need to search again, we know the correct row number.
 
     expected_token = users_sheet.cell(user_row_number, 2).value
     actual_token = session.get('device_token')
@@ -88,6 +87,8 @@ def prepare_action(worker_name):
         pending_action['type'] = 'Clock In'
 
     session['pending_action'] = pending_action
+
+# --- The Routes (Unchanged from the last working confirmation version) ---
 
 @app.route("/")
 def home():
