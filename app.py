@@ -62,16 +62,14 @@ def prepare_action(worker_name):
     
     log_records = log_sheet.get_all_records()
     row_to_update = None
-    already_clocked_out = False # ★★★ NEW: Flag to track status ★★★
+    already_clocked_out = False
 
     for i, record in reversed(list(enumerate(log_records))):
         if record.get("Name") == worker_name and record.get("Date") == today_date:
             if not record.get("Clock Out"):
-                # This is the open record we want to clock out of
                 row_to_update = i + 2
                 break
             else:
-                # We found an entry for today, and it's already clocked out
                 already_clocked_out = True
                 break
             
@@ -80,7 +78,6 @@ def prepare_action(worker_name):
         'verified': verification_status, 'user_row': user_row_number
     }
     
-    # ★★★ NEW: Logic to handle different states ★★★
     if already_clocked_out:
         pending_action['type'] = 'Already Clocked Out'
     elif row_to_update:
@@ -95,9 +92,30 @@ def prepare_action(worker_name):
 
 # --- Routes ---
 
+# ★★★ THIS IS THE NEW "SMART" HOME ROUTE ★★★
 @app.route("/")
 def home():
+    # Check if we recognize the user's device
+    device_token = session.get('device_token')
+    if device_token:
+        token_cell = users_sheet.find(device_token, in_column=2)
+        if token_cell is not None:
+            # Device recognized! Auto-fill their info.
+            worker_name = users_sheet.cell(token_cell.row, 1).value
+            prepare_action(worker_name)
+            
+            # Check if they already clocked out to show message immediately
+            if session['pending_action']['type'] == 'Already Clocked Out':
+                message = f"<h2>Already Clocked Out</h2><p>{worker_name}, you have already clocked out for the day.</p>"
+                session.pop('pending_action', None)
+                session['last_message'] = message
+                return redirect(url_for('success'))
+
+            return redirect(url_for('confirm'))
+
+    # If device is not recognized, proceed as normal to the manual entry form
     return redirect(url_for('scan'))
+
 
 @app.route("/scan", methods=["GET"])
 def scan():
@@ -111,6 +129,7 @@ def scan():
 <body class="bg-gray-100 h-screen flex items-center justify-center">
   <div class="bg-white p-6 rounded-xl shadow-md text-center w-full max-w-md">
     <h1 class="text-2xl font-bold mb-4">Attendance</h1>
+    <h2 class="text-lg text-gray-600 mb-4">Device not recognized. Please enter your name.</h2>
     <form action="{{ url_for('process') }}" method="POST" class="space-y-4">
       <input name="first_name" placeholder="First Name" required
         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
@@ -151,14 +170,6 @@ def process():
             worker_name = attempted_name
 
     prepare_action(worker_name)
-
-    # ★★★ NEW: Check if user is already clocked out before showing confirmation ★★★
-    if session['pending_action']['type'] == 'Already Clocked Out':
-        message = f"<h2>Already Clocked Out</h2><p>{session['pending_action']['name']}, you have already clocked out for the day.</p>"
-        session.pop('pending_action', None) # Clear the action
-        session['last_message'] = message
-        return redirect(url_for('success'))
-        
     return redirect(url_for('confirm'))
 
 @app.route("/handle_typo", methods=["GET", "POST"])
@@ -245,7 +256,6 @@ def execute():
     if action['type'] == 'Clock Out':
         log_sheet.update_cell(action['row_to_update'], 4, action['time'])
         log_sheet.update_cell(action['row_to_update'], 5, action['combined_status'])
-        # ★★★ CLEANER MESSAGE ★★★
         message = f"<h2>Goodbye, {action['name']}!</h2><p>You have been clocked out successfully.</p>"
     else:
         new_row = [action['date'], action['name'], action['time'], "", action['verified']]
@@ -258,14 +268,12 @@ def execute():
 @app.route("/success")
 def success():
     message = session.pop('last_message', '<p>Action completed.</p>')
-    # ★★★ UI to look like the first screen, matching your request ★★★
     return render_template_string(f"""
 <!DOCTYPE html>
 <html lang='en'>
 <head>
   <meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'>
   <script src='https://cdn.tailwindcss.com'></script><title>Status</title>
-  <style> h2 {{ font-size: 1.5rem; font-weight: bold; margin-bottom: 0.5rem; }} </style>
 </head>
 <body class='bg-gray-100 h-screen flex items-center justify-center'>
   <div class='bg-white p-6 rounded-xl shadow-md text-center w-full max-w-md'>
