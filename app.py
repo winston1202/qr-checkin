@@ -1,3 +1,4 @@
+# Import make_response to be able to set cookies from the server
 from flask import Flask, request, redirect, render_template, session, url_for, make_response
 import uuid
 from datetime import datetime
@@ -8,6 +9,7 @@ import json
 import os
 
 app = Flask(__name__)
+
 app.secret_key = os.environ.get("SECRET_KEY")
 if not app.secret_key:
     raise Exception("Missing SECRET_KEY environment variable.")
@@ -19,10 +21,13 @@ scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 
-log_sheet = client.open("QR Check-Ins").worksheet("Attendance")
-users_sheet = client.open("QR Check-Ins").worksheet("Users")
+try:
+    log_sheet = client.open("QR Check-Ins").worksheet("Attendance")
+    users_sheet = client.open("QR Check-Ins").worksheet("Users")
+except gspread.exceptions.WorksheetNotFound:
+    raise Exception("Could not find worksheets 'Attendance' or 'Users'. Please check names.")
 
-# --- Helpers ---
+# --- Timezone and Date Suffix Function ---
 CENTRAL_TIMEZONE = pytz.timezone("America/Chicago")
 def get_day_with_suffix(d):
     if 11 <= d <= 13: return f"{d}th"
@@ -31,21 +36,25 @@ def get_day_with_suffix(d):
     if d % 10 == 3: return f"{d}rd"
     return f"{d}th"
 
+# This helper function contains the robust logic for preparing an action
 def prepare_action(worker_name):
     user_cell = users_sheet.find(worker_name, in_column=1)
     if user_cell is None:
-        user_row_number = len(users_sheet.get_all_records()) + 2
+        num_data_rows = len(users_sheet.get_all_records())
+        user_row_number = num_data_rows + 2
         users_sheet.append_row([worker_name, ""])
     else:
         user_row_number = user_cell.row
 
     expected_token = users_sheet.cell(user_row_number, 2).value
-    actual_token = session.get('device_token')
+    # ★★★ Read the token from the cookie, not the session ★★★
+    actual_token = request.cookies.get('device_token')
     
     verification_status = "No"
+    # We only mark for a new token if one is missing from the sheet
     if not expected_token:
-        new_token = str(uuid.uuid4())
-        session['device_token_to_set'] = new_token
+        if actual_token: # If the browser has a token, we'll save it
+            session['device_token_to_set'] = actual_token
         verification_status = "Yes"
     elif expected_token == actual_token:
         verification_status = "Yes"
@@ -85,27 +94,16 @@ def prepare_action(worker_name):
     session['pending_action'] = pending_action
 
 # --- Routes ---
-
-@app.before_request
-def ensure_device_token():
-    # Fallback to cookie if session token is missing
-    if 'device_token' not in session:
-        token = request.cookies.get('device_token')
-        if token:
-            session['device_token'] = token
-
 @app.route("/")
 def home():
-    device_token = session.get('device_token')
-    print("[DEBUG] Device token:", device_token)
-
+    # ★★★ Correctly read the token from the cookie ★★★
+    device_token = request.cookies.get('device_token')
     if device_token:
         token_cell = users_sheet.find(device_token, in_column=2)
-        if token_cell:
+        if token_cell is not None:
             worker_name = users_sheet.cell(token_cell.row, 1).value
-            print("[DEBUG] Auto-filled worker:", worker_name)
             prepare_action(worker_name)
-
+            
             if session.get('pending_action', {}).get('type') == 'Already Clocked Out':
                 message = f"<h2>Already Clocked Out</h2><p>{worker_name}, you have already clocked out for the day.</p>"
                 session.pop('pending_action', None)
@@ -126,17 +124,18 @@ def process():
     last_name = request.form.get("last_name", "").strip()
     if not first_name or not last_name:
         return "First and Last Name are required.", 400
-
+    
     attempted_name = f"{first_name} {last_name}"
+    
     user_cell = users_sheet.find(attempted_name, in_column=1)
 
     if user_cell is not None:
         worker_name = attempted_name
     else:
-        actual_token = session.get('device_token')
+        actual_token = request.cookies.get('device_token')
         if actual_token:
             token_cell = users_sheet.find(actual_token, in_column=2)
-            if token_cell:
+            if token_cell is not None:
                 correct_name = users_sheet.cell(token_cell.row, 1).value
                 session['typo_conflict'] = {'correct_name': correct_name, 'attempted_name': attempted_name}
                 return redirect(url_for('handle_typo'))
@@ -146,7 +145,7 @@ def process():
             worker_name = attempted_name
 
     prepare_action(worker_name)
-
+    
     if session.get('pending_action', {}).get('type') == 'Already Clocked Out':
         message = f"<h2>Already Clocked Out</h2><p>{worker_name}, you have already clocked out for the day.</p>"
         session.pop('pending_action', None)
@@ -157,6 +156,7 @@ def process():
 
 @app.route("/handle_typo", methods=["GET", "POST"])
 def handle_typo():
+    # ... (This route is correct and does not need changes)
     conflict = session.get('typo_conflict')
     if not conflict: return redirect(url_for('scan'))
 
@@ -178,6 +178,7 @@ def handle_typo():
 
 @app.route("/confirm")
 def confirm():
+    # ... (This route is correct and does not need changes)
     pending_action = session.get('pending_action')
     if not pending_action: return redirect(url_for('scan'))
     return render_template("confirm.html",
@@ -190,28 +191,32 @@ def execute():
     action = session.pop('pending_action', None)
     if not action: return redirect(url_for('scan'))
 
-    response = make_response(redirect(url_for('success')))
-
-    if 'device_token_to_set' in session:
-        token = session.pop('device_token_to_set')
-        session['device_token'] = token
-        users_sheet.update_cell(action['user_row'], 2, token)
-        response.set_cookie('device_token', token, max_age=31536000)  # 1 year
-
+    # We use the session to pass the prepared message and type to the success page
+    message = ""
     if action['type'] == 'Clock Out':
         log_sheet.update_cell(action['row_to_update'], 4, action['time'])
         log_sheet.update_cell(action['row_to_update'], 5, action['combined_status'])
         message = f"<h2>Goodbye, {action['name']}!</h2><p>You have been clocked out successfully.</p>"
-    else:
+    else: # Clock In
         new_row = [action['date'], action['name'], action['time'], "", action['verified']]
         log_sheet.append_row(new_row)
         message = f"<h2>Welcome, {action['name']}!</h2><p>You have been clocked in successfully.</p>"
-
+        
     session['final_status'] = {'message': message, 'type': action['type']}
+    
+    # We still create a response to set the cookie if needed
+    response = make_response(redirect(url_for('success')))
+    if 'device_token_to_set' in session:
+        token = session.pop('device_token_to_set')
+        users_sheet.update_cell(action['user_row'], 2, token)
+        # We don't need to set the cookie here, the JS already did it.
+        # This just syncs the server-side record.
+    
     return response
 
 @app.route("/success")
 def success():
+    # ... (This route is correct and does not need changes)
     final_status = session.pop('final_status', {})
     return render_template("success.html",
         message=final_status.get('message', '<p>Action completed.</p>'),
