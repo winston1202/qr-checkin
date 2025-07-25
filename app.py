@@ -1,4 +1,5 @@
-from flask import Flask, request, redirect, render_template_string, session, url_for
+# We need to import the main render_template function
+from flask import Flask, request, redirect, render_template, session, url_for
 import uuid
 from datetime import datetime
 import pytz
@@ -113,30 +114,7 @@ def home():
 
 @app.route("/scan", methods=["GET"])
 def scan():
-    html = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script><title>Check-In</title>
-</head>
-<body class="bg-gray-100 h-screen flex items-center justify-center">
-  <div class="bg-white p-6 rounded-xl shadow-md text-center w-full max-w-md">
-    <h1 class="text-2xl font-bold mb-4">Attendance</h1>
-    <h2 class="text-lg text-gray-600 mb-4">Device not recognized. Please enter your name.</h2>
-    <form action="{{ url_for('process') }}" method="POST" class="space-y-4">
-      <input name="first_name" placeholder="First Name" required
-        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
-      <input name="last_name" placeholder="Last Name" required
-        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
-      <button type="submit"
-        class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 w-full">Submit</button>
-    </form>
-  </div>
-</body>
-</html>
-"""
-    return render_template_string(html)
+    return render_template("scan.html")
 
 @app.route("/process", methods=["POST"])
 def process():
@@ -193,31 +171,7 @@ def handle_typo():
         prepare_action(worker_name)
         return redirect(url_for('confirm'))
 
-    html_template = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script><title>Verify Identity</title>
-</head>
-<body class="bg-gray-100 h-screen flex items-center justify-center">
-  <div class="bg-white p-8 rounded-xl shadow-md text-center w-full max-w-md">
-    <h1 class="text-2xl font-bold mb-4">Identity Check</h1>
-    <p class="text-lg text-gray-700 mb-6">This device is registered to <strong>{correct_name}</strong>. <br><br>Are you this person?</p>
-    <div class="flex justify-center space-x-4">
-        <form action="{{ url_for('handle_typo') }}" method="POST">
-            <input type="hidden" name="choice" value="yes"><button type="submit" class="bg-green-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-green-600">Yes, that's me</button>
-        </form>
-        <form action="{{ url_for('handle_typo') }}" method="POST">
-            <input type="hidden" name="choice" value="no"><button type="submit" class="bg-red-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-600">No, I'm new</button>
-        </form>
-    </div>
-  </div>
-</body>
-</html>
-"""
-    final_html = html_template.format(correct_name=conflict['correct_name'])
-    return render_template_string(final_html)
+    return render_template("handle_typo.html", correct_name=conflict['correct_name'])
 
 @app.route("/confirm")
 def confirm():
@@ -225,30 +179,7 @@ def confirm():
     if not pending_action: return redirect(url_for('scan'))
     action_type = pending_action.get('type', 'action')
     worker_name = pending_action.get('name', 'Unknown')
-    
-    html_template = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script><title>Confirm Action</title>
-</head>
-<body class="bg-gray-100 h-screen flex items-center justify-center">
-  <div class="bg-white p-8 rounded-xl shadow-md text-center w-full max-w-md">
-    <h1 class="text-2xl font-bold mb-4">Please Confirm</h1>
-    <p class="text-lg text-gray-700 mb-6">You are about to <strong>{action_type}</strong> for <strong>{worker_name}</strong>. Is this correct?</p>
-    <div class="flex justify-center space-x-4">
-        <form action="{{ url_for('execute') }}" method="POST">
-            <button type="submit" class="bg-green-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-green-600">Yes, Confirm</button>
-        </form>
-        <a href="{{ url_for('scan') }}" class="bg-red-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-600">No, Cancel</a>
-    </div>
-  </div>
-</body>
-</html>
-"""
-    final_html = html_template.format(action_type=action_type, worker_name=worker_name)
-    return render_template_string(final_html)
+    return render_template("confirm.html", action_type=action_type, worker_name=worker_name)
 
 @app.route("/execute", methods=["POST"])
 def execute():
@@ -279,25 +210,8 @@ def success():
     message = final_status.get('message', '<p>Action completed.</p>')
     action_type = final_status.get('type')
     
-    back_button_html = ""
-    if action_type != 'Clock Out' and action_type != 'Already Clocked Out':
-        back_button_html = "<a href=\"{{ url_for('scan') }}\" class='bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 w-full inline-block'>Back to Check-in</a>"
+    show_back_button = True
+    if action_type == 'Clock Out' or action_type == 'Already Clocked Out':
+        show_back_button = False
 
-    html_template = """
-<!DOCTYPE html>
-<html lang='en'>
-<head>
-  <meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'>
-  <script src='https://cdn.tailwindcss.com'></script><title>Status</title>
-  <style> h2 {{ font-size: 1.5rem; font-weight: bold; margin-bottom: 0.5rem; }} </style>
-</head>
-<body class='bg-gray-100 h-screen flex items-center justify-center'>
-  <div class='bg-white p-6 rounded-xl shadow-md text-center w-full max-w-md'>
-    <div class='mb-4'>{message}</div>
-    {back_button_html}
-  </div>
-</body>
-</html>
-"""
-    final_html = html_template.format(message=message, back_button_html=back_button_html)
-    return render_template_string(final_html)
+    return render_template("success.html", message=message, show_back_button=show_back_button)
