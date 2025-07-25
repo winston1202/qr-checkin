@@ -14,7 +14,6 @@ app.secret_key = os.environ.get("SECRET_KEY", "a-default-secret-key-for-developm
 if app.secret_key == "a-default-secret-key-for-development":
     print("Warning: Using default SECRET_KEY. Please set a proper secret key in your environment for production.")
 
-
 # --- Google Sheets Setup ---
 # Ensure the GOOGLE_SHEETS_CREDS environment variable is set with your JSON credentials.
 creds_json_string = os.environ.get("GOOGLE_SHEETS_CREDS")
@@ -42,48 +41,74 @@ def get_day_with_suffix(d):
 def prepare_action(worker_name):
     """
     Checks the user's status in Google Sheets and determines the next required action.
-    Returns: A dictionary with the pending action details.
+    This version is more robust and finds columns by header name.
     """
-    user_cell = users_sheet.find(worker_name, in_column=1)
-    if user_cell:
-        user_row_number = user_cell.row
-    else:
-        # If user does not exist, add them to the Users sheet.
-        users_sheet.append_row([worker_name, ""])
-        user_row_number = len(users_sheet.get_all_records()) + 1
+    # Get all data from the log sheet, including headers.
+    log_values = log_sheet.get_all_values()
+    if not log_values:
+        raise Exception("The 'Attendance' sheet is empty. It must have at least a header row.")
 
-    # Check if this device is verified for the user.
-    expected_token = users_sheet.cell(user_row_number, 2).value
-    actual_token = session.get('device_token')
+    headers = [h.strip() for h in log_values[0]] # Read and clean headers
+    records = log_values[1:]
+
+    # Find column indices dynamically. This is robust against reordering.
+    try:
+        name_col_idx = headers.index("Name")
+        date_col_idx = headers.index("Date")
+        clock_in_col_idx = headers.index("Clock In")
+        clock_out_col_idx = headers.index("Clock Out")
+        verified_col_idx = headers.index("Verified")
+    except ValueError as e:
+        raise Exception(f"A required column is missing in the 'Attendance' sheet. Please ensure 'Name', 'Date', 'Clock In', 'Clock Out', and 'Verified' headers exist. Details: {e}")
+
+    user_cell = users_sheet.find(worker_name, in_column=1)
+    user_row_number = user_cell.row if user_cell else None
+
+    # Logic to handle verification and device tokens
     verification_status = "No"
-    if not expected_token:
-        # If no token is associated, assign this new device to the user.
+    if user_row_number:
+        expected_token = users_sheet.cell(user_row_number, 2).value
+        actual_token = session.get('device_token')
+        if not expected_token:
+            new_token = str(uuid.uuid4())
+            session['device_token_to_set'] = new_token
+            verification_status = "Yes"
+        elif expected_token == actual_token:
+            verification_status = "Yes"
+    else: # New user, not yet in the Users sheet
+        users_sheet.append_row([worker_name, ""])
+        user_row_number = len(users_sheet.get_all_records()) + 1 # Re-fetch or calculate new row
         new_token = str(uuid.uuid4())
         session['device_token_to_set'] = new_token
-        verification_status = "Yes"
-    elif expected_token == actual_token:
         verification_status = "Yes"
 
     now = datetime.now(CENTRAL_TIMEZONE)
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
     current_time = now.strftime("%I:%M:%S %p")
 
-    log_records = log_sheet.get_all_records()
     row_to_update = None
     already_clocked_out = False
 
     # Search backwards through the logs to find the user's last action for today.
-    for i, record in reversed(list(enumerate(log_records))):
-        if record.get("Name") == worker_name and record.get("Date") == today_date:
-            if record.get("Clock Out"):
-                already_clocked_out = True
-            else:
-                row_to_update = i + 2  # +2 to convert from 0-based index to 1-based gspread row.
-            break # Found the last relevant record for today.
+    for i, record in reversed(list(enumerate(records))):
+        # Check if the record has enough columns to avoid index errors
+        if len(record) > max(name_col_idx, date_col_idx, clock_out_col_idx):
+            if record[name_col_idx] == worker_name and record[date_col_idx] == today_date:
+                clock_out_value = record[clock_out_col_idx]
+                if clock_out_value and clock_out_value.strip(): # Check for a non-empty string
+                    already_clocked_out = True
+                else:
+                    row_to_update = i + 2  # +1 for header, +1 for 1-based index
+                break # Found the last relevant record for today.
 
     pending_action = {
         'name': worker_name, 'date': today_date, 'time': current_time,
-        'verified': verification_status, 'user_row': user_row_number
+        'verified': verification_status, 'user_row': user_row_number,
+        'col_indices': { # Store column indices for the execute step
+            'clock_in': clock_in_col_idx + 1,
+            'clock_out': clock_out_col_idx + 1,
+            'verified': verified_col_idx + 1
+        }
     }
 
     if already_clocked_out:
@@ -97,12 +122,18 @@ def prepare_action(worker_name):
     session['pending_action'] = pending_action
 
 
+def handle_already_clocked_out(worker_name):
+    """Prepares and redirects for the 'Already Clocked Out' case."""
+    session['final_status'] = {
+        'message': f"<h2>Action Completed</h2><p>{worker_name}, you have already completed your entry for the day.</p>",
+        'type': 'Already Clocked Out'
+    }
+    return redirect(url_for('success'))
+
+
 @app.route("/")
 def home():
-    """
-    Handles returning users with an existing session token.
-    Redirects them to the appropriate action based on their status.
-    """
+    """Handles returning users with a session token."""
     device_token = session.get('device_token')
     if device_token:
         token_cell = users_sheet.find(device_token, in_column=2)
@@ -112,32 +143,22 @@ def home():
             pending = session.get('pending_action', {})
 
             if pending.get('type') == 'Already Clocked Out':
-                # If user has already clocked in and out, show final success page.
-                session['final_status'] = {
-                    'message': f"<h2>Action Completed</h2><p>{worker_name}, you have already completed your entry for the day.</p>",
-                    'type': 'Already Clocked Out'
-                }
-                return redirect(url_for('success'))
+                return handle_already_clocked_out(worker_name)
             else:
-                # For both 'Clock In' and 'Clock Out' actions, go to the generic confirmation page.
                 return redirect(url_for('confirm'))
 
-    # If no valid token, send to the scanning/login page.
     return redirect(url_for('scan'))
 
 
 @app.route("/scan")
 def scan():
-    """Renders the initial page for scanning a QR code or entering a name."""
-    # This template should be named 'scan.html'
+    """Renders the initial page."""
     return render_template("scan.html")
 
 
 @app.route("/process", methods=["POST"])
 def process():
-    """
-    Processes a user's name submitted via form.
-    """
+    """Processes a user's name from the form."""
     first_name = request.form.get("first_name", "").strip()
     last_name = request.form.get("last_name", "").strip()
 
@@ -150,39 +171,27 @@ def process():
     pending = session.get('pending_action', {})
 
     if pending.get('type') == 'Already Clocked Out':
-        session['final_status'] = {
-            'message': f"<h2>Action Completed</h2><p>{worker_name}, you have already completed your entry for the day.</p>",
-            'type': 'Already Clocked Out'
-        }
-        return redirect(url_for('success'))
+        return handle_already_clocked_out(worker_name)
 
-    # All other cases ('Clock In' or 'Clock Out') go to the confirm page.
     return redirect(url_for('confirm'))
 
 
 @app.route("/confirm")
 def confirm():
-    """
-    Shows a generic confirmation screen for any pending action ('Clock In' or 'Clock Out').
-    """
+    """Shows a generic confirmation screen for any pending action."""
     pending = session.get('pending_action')
     if not pending:
         return redirect(url_for('scan'))
-
-    # This template should be named 'confirm.html'
     return render_template("confirm.html", action_type=pending['type'], worker_name=pending['name'])
 
 
 @app.route("/execute", methods=["POST"])
 def execute():
-    """
-    Executes the pending action (Clock In or Clock Out) and updates the Google Sheet.
-    """
+    """Executes the pending action and updates the Google Sheet."""
     action = session.pop('pending_action', None)
     if not action:
         return redirect(url_for('scan'))
 
-    # If a new device was used, save its token to the Users sheet.
     if 'device_token_to_set' in session:
         token = session.pop('device_token_to_set')
         session['device_token'] = token
@@ -190,38 +199,41 @@ def execute():
 
     message = ""
     action_type = action.get('type')
+    cols = action.get('col_indices', {})
 
     if action_type == 'Clock Out':
-        log_sheet.update_cell(action['row_to_update'], 4, action['time']) # Update Clock Out time
-        log_sheet.update_cell(action['row_to_update'], 5, action['verified']) # Update Verified status
+        log_sheet.update_cell(action['row_to_update'], cols['clock_out'], action['time'])
+        log_sheet.update_cell(action['row_to_update'], cols['verified'], action['verified'])
         message = f"<h2>Goodbye, {action['name']}!</h2><p>You have been clocked out successfully.</p>"
     elif action_type == 'Clock In':
-        new_row = [action['date'], action['name'], action['time'], "", action['verified']]
-        log_sheet.append_row(new_row)
+        # Create a blank row with the correct number of columns based on headers
+        num_cols = len(log_sheet.get_all_values()[0])
+        new_row_data = [""] * num_cols
+        
+        # Place data in the correct columns by index
+        new_row_data[cols['clock_in'] - 1] = action['time']
+        new_row_data[cols['verified'] - 1] = action['verified']
+        # The following assume "Date" and "Name" are the first two columns.
+        # For full robustness, their indices should also be used.
+        new_row_data[0] = action['date']
+        new_row_data[1] = action['name']
+
+        log_sheet.append_row(new_row_data)
         message = f"<h2>Welcome, {action['name']}!</h2><p>You have been clocked in successfully.</p>"
 
-    # Store the final message and action type to show on the success page.
     session['final_status'] = {'message': message, 'type': action_type}
     return redirect(url_for('success'))
 
 
 @app.route("/success")
 def success():
-    """
-    Displays a final success/status message to the user.
-    The "Back to Check-in" button is hidden if the user's day is complete.
-    """
+    """Displays a final success/status message."""
     final_status = session.pop('final_status', None)
     if not final_status:
-        # If someone navigates here directly, just show a generic message.
         return render_template("success.html", message="<p>Action completed.</p>", show_back_button=True)
 
     message = final_status.get('message')
     action_type = final_status.get('type')
-
-    # The button is hidden for a completed clock-out or if they were already done.
     show_back_button = action_type not in ['Clock Out', 'Already Clocked Out']
 
-    # This template should be named 'success.html' and is provided in the prompt.
-    return render_template("success.html", message=message, show_back_button=show_back_button)
-
+    return render_template("success.html", message=message, show_back_button=show_back_button) 
