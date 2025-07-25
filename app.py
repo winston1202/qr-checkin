@@ -6,6 +6,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import json
 import os
+import time
 
 app = Flask(__name__)
 
@@ -35,21 +36,25 @@ def get_day_with_suffix(d):
     if d % 10 == 3: return f"{d}rd"
     return f"{d}th"
 
-# This helper function now contains the definitive fix
+# This helper function contains the corrected logic
 def prepare_action(worker_name):
     user_row_number = None
+    user_cell = None
     try:
+        # ★★★ THE FIX IS HERE (and in the other try/except blocks) ★★★
         user_cell = users_sheet.find(worker_name, in_column=1)
         user_row_number = user_cell.row
-    except gspread.exceptions.CellNotFound:
-        # ★★★ THE ROBUST FIX: CALCULATE THE NEW ROW NUMBER ★★★
-        # 1. Get the current number of data rows
-        num_data_rows = len(users_sheet.get_all_records())
-        # 2. Calculate the new row number (Header is 1, so new row is count + 2)
-        user_row_number = num_data_rows + 2
-        # 3. Add the new user
+    except gspread.CellNotFound:
+        # User does not exist. Add them.
         users_sheet.append_row([worker_name, ""])
-        # No need to search again, we know the correct row number.
+        # Wait a moment for Google's servers to catch up.
+        time.sleep(1.5) # Increased delay slightly for more reliability
+        # Now, find the user again. This search will be successful.
+        user_cell = users_sheet.find(worker_name, in_column=1)
+        if user_cell is None:
+            # This is a final failsafe.
+            raise Exception("Critical Error: Could not find user after creating them. Please try again.")
+        user_row_number = user_cell.row
 
     expected_token = users_sheet.cell(user_row_number, 2).value
     actual_token = session.get('device_token')
@@ -88,7 +93,7 @@ def prepare_action(worker_name):
 
     session['pending_action'] = pending_action
 
-# --- The Routes (Unchanged from the last working confirmation version) ---
+# --- Routes ---
 
 @app.route("/")
 def home():
@@ -131,7 +136,7 @@ def process():
     try:
         users_sheet.find(attempted_name, in_column=1)
         worker_name = attempted_name
-    except gspread.exceptions.CellNotFound:
+    except gspread.CellNotFound: # ★★★ CORRECT EXCEPTION NAME ★★★
         actual_token = session.get('device_token')
         if actual_token:
             try:
@@ -139,7 +144,7 @@ def process():
                 correct_name = users_sheet.cell(token_cell.row, 1).value
                 session['typo_conflict'] = {'correct_name': correct_name, 'attempted_name': attempted_name}
                 return redirect(url_for('handle_typo'))
-            except gspread.exceptions.CellNotFound:
+            except gspread.CellNotFound: # ★★★ CORRECT EXCEPTION NAME ★★★
                 worker_name = attempted_name
         else:
             worker_name = attempted_name
