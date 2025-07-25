@@ -6,7 +6,6 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import json
 import os
-import time
 
 app = Flask(__name__)
 
@@ -36,24 +35,18 @@ def get_day_with_suffix(d):
     if d % 10 == 3: return f"{d}rd"
     return f"{d}th"
 
-# This helper function contains the corrected logic
+# This helper function contains the definitive fix
 def prepare_action(worker_name):
-    user_row_number = None
-    user_cell = None
-    try:
-        # ★★★ THE FIX IS HERE (and in the other try/except blocks) ★★★
-        user_cell = users_sheet.find(worker_name, in_column=1)
-        user_row_number = user_cell.row
-    except gspread.CellNotFound:
-        # User does not exist. Add them.
+    # ★★★ THE ROBUST FIX: CHECKING FOR `None` ★★★
+    user_cell = users_sheet.find(worker_name, in_column=1)
+    
+    if user_cell is None:
+        # User does not exist, create them and calculate their new row number
+        num_data_rows = len(users_sheet.get_all_records())
+        user_row_number = num_data_rows + 2
         users_sheet.append_row([worker_name, ""])
-        # Wait a moment for Google's servers to catch up.
-        time.sleep(1.5) # Increased delay slightly for more reliability
-        # Now, find the user again. This search will be successful.
-        user_cell = users_sheet.find(worker_name, in_column=1)
-        if user_cell is None:
-            # This is a final failsafe.
-            raise Exception("Critical Error: Could not find user after creating them. Please try again.")
+    else:
+        # User exists, get their row number from the cell object
         user_row_number = user_cell.row
 
     expected_token = users_sheet.cell(user_row_number, 2).value
@@ -133,20 +126,26 @@ def process():
     
     attempted_name = f"{first_name} {last_name}"
     
-    try:
-        users_sheet.find(attempted_name, in_column=1)
+    user_cell = users_sheet.find(attempted_name, in_column=1)
+
+    if user_cell is not None:
+        # The name they typed exists. Proceed normally.
         worker_name = attempted_name
-    except gspread.CellNotFound: # ★★★ CORRECT EXCEPTION NAME ★★★
+    else:
+        # The name is new. Check if their device is old.
         actual_token = session.get('device_token')
         if actual_token:
-            try:
-                token_cell = users_sheet.find(actual_token, in_column=2)
+            token_cell = users_sheet.find(actual_token, in_column=2)
+            if token_cell is not None:
+                # CONFLICT: Device is known, but name is not.
                 correct_name = users_sheet.cell(token_cell.row, 1).value
                 session['typo_conflict'] = {'correct_name': correct_name, 'attempted_name': attempted_name}
                 return redirect(url_for('handle_typo'))
-            except gspread.CellNotFound: # ★★★ CORRECT EXCEPTION NAME ★★★
+            else:
+                # Genuinely a new user with a new device.
                 worker_name = attempted_name
         else:
+            # A new user with no device token yet.
             worker_name = attempted_name
 
     prepare_action(worker_name)
@@ -163,7 +162,8 @@ def handle_typo():
             worker_name = conflict['correct_name']
         else:
             old_user_cell = users_sheet.find(conflict['correct_name'], in_column=1)
-            users_sheet.update_cell(old_user_cell.row, 2, "")
+            if old_user_cell:
+                users_sheet.update_cell(old_user_cell.row, 2, "")
             worker_name = conflict['attempted_name']
 
         session.pop('typo_conflict', None)
