@@ -92,30 +92,25 @@ def prepare_action(worker_name):
 
 # --- Routes ---
 
-# ★★★ THIS IS THE NEW "SMART" HOME ROUTE ★★★
+# The "smart" home route now has the stricter clock-out check
 @app.route("/")
 def home():
-    # Check if we recognize the user's device
     device_token = session.get('device_token')
     if device_token:
         token_cell = users_sheet.find(device_token, in_column=2)
         if token_cell is not None:
-            # Device recognized! Auto-fill their info.
             worker_name = users_sheet.cell(token_cell.row, 1).value
             prepare_action(worker_name)
             
-            # Check if they already clocked out to show message immediately
-            if session['pending_action']['type'] == 'Already Clocked Out':
+            if session.get('pending_action', {}).get('type') == 'Already Clocked Out':
                 message = f"<h2>Already Clocked Out</h2><p>{worker_name}, you have already clocked out for the day.</p>"
                 session.pop('pending_action', None)
-                session['last_message'] = message
+                session['final_status'] = {'message': message, 'type': 'Already Clocked Out'}
                 return redirect(url_for('success'))
 
             return redirect(url_for('confirm'))
 
-    # If device is not recognized, proceed as normal to the manual entry form
     return redirect(url_for('scan'))
-
 
 @app.route("/scan", methods=["GET"])
 def scan():
@@ -143,6 +138,7 @@ def scan():
 </html>
 """)
 
+# The manual process route also gets the stricter check
 @app.route("/process", methods=["POST"])
 def process():
     first_name = request.form.get("first_name", "").strip()
@@ -170,6 +166,13 @@ def process():
             worker_name = attempted_name
 
     prepare_action(worker_name)
+    
+    if session.get('pending_action', {}).get('type') == 'Already Clocked Out':
+        message = f"<h2>Already Clocked Out</h2><p>{worker_name}, you have already clocked out for the day.</p>"
+        session.pop('pending_action', None)
+        session['final_status'] = {'message': message, 'type': 'Already Clocked Out'}
+        return redirect(url_for('success'))
+
     return redirect(url_for('confirm'))
 
 @app.route("/handle_typo", methods=["GET", "POST"])
@@ -207,7 +210,7 @@ def handle_typo():
             <input type="hidden" name="choice" value="yes"><button type="submit" class="bg-green-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-green-600">Yes, that's me</button>
         </form>
         <form action="{{{{ url_for('handle_typo') }}}}" method="POST">
-            <input type="hidden" name="choice" value="no"><button type="submit" class="bg-red-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-600">Nope, wrong person</button>
+            <input type="hidden" name="choice" value="no"><button type="submit" class="bg-red-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-600">No, I'm new</button>
         </form>
     </div>
   </div>
@@ -253,32 +256,43 @@ def execute():
         session['device_token'] = token
         users_sheet.update_cell(action['user_row'], 2, token)
 
+    message = ""
     if action['type'] == 'Clock Out':
         log_sheet.update_cell(action['row_to_update'], 4, action['time'])
         log_sheet.update_cell(action['row_to_update'], 5, action['combined_status'])
         message = f"<h2>Goodbye, {action['name']}!</h2><p>You have been clocked out successfully.</p>"
-    else:
+    else: # Clock In
         new_row = [action['date'], action['name'], action['time'], "", action['verified']]
         log_sheet.append_row(new_row)
         message = f"<h2>Welcome, {action['name']}!</h2><p>You have been clocked in successfully.</p>"
         
-    session['last_message'] = message
+    session['final_status'] = {'message': message, 'type': action['type']}
     return redirect(url_for('success'))
 
+# The success route is now smarter
 @app.route("/success")
 def success():
-    message = session.pop('last_message', '<p>Action completed.</p>')
+    final_status = session.pop('final_status', {})
+    message = final_status.get('message', '<p>Action completed.</p>')
+    action_type = final_status.get('type')
+    
+    # Conditionally create the "Back" button
+    back_button_html = ""
+    if action_type != 'Clock Out' and action_type != 'Already Clocked Out':
+        back_button_html = "<a href='{{{{ url_for('scan') }}}}' class='bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 w-full inline-block'>Back to Check-in</a>"
+
     return render_template_string(f"""
 <!DOCTYPE html>
 <html lang='en'>
 <head>
   <meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'>
   <script src='https://cdn.tailwindcss.com'></script><title>Status</title>
+  <style> h2 {{ font-size: 1.5rem; font-weight: bold; margin-bottom: 0.5rem; }} </style>
 </head>
 <body class='bg-gray-100 h-screen flex items-center justify-center'>
   <div class='bg-white p-6 rounded-xl shadow-md text-center w-full max-w-md'>
     <div class='mb-4'>{message}</div>
-    <a href="{{{{ url_for('scan') }}}}" class='bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 w-full inline-block'>Back to Check-in</a>
+    {back_button_html}
   </div>
 </body>
 </html>
