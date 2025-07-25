@@ -62,17 +62,28 @@ def prepare_action(worker_name):
     
     log_records = log_sheet.get_all_records()
     row_to_update = None
+    already_clocked_out = False # ★★★ NEW: Flag to track status ★★★
+
     for i, record in reversed(list(enumerate(log_records))):
-        if record.get("Name") == worker_name and record.get("Date") == today_date and not record.get("Clock Out"):
-            row_to_update = i + 2
-            break
+        if record.get("Name") == worker_name and record.get("Date") == today_date:
+            if not record.get("Clock Out"):
+                # This is the open record we want to clock out of
+                row_to_update = i + 2
+                break
+            else:
+                # We found an entry for today, and it's already clocked out
+                already_clocked_out = True
+                break
             
     pending_action = {
         'name': worker_name, 'date': today_date, 'time': current_time,
         'verified': verification_status, 'user_row': user_row_number
     }
     
-    if row_to_update:
+    # ★★★ NEW: Logic to handle different states ★★★
+    if already_clocked_out:
+        pending_action['type'] = 'Already Clocked Out'
+    elif row_to_update:
         pending_action['type'] = 'Clock Out'
         pending_action['row_to_update'] = row_to_update
         original_status = log_sheet.cell(row_to_update, 5).value
@@ -99,7 +110,7 @@ def scan():
 </head>
 <body class="bg-gray-100 h-screen flex items-center justify-center">
   <div class="bg-white p-6 rounded-xl shadow-md text-center w-full max-w-md">
-    <h1 class="text-2xl font-bold mb-4">Worker Check-In / Out</h1>
+    <h1 class="text-2xl font-bold mb-4">Attendance</h1>
     <form action="{{ url_for('process') }}" method="POST" class="space-y-4">
       <input name="first_name" placeholder="First Name" required
         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
@@ -140,6 +151,14 @@ def process():
             worker_name = attempted_name
 
     prepare_action(worker_name)
+
+    # ★★★ NEW: Check if user is already clocked out before showing confirmation ★★★
+    if session['pending_action']['type'] == 'Already Clocked Out':
+        message = f"<h2>Already Clocked Out</h2><p>{session['pending_action']['name']}, you have already clocked out for the day.</p>"
+        session.pop('pending_action', None) # Clear the action
+        session['last_message'] = message
+        return redirect(url_for('success'))
+        
     return redirect(url_for('confirm'))
 
 @app.route("/handle_typo", methods=["GET", "POST"])
@@ -161,7 +180,6 @@ def handle_typo():
         prepare_action(worker_name)
         return redirect(url_for('confirm'))
 
-    # ★★★ SYNTAX FIX HERE ★★★
     return render_template_string(f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -178,7 +196,7 @@ def handle_typo():
             <input type="hidden" name="choice" value="yes"><button type="submit" class="bg-green-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-green-600">Yes, that's me</button>
         </form>
         <form action="{{{{ url_for('handle_typo') }}}}" method="POST">
-            <input type="hidden" name="choice" value="no"><button type="submit" class="bg-red-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-600">No, I'm new</button>
+            <input type="hidden" name="choice" value="no"><button type="submit" class="bg-red-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-600">Nope, wrong person</button>
         </form>
     </div>
   </div>
@@ -192,7 +210,6 @@ def confirm():
     if not pending_action: return redirect(url_for('scan'))
     action_type = pending_action.get('type', 'action')
     worker_name = pending_action.get('name', 'Unknown')
-    # ★★★ SYNTAX FIX HERE ★★★
     return render_template_string(f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -208,7 +225,7 @@ def confirm():
         <form action="{{{{ url_for('execute') }}}}" method="POST">
             <button type="submit" class="bg-green-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-green-600">Yes, Confirm</button>
         </form>
-        <a href="{{{{ url_for('scan') }}}}" class="bg-red-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-600">Cancel</a>
+        <a href="{{{{ url_for('scan') }}}}" class="bg-red-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-600">No, Cancel</a>
     </div>
   </div>
 </body>
@@ -228,11 +245,12 @@ def execute():
     if action['type'] == 'Clock Out':
         log_sheet.update_cell(action['row_to_update'], 4, action['time'])
         log_sheet.update_cell(action['row_to_update'], 5, action['combined_status'])
-        message = f"<h2>Goodbye, {action['name']}!</h2><p>Verification: {action['combined_status']}</p>"
+        # ★★★ CLEANER MESSAGE ★★★
+        message = f"<h2>Goodbye, {action['name']}!</h2><p>You have been clocked out successfully.</p>"
     else:
         new_row = [action['date'], action['name'], action['time'], "", action['verified']]
         log_sheet.append_row(new_row)
-        message = f"<h2>Welcome, {action['name']}!</h2><p>Verification: {action['verified']}</p>"
+        message = f"<h2>Welcome, {action['name']}!</h2><p>You have been clocked in successfully.</p>"
         
     session['last_message'] = message
     return redirect(url_for('success'))
@@ -240,7 +258,7 @@ def execute():
 @app.route("/success")
 def success():
     message = session.pop('last_message', '<p>Action completed.</p>')
-    # ★★★ SYNTAX FIX HERE ★★★
+    # ★★★ UI to look like the first screen, matching your request ★★★
     return render_template_string(f"""
 <!DOCTYPE html>
 <html lang='en'>
@@ -251,8 +269,8 @@ def success():
 </head>
 <body class='bg-gray-100 h-screen flex items-center justify-center'>
   <div class='bg-white p-6 rounded-xl shadow-md text-center w-full max-w-md'>
-    {message}
-    <a href="{{{{ url_for('scan') }}}}" class='mt-4 inline-block text-blue-500 hover:underline'>🔁 Back to check-in page</a>
+    <div class='mb-4'>{message}</div>
+    <a href="{{{{ url_for('scan') }}}}" class='bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 w-full inline-block'>Back to Check-in</a>
   </div>
 </body>
 </html>
