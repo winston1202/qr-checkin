@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script><title>Verify Identity</title>
+</head>
+<body class="bg-gray-100 h-screen flex items-center justify-center">
+  <div class="bg-white p-8 rounded-xl shadow-md text-center w-full max-w-md">
+    <h1 class="text-2xl font-bold mb-4">Identity Check</h1>
+    <p class="text-lg text-gray-700 mb-6">This device is registered to <strong>{{ correct_name }}</strong>. <br><br>Are you this person?</p>
+    <div class="flex justify-center space-x-4">
+        <form action="{{ url_for('handle_typo') }}" method="POST">
+            <input type="hidden" name="choice" value="yes"><button type="submit" class="bg-green-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-green-600">Yes, that's me</button>
+        </form>
+        <form action="{{ url_for('handle_typo') }}" method="POST">
+            <input type="hidden" name="choice" value="no"><button type="submit" class="bg-red-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-600">No, I'm new</button>
+        </form>
+    </div>
+  </div>
+</body>
+</html>

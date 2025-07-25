@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <script src='https://cdn.tailwindcss.com'></script><title>Status</title>
+  <style> h2 { font-size: 1.5rem; font-weight: bold; margin-bottom: 0.5rem; } </style>
+</head>
+<body class='bg-gray-100 h-screen flex items-center justify-center'>
+  <div class='bg-white p-6 rounded-xl shadow-md text-center w-full max-w-md'>
+    <div class='mb-4'>{{ message | safe }}</div>
+    {% if show_back_button %}
+      <a href="{{ url_for('scan') }}" class='bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 w-full inline-block'>Back to Check-in</a>
+    {% endif %}
+  </div>
+</body>
+</html>
