@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.tailwindcss.com"></script><title>Clock Out?</title>
+</head>
+<body class="bg-gray-100 h-screen flex items-center justify-center">
+<div class="bg-white p-8 rounded-xl shadow-md text-center w-full max-w-md">
+<h1 class="text-2xl font-bold mb-4">Action Required</h1>
+<p class="text-lg text-gray-700 mb-6">Welcome back, <strong>{{ worker_name }}</strong>. Your clock-in is complete. <br><br>Would you like to clock out now?</p>
+<div class="flex justify-center space-x-4">
+<!-- This form now correctly points to the execute route -->
+<form action="{{ url_for('execute') }}" method="POST">
+<button type="submit" class="bg-green-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-green-600">
+Yes, Clock Out
+</button>
+</form>
+<a href="{{ url_for('scan') }}" class="bg-red-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-600">
+No, Cancel
+</a>
+</div>
+</div>
+</body>
+</html>

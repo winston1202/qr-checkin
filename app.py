@@ -80,8 +80,6 @@ def prepare_action(worker_name):
     elif row_to_update:
         pending_action['type'] = 'Offer Clock Out'
         pending_action['row_to_update'] = row_to_update
-        original_status = log_sheet.cell(row_to_update, 5).value
-        pending_action['combined_status'] = f"{original_status} / {verification_status}"
     else:
         pending_action['type'] = 'Clock In'
 
@@ -97,10 +95,10 @@ def home():
             prepare_action(worker_name)
             pending = session.get('pending_action', {})
             if pending.get('type') == 'Already Clocked Out':
-                flash(f"{worker_name}, you are already clocked out for the day.")
+                flash(f"{worker_name}, you have already completed your entry for the day.")
                 return redirect(url_for('scan'))
             elif pending.get('type') == 'Offer Clock Out':
-                return redirect(url_for('offer_clockout'))
+                return redirect(url_for('offer_clock_out'))
             return redirect(url_for('confirm'))
     return redirect(url_for('scan'))
 
@@ -133,10 +131,14 @@ def process():
     prepare_action(worker_name)
     pending = session.get('pending_action', {})
     if pending.get('type') == 'Already Clocked Out':
-        flash(f"{worker_name}, you are already clocked out for the day.")
+        flash(f"{worker_name}, you have already completed your entry for the day.")
         return redirect(url_for('scan'))
-    elif pending.get('type') == 'Offer Clock Out':
-        return redirect(url_for('offer_clockout'))
+    
+    # For manual entry, it's clearer to go to the standard confirmation page
+    if pending.get('type') == 'Offer Clock Out':
+        pending['type'] = 'Clock Out'
+        session['pending_action'] = pending
+        
     return redirect(url_for('confirm'))
 
 @app.route("/handle_typo", methods=["GET", "POST"])
@@ -168,12 +170,12 @@ def confirm():
         return redirect(url_for('scan'))
     return render_template("confirm.html", action_type=pending['type'], worker_name=pending['name'])
 
-@app.route("/offer_clockout")
-def offer_clockout():
+@app.route("/offer_clock_out")
+def offer_clock_out():
     pending = session.get('pending_action')
     if not pending or pending.get('type') != 'Offer Clock Out':
         return redirect(url_for('scan'))
-    return render_template("clock_out_prompt.html")
+    return render_template("offer_clock_out.html", worker_name=pending['name'])
 
 @app.route("/execute", methods=["POST"])
 def execute():
@@ -187,11 +189,13 @@ def execute():
         users_sheet.update_cell(action['user_row'], 2, token)
 
     if action['type'] in ['Clock Out', 'Offer Clock Out']:
+        # ★★★ THIS IS THE FIX FOR THE "Verified" COLUMN ★★★
+        # It now writes the single verification status, not the combined one.
         log_sheet.update_cell(action['row_to_update'], 4, action['time'])
-        log_sheet.update_cell(action['row_to_update'], 5, action['combined_status'])
+        log_sheet.update_cell(action['row_to_update'], 5, action['verified'])
         flash(f"Goodbye, {action['name']}! You have been clocked out.")
         return redirect(url_for('scan'))
-    else:
+    else: # Clock In
         new_row = [action['date'], action['name'], action['time'], "", action['verified']]
         log_sheet.append_row(new_row)
         session['final_status'] = {'message': f"<h2>Welcome, {action['name']}!</h2><p>You have been clocked in successfully.</p>"}
@@ -201,4 +205,4 @@ def execute():
 def success():
     final_status = session.pop('final_status', {})
     message = final_status.get('message', '<p>Action completed.</p>')
-    return render_template("success.html", message=message)
+    return render_template("success.html", message=message, show_back_button=True)
