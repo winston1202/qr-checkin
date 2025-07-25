@@ -92,7 +92,6 @@ def prepare_action(worker_name):
 
 # --- Routes ---
 
-# The "smart" home route now has the stricter clock-out check
 @app.route("/")
 def home():
     device_token = session.get('device_token')
@@ -138,7 +137,6 @@ def scan():
 </html>
 """)
 
-# The manual process route also gets the stricter check
 @app.route("/process", methods=["POST"])
 def process():
     first_name = request.form.get("first_name", "").strip()
@@ -269,25 +267,24 @@ def execute():
     session['final_status'] = {'message': message, 'type': action['type']}
     return redirect(url_for('success'))
 
-# The success route is now smarter
 @app.route("/success")
 def success():
     final_status = session.pop('final_status', {})
     message = final_status.get('message', '<p>Action completed.</p>')
     action_type = final_status.get('type')
     
-    # Conditionally create the "Back" button
     back_button_html = ""
     if action_type != 'Clock Out' and action_type != 'Already Clocked Out':
         back_button_html = "<a href='{{{{ url_for('scan') }}}}' class='bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 w-full inline-block'>Back to Check-in</a>"
 
+    # ★★★ THE FINAL SYNTAX FIX IS HERE ★★★
     return render_template_string(f"""
 <!DOCTYPE html>
 <html lang='en'>
 <head>
   <meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'>
   <script src='https://cdn.tailwindcss.com'></script><title>Status</title>
-  <style> h2 {{ font-size: 1.5rem; font-weight: bold; margin-bottom: 0.5rem; }} </style>
+  <style> h2 {{{{ font-size: 1.5rem; font-weight: bold; margin-bottom: 0.5rem; }}}} </style>
 </head>
 <body class='bg-gray-100 h-screen flex items-center justify-center'>
   <div class='bg-white p-6 rounded-xl shadow-md text-center w-full max-w-md'>
