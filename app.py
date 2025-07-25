@@ -1,3 +1,4 @@
+# No changes needed to imports
 from flask import Flask, request, redirect, render_template, session, url_for, flash
 import uuid
 from datetime import datetime
@@ -9,9 +10,7 @@ import os
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "a-default-secret-key-for-development")
-if app.secret_key == "a-default-secret-key-for-development":
-    print("Warning: Using default SECRET_KEY. Please set a proper secret key in your environment for production.")
-
+# ... (rest of the setup code is the same) ...
 # --- Google Sheets Setup ---
 creds_json_string = os.environ.get("GOOGLE_SHEETS_CREDS")
 if not creds_json_string:
@@ -32,6 +31,7 @@ CENTRAL_TIMEZONE = pytz.timezone("America/Chicago")
 def get_day_with_suffix(d):
     return f"{d}{'th' if 11<=d<=13 else {1:'st',2:'nd',3:'rd'}.get(d%10, 'th')}"
 
+
 def prepare_action(worker_name):
     log_values = log_sheet.get_all_values()
     if not log_values:
@@ -47,27 +47,29 @@ def prepare_action(worker_name):
         clock_out_col_idx = headers.index("clock out")
         verified_col_idx = headers.index("verified")
     except ValueError as e:
-        raise Exception(f"A required column is missing in 'Attendance'. Checked for '{e.args[0]}'. Please ensure 'Name', 'Date', 'Clock In', 'Clock Out', and 'Verified' headers exist (case and spacing don't matter).")
+        raise Exception(f"A required column is missing in 'Attendance'. Checked for '{e.args[0]}'. Please ensure all required headers exist.")
 
     user_cell = users_sheet.find(worker_name, in_column=1)
     user_row_number = user_cell.row if user_cell else None
+    
+    # ★★★ FIX: Read the token from the regular browser cookie, not the session ★★★
+    actual_token = request.cookies.get('device_token')
     verification_status = "No"
 
     if user_row_number:
         expected_token = users_sheet.cell(user_row_number, 2).value
-        actual_token = session.get('device_token')
-        if not expected_token:
-            new_token = str(uuid.uuid4())
-            session['device_token_to_set'] = new_token
+        # If the user has a token in the sheet, check if it matches the browser's token
+        if expected_token and expected_token == actual_token:
             verification_status = "Yes"
-        elif expected_token == actual_token:
+        # If the user has NO token in the sheet, we associate the browser's token with them.
+        elif not expected_token and actual_token:
+            users_sheet.update_cell(user_row_number, 2, actual_token)
             verification_status = "Yes"
-    else:
-        user_row_number = len(users_sheet.get_all_records()) + 2
-        users_sheet.append_row([worker_name, ""])
-        new_token = str(uuid.uuid4())
-        session['device_token_to_set'] = new_token
-        verification_status = "Yes"
+    else: # This is a new user
+        if actual_token:
+            users_sheet.append_row([worker_name, actual_token])
+            user_row_number = len(users_sheet.get_all_records()) + 1
+            verification_status = "Yes"
 
     now = datetime.now(CENTRAL_TIMEZONE)
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
@@ -84,7 +86,7 @@ def prepare_action(worker_name):
             else:
                 row_to_update = i + 2
             break
-
+            
     pending_action = {
         'name': worker_name, 'date': today_date, 'time': current_time,
         'verified': verification_status, 'user_row': user_row_number,
@@ -103,9 +105,10 @@ def prepare_action(worker_name):
     else:
         pending_action['type'] = 'Clock In'
 
-    session['pending_action'] = pending_action
+    session['pending_action'] = pending_action # Use session just to pass data between requests
 
 def handle_already_clocked_out(worker_name):
+    # This function remains the same
     session['final_status'] = {
         'message': f"<h2>Action Completed</h2><p>{worker_name}, you have already completed your entry for the day.</p>",
         'type': 'Already Clocked Out'
@@ -114,7 +117,8 @@ def handle_already_clocked_out(worker_name):
 
 @app.route("/")
 def home():
-    device_token = session.get('device_token')
+    # ★★★ FIX: Read from request.cookies instead of session ★★★
+    device_token = request.cookies.get('device_token')
     if device_token:
         token_cell = users_sheet.find(device_token, in_column=2)
         if token_cell:
@@ -128,7 +132,7 @@ def home():
 
 @app.route("/scan")
 def scan():
-    # Renders scan.html
+    # Your new scan.html is used here. No changes to this function.
     return render_template("scan.html")
 
 @app.route("/process", methods=["POST"])
@@ -141,8 +145,8 @@ def process():
 
     attempted_name = f"{first_name} {last_name}"
     
-    # ★★★ THIS IS THE RESTORED IDENTITY CHECK LOGIC ★★★
-    actual_token = session.get('device_token')
+    # ★★★ FIX: Read from request.cookies for the identity check ★★★
+    actual_token = request.cookies.get('device_token')
     if actual_token:
         token_cell = users_sheet.find(actual_token, in_column=2)
         if token_cell:
@@ -151,16 +155,15 @@ def process():
                 session['typo_conflict'] = {'correct_name': correct_name, 'attempted_name': attempted_name}
                 return redirect(url_for('handle_typo'))
 
-    # If no conflict, proceed directly
     prepare_action(attempted_name)
     pending = session.get('pending_action', {})
     if pending.get('type') == 'Already Clocked Out':
         return handle_already_clocked_out(attempted_name)
     return redirect(url_for('confirm'))
 
-# ★★★ THIS IS THE RESTORED IDENTITY CHECK ROUTE ★★★
 @app.route("/handle_typo", methods=["GET", "POST"])
 def handle_typo():
+    # This function remains largely the same, but the logic inside prepare_action is now smarter.
     conflict = session.get('typo_conflict')
     if not conflict:
         return redirect(url_for('scan'))
@@ -170,24 +173,21 @@ def handle_typo():
         worker_name = ""
         if choice == 'yes':
             worker_name = conflict['correct_name']
-        else: # 'no'
-            # This is a new person on a registered device.
-            # We must clear the token from the old user.
+        else:
             old_user_cell = users_sheet.find(conflict['correct_name'], in_column=1)
             if old_user_cell:
-                users_sheet.update_cell(old_user_cell.row, 2, "") # Unlink token
+                users_sheet.update_cell(old_user_cell.row, 2, "")
             worker_name = conflict['attempted_name']
 
         session.pop('typo_conflict', None)
         prepare_action(worker_name)
         return redirect(url_for('confirm'))
-
-    # For a GET request, just show the page.
+        
     return render_template("handle_typo.html", correct_name=conflict['correct_name'])
-
 
 @app.route("/confirm")
 def confirm():
+    # This function remains the same
     pending = session.get('pending_action')
     if not pending:
         return redirect(url_for('scan'))
@@ -199,10 +199,11 @@ def execute():
     if not action:
         return redirect(url_for('scan'))
 
-    if 'device_token_to_set' in session:
-        token = session.pop('device_token_to_set')
-        session['device_token'] = token
-        users_sheet.update_cell(action['user_row'], 2, token)
+    # ★★★ FIX: The server no longer creates tokens, so this entire block is removed ★★★
+    # if 'device_token_to_set' in session:
+    #     token = session.pop('device_token_to_set')
+    #     session['device_token'] = token
+    #     users_sheet.update_cell(action['user_row'], 2, token)
 
     action_type = action.get('type')
     cols = action.get('col_indices', {})
@@ -226,6 +227,7 @@ def execute():
 
 @app.route("/success")
 def success():
+    # This function remains the same
     final_status = session.pop('final_status', {})
     message = final_status.get('message', "<p>Action completed.</p>")
     action_type = final_status.get('type')
