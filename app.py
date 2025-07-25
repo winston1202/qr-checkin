@@ -163,26 +163,34 @@ def process():
 
 @app.route("/handle_typo", methods=["GET", "POST"])
 def handle_typo():
-    # This function remains largely the same, but the logic inside prepare_action is now smarter.
     conflict = session.get('typo_conflict')
     if not conflict:
         return redirect(url_for('scan'))
 
     if request.method == 'POST':
         choice = request.form.get('choice')
-        worker_name = ""
+        
+        # Always remove the conflict data from the session after handling it.
+        session.pop('typo_conflict', None)
+
         if choice == 'yes':
+            # If yes, proceed as the correct user.
             worker_name = conflict['correct_name']
-        else:
+            prepare_action(worker_name)
+            return redirect(url_for('confirm'))
+        
+        else: # This is the new logic for 'no'
+            # 1. Find the old user this device was linked to.
             old_user_cell = users_sheet.find(conflict['correct_name'], in_column=1)
             if old_user_cell:
+                # 2. Unlink the device by clearing the token from their row.
                 users_sheet.update_cell(old_user_cell.row, 2, "")
-            worker_name = conflict['attempted_name']
+            
+            # 3. Inform the user and send them back to the start.
+            flash(f"This device has been unlinked from {conflict['correct_name']}. Please enter your name to start over.")
+            return redirect(url_for('scan'))
 
-        session.pop('typo_conflict', None)
-        prepare_action(worker_name)
-        return redirect(url_for('confirm'))
-        
+    # If it's a GET request, just show the identity check page.
     return render_template("handle_typo.html", correct_name=conflict['correct_name'])
 
 @app.route("/confirm")
