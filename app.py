@@ -78,8 +78,10 @@ def prepare_action(worker_name):
     if already_clocked_out:
         pending_action['type'] = 'Already Clocked Out'
     elif row_to_update:
-        pending_action['type'] = 'Offer Clock Out'
+        pending_action['type'] = 'Clock Out'
         pending_action['row_to_update'] = row_to_update
+        original_status = log_sheet.cell(row_to_update, 5).value
+        pending_action['combined_status'] = f"{original_status} / {verification_status}"
     else:
         pending_action['type'] = 'Clock In'
 
@@ -97,7 +99,7 @@ def home():
             if pending.get('type') == 'Already Clocked Out':
                 flash(f"{worker_name}, you have already completed your entry for the day.")
                 return redirect(url_for('scan'))
-            elif pending.get('type') == 'Offer Clock Out':
+            elif pending.get('type') == 'Clock Out': # Use Clock Out, not Offer Clock Out
                 return redirect(url_for('offer_clock_out'))
             return redirect(url_for('confirm'))
     return redirect(url_for('scan'))
@@ -134,11 +136,7 @@ def process():
         flash(f"{worker_name}, you have already completed your entry for the day.")
         return redirect(url_for('scan'))
     
-    # For manual entry, it's clearer to go to the standard confirmation page
-    if pending.get('type') == 'Offer Clock Out':
-        pending['type'] = 'Clock Out'
-        session['pending_action'] = pending
-        
+    # Logic is now simpler, always go to confirm page if not clocked out
     return redirect(url_for('confirm'))
 
 @app.route("/handle_typo", methods=["GET", "POST"])
@@ -168,15 +166,20 @@ def confirm():
     pending = session.get('pending_action')
     if not pending:
         return redirect(url_for('scan'))
+    
+    # We can now handle both Clock In and Clock Out with this one confirmation screen
     return render_template("confirm.html", action_type=pending['type'], worker_name=pending['name'])
 
+# The offer_clock_out route is now redundant and can be removed, but we keep it for clarity
+# or future use. The main flow will use /confirm
 @app.route("/offer_clock_out")
 def offer_clock_out():
     pending = session.get('pending_action')
-    if not pending or pending.get('type') != 'Offer Clock Out':
+    if not pending or pending.get('type') != 'Clock Out':
         return redirect(url_for('scan'))
     return render_template("offer_clock_out.html", worker_name=pending['name'])
 
+# ★★★ THIS ROUTE IS NOW SIMPLIFIED AND HAS THE NEW LOGIC ★★★
 @app.route("/execute", methods=["POST"])
 def execute():
     action = session.pop('pending_action', None)
@@ -188,21 +191,31 @@ def execute():
         session['device_token'] = token
         users_sheet.update_cell(action['user_row'], 2, token)
 
-    if action['type'] in ['Clock Out', 'Offer Clock Out']:
-        # ★★★ THIS IS THE FIX FOR THE "Verified" COLUMN ★★★
-        # It now writes the single verification status, not the combined one.
+    message = ""
+    if action['type'] == 'Clock Out':
         log_sheet.update_cell(action['row_to_update'], 4, action['time'])
         log_sheet.update_cell(action['row_to_update'], 5, action['verified'])
-        flash(f"Goodbye, {action['name']}! You have been clocked out.")
-        return redirect(url_for('scan'))
+        # The message now uses "Goodbye" as requested
+        message = f"<h2>Goodbye, {action['name']}!</h2><p>You have been clocked out successfully.</p>"
     else: # Clock In
         new_row = [action['date'], action['name'], action['time'], "", action['verified']]
         log_sheet.append_row(new_row)
-        session['final_status'] = {'message': f"<h2>Welcome, {action['name']}!</h2><p>You have been clocked in successfully.</p>"}
-        return redirect(url_for('success'))
+        message = f"<h2>Welcome, {action['name']}!</h2><p>You have been clocked in successfully.</p>"
+        
+    session['final_status'] = {'message': message, 'type': action['type']}
+    # All actions now go to the success page
+    return redirect(url_for('success'))
 
+# ★★★ THIS ROUTE NOW CONTAINS THE SMART BUTTON LOGIC ★★★
 @app.route("/success")
 def success():
     final_status = session.pop('final_status', {})
     message = final_status.get('message', '<p>Action completed.</p>')
-    return render_template("success.html", message=message, show_back_button=True)
+    action_type = final_status.get('type')
+    
+    # Decide whether to show the "Back to Check-in" button
+    show_back_button = True
+    if action_type == 'Clock Out' or action_type == 'Already Clocked Out':
+        show_back_button = False
+
+    return render_template("success.html", message=message, show_back_button=show_back_button)
