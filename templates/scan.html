@@ -2,8 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script><title>Check-In</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Check-In</title>
+
+  <!-- 🧠 Device Token Cookie Setup -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const cookieName = "device_token";
+      if (!document.cookie.split('; ').find(row => row.startsWith(cookieName + '='))) {
+        const newToken = crypto.randomUUID();
+        document.cookie = `${cookieName}=${newToken}; path=/; max-age=31536000`; // 1 year
+        console.log("New device_token created:", newToken);
+      } else {
+        console.log("device_token already exists");
+      }
+    });
+  </script>
 </head>
+
 <body class="bg-gray-100 h-screen flex items-center justify-center">
   <div class="bg-white p-6 rounded-xl shadow-md text-center w-full max-w-md">
     <h1 class="text-2xl font-bold mb-4">Attendance</h1>
