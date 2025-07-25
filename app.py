@@ -39,10 +39,9 @@ def get_day_with_suffix(d):
 def home():
     return redirect(url_for('scan'))
 
-# This route ONLY displays the page. It only accepts GET requests.
+# This route ONLY displays the page.
 @app.route("/scan", methods=["GET"])
 def scan():
-    # ★★★ UPDATED HTML WITH SEPARATE NAME FIELDS ★★★
     return render_template_string("""
 <!DOCTYPE html>
 <html lang="en">
@@ -68,26 +67,30 @@ def scan():
 </html>
 """)
 
-# This route ONLY processes the form. It only accepts POST requests.
+# This route ONLY processes the form data.
 @app.route("/process", methods=["POST"])
 def process():
-    # ★★★ READ AND COMBINE THE NAMES ★★★
     first_name = request.form.get("first_name", "").strip()
     last_name = request.form.get("last_name", "").strip()
     
     if not first_name or not last_name:
         return "First and Last Name are required.", 400
     
-    # Combine into a single full name for the rest of the app
     worker_name = f"{first_name} {last_name}"
     
-    # --- The rest of the logic is the same as before ---
+    # ★★★ BUG FIX IS HERE: Robust user finding and creation ★★★
     try:
         user_cell = users_sheet.find(worker_name, in_column=1)
     except gspread.exceptions.CellNotFound:
+        # User does not exist, so create them
         users_sheet.append_row([worker_name, ""])
-        user_cell = users_sheet.find(worker_name, in_column=1)
-        
+        # To avoid API race conditions, we create a temporary "cell" object
+        # that just holds the correct new row number.
+        class TempCell:
+            def __init__(self, row): self.row = row
+        user_cell = TempCell(users_sheet.row_count)
+
+    # From here, user_cell is guaranteed to have a .row attribute
     expected_token = users_sheet.cell(user_cell.row, 2).value
     actual_token = session.get('device_token')
     
@@ -99,6 +102,7 @@ def process():
     elif expected_token == actual_token:
         verification_status = "Yes"
     
+    # --- The rest of the logic is unchanged ---
     now = datetime.now(CENTRAL_TIMEZONE)
     day_with_suffix = get_day_with_suffix(now.day)
     today_date = now.strftime(f"%b. {day_with_suffix}, %Y")
@@ -127,7 +131,7 @@ def process():
     session['pending_action'] = pending_action
     return redirect(url_for('confirm'))
 
-# The confirmation page logic is unchanged
+# The /confirm route is unchanged
 @app.route("/confirm", methods=["GET", "POST"])
 def confirm():
     pending_action = session.get('pending_action')
@@ -162,7 +166,7 @@ def confirm():
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale-1.0">
     <script src="https://cdn.tailwindcss.com"></script><title>Confirm Action</title>
 </head>
 <body class="bg-gray-100 h-screen flex items-center justify-center">
@@ -180,7 +184,7 @@ def confirm():
 </html>
 """)
 
-# The final success page is unchanged
+# The /success route is unchanged
 @app.route("/success")
 def success():
     message = session.pop('last_message', '<p>Action completed.</p>')
