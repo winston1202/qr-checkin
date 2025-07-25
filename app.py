@@ -162,6 +162,8 @@ def process():
         return handle_already_clocked_out(attempted_name)
     return redirect(url_for('confirm'))
 
+# No other functions need to change. Only replace this one.
+
 @app.route("/handle_typo", methods=["GET", "POST"])
 def handle_typo():
     conflict = session.get('typo_conflict')
@@ -170,34 +172,32 @@ def handle_typo():
 
     if request.method == 'POST':
         choice = request.form.get('choice')
-        session.pop('typo_conflict', None) # Clear the conflict from session memory
-
-        if choice == 'yes':
-            # If yes, nothing changes. Proceed as the correct user.
-            worker_name = conflict['correct_name']
-            prepare_action(worker_name)
-            return redirect(url_for('confirm'))
         
-        else: # ★★★ THIS IS THE NEW, CORRECT LOGIC FOR 'NO' ★★★
-            # 1. Unlink the token from the old user in the Google Sheet.
+        # Determine the name to proceed with based on the user's choice.
+        if choice == 'yes':
+            worker_name = conflict['correct_name']
+        else: # The user clicked "No, that's not me"
+            # This is the new, streamlined logic.
+            # 1. Unlink the token from the old user.
             old_user_cell = users_sheet.find(conflict['correct_name'], in_column=1)
             if old_user_cell:
-                users_sheet.update_cell(old_user_cell.row, 2, "") # Clear token cell
+                users_sheet.update_cell(old_user_cell.row, 2, "") # Clear the token
             
-            # 2. Create a redirect response object.
-            response = make_response(redirect(url_for('scan')))
-            
-            # 3. Instruct the user's browser to delete its token cookie.
-            response.set_cookie('device_token', '', expires=0, path='/')
-            
-            # 4. Flash a message to explain what happened.
-            flash(f"This device has been unlinked from {conflict['correct_name']}. A new ID has been generated for this device. Please enter your name to register.")
-            
-            # 5. Return the complete response (redirect + cookie deletion).
-            return response
+            # 2. The correct worker name is the one they just tried to enter.
+            worker_name = conflict['attempted_name']
 
-    # For a GET request, just show the identity check page.
+        # Clean up the session.
+        session.pop('typo_conflict', None)
+        
+        # Now, prepare the action for the determined worker_name and go straight to confirm.
+        # This avoids redirecting to /scan and prevents the loophole.
+        prepare_action(worker_name)
+        return redirect(url_for('confirm'))
+
+    # If it's a GET request (i.e., the page first loads), just show the identity check.
     return render_template("handle_typo.html", correct_name=conflict['correct_name'])
+    
+
 
 @app.route("/confirm")
 def confirm():
