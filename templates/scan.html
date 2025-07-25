@@ -2,22 +2,33 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script><title>Check-In</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Check-In</title>
+
+  <!-- Device Token Cookie Setup -->
+  <script>
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const cookieName = "device_token";
+      let token = getCookie(cookieName);
+      if (!token) {
+        token = crypto.randomUUID();
+        // Set cookie to last for 1 year
+        document.cookie = `${cookieName}=${token}; path=/; max-age=31536000; SameSite=Lax`;
+      }
+    });
+  </script>
 </head>
+
 <body class="bg-gray-100 h-screen flex items-center justify-center">
   <div class="bg-white p-6 rounded-xl shadow-md text-center w-full max-w-md">
-    
-    <!-- This block will display one-time status messages -->
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-4" role="alert">
-          <p class="font-bold">Status Update</p>
-          <p>{{ messages[0] }}</p>
-        </div>
-      {% endif %}
-    {% endwith %}
-
     <h1 class="text-2xl font-bold mb-4">Attendance</h1>
+    <h2 class="text-lg text-gray-600 mb-4">Please enter your name to begin.</h2>
     <form action="{{ url_for('process') }}" method="POST" class="space-y-4">
       <input name="first_name" placeholder="First Name" required
         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
