@@ -37,7 +37,6 @@ def get_day_with_suffix(d):
 
 # This helper function contains the robust logic for preparing an action
 def prepare_action(worker_name):
-    # Find the user or create them if they don't exist
     user_cell = users_sheet.find(worker_name, in_column=1)
     if user_cell is None:
         num_data_rows = len(users_sheet.get_all_records())
@@ -162,6 +161,7 @@ def handle_typo():
         prepare_action(worker_name)
         return redirect(url_for('confirm'))
 
+    # ★★★ SYNTAX FIX HERE ★★★
     return render_template_string(f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -174,10 +174,10 @@ def handle_typo():
     <h1 class="text-2xl font-bold mb-4">Identity Check</h1>
     <p class="text-lg text-gray-700 mb-6">This device is registered to <strong>{conflict['correct_name']}</strong>. <br><br>Are you this person?</p>
     <div class="flex justify-center space-x-4">
-        <form action="{{ url_for('handle_typo') }}" method="POST">
+        <form action="{{{{ url_for('handle_typo') }}}}" method="POST">
             <input type="hidden" name="choice" value="yes"><button type="submit" class="bg-green-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-green-600">Yes, that's me</button>
         </form>
-        <form action="{{ url_for('handle_typo') }}" method="POST">
+        <form action="{{{{ url_for('handle_typo') }}}}" method="POST">
             <input type="hidden" name="choice" value="no"><button type="submit" class="bg-red-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-600">No, I'm new</button>
         </form>
     </div>
@@ -192,6 +192,7 @@ def confirm():
     if not pending_action: return redirect(url_for('scan'))
     action_type = pending_action.get('type', 'action')
     worker_name = pending_action.get('name', 'Unknown')
+    # ★★★ SYNTAX FIX HERE ★★★
     return render_template_string(f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -204,10 +205,10 @@ def confirm():
     <h1 class="text-2xl font-bold mb-4">Please Confirm</h1>
     <p class="text-lg text-gray-700 mb-6">You are about to <strong>{action_type}</strong> for <strong>{worker_name}</strong>. Is this correct?</p>
     <div class="flex justify-center space-x-4">
-        <form action="{{ url_for('execute') }}" method="POST">
+        <form action="{{{{ url_for('execute') }}}}" method="POST">
             <button type="submit" class="bg-green-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-green-600">Yes, Confirm</button>
         </form>
-        <a href="{{ url_for('scan') }}" class="bg-red-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-600">Cancel</a>
+        <a href="{{{{ url_for('scan') }}}}" class="bg-red-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-600">Cancel</a>
     </div>
   </div>
 </body>
@@ -239,6 +240,7 @@ def execute():
 @app.route("/success")
 def success():
     message = session.pop('last_message', '<p>Action completed.</p>')
+    # ★★★ SYNTAX FIX HERE ★★★
     return render_template_string(f"""
 <!DOCTYPE html>
 <html lang='en'>
@@ -250,7 +252,7 @@ def success():
 <body class='bg-gray-100 h-screen flex items-center justify-center'>
   <div class='bg-white p-6 rounded-xl shadow-md text-center w-full max-w-md'>
     {message}
-    <a href="{{ url_for('scan') }}" class='mt-4 inline-block text-blue-500 hover:underline'>🔁 Back to check-in page</a>
+    <a href="{{{{ url_for('scan') }}}}" class='mt-4 inline-block text-blue-500 hover:underline'>🔁 Back to check-in page</a>
   </div>
 </body>
 </html>
