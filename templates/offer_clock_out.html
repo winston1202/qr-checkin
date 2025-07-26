@@ -1,24 +1,379 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="https://cdn.tailwindcss.com"></script><title>Clock Out?</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Clock Out?</title>
+    <style>
+        @keyframes clockTick {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes slideInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.8) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        
+        @keyframes successPulse {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 40px rgba(34, 197, 94, 0.6);
+            }
+        }
+        
+        @keyframes warningPulse {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 40px rgba(239, 68, 68, 0.6);
+            }
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+        }
+        
+        .gradient-bg::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%), 
+                        linear-gradient(-45deg, rgba(255,255,255,0.1) 25%, transparent 25%), 
+                        linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.1) 75%), 
+                        linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.1) 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            animation: move 4s linear infinite;
+            opacity: 0.1;
+        }
+        
+        @keyframes move {
+            0% { background-position: 0 0, 0 10px, 10px -10px, -10px 0px; }
+            100% { background-position: 20px 20px, 20px 30px, 30px 10px, 10px 20px; }
+        }
+        
+        .card-entrance {
+            animation: slideInScale 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .clock-icon {
+            animation: clockTick 2s linear infinite;
+        }
+        
+        .welcome-text {
+            animation: fadeInUp 0.6s ease-out;
+            animation-delay: 0.3s;
+            animation-fill-mode: both;
+        }
+        
+        .action-text {
+            animation: fadeInUp 0.6s ease-out;
+            animation-delay: 0.5s;
+            animation-fill-mode: both;
+        }
+        
+        .buttons-container {
+            animation: fadeInUp 0.6s ease-out;
+            animation-delay: 0.7s;
+            animation-fill-mode: both;
+        }
+        
+        .btn-clock-out {
+            background: linear-gradient(135deg, #10b981, #059669);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .btn-clock-out:hover {
+            transform: translateY(-3px) scale(1.05);
+            animation: successPulse 2s infinite;
+        }
+        
+        .btn-clock-out::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn-clock-out:hover::before {
+            left: 100%;
+        }
+        
+        .btn-cancel {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .btn-cancel:hover {
+            transform: translateY(-3px) scale(1.05);
+            animation: warningPulse 2s infinite;
+        }
+        
+        .btn-cancel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn-cancel:hover::before {
+            left: 100%;
+        }
+        
+        .name-badge {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            animation: pulse 3s infinite;
+        }
+        
+        .status-indicator {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 20px;
+            height: 20px;
+            background: #10b981;
+            border: 3px solid white;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        .time-display {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1f2937, #374151);
+            color: #10b981;
+            padding: 8px 16px;
+            border-radius: 8px;
+            display: inline-block;
+            margin-top: 8px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .loading-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #22c55e;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .page-transition {
+            opacity: 1;
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .page-transition.fade-out {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+    </style>
 </head>
-<body class="bg-gray-100 h-screen flex items-center justify-center">
-<div class="bg-white p-8 rounded-xl shadow-md text-center w-full max-w-md">
-<h1 class="text-2xl font-bold mb-4">Action Required</h1>
-<p class="text-lg text-gray-700 mb-6">Welcome back, <strong>{{ worker_name }}</strong>. Your clock-in is complete. <br><br>Would you like to clock out now?</p>
-<div class="flex justify-center space-x-4">
-<!-- This form now correctly points to the execute route -->
-<form action="{{ url_for('execute') }}" method="POST">
-<button type="submit" class="bg-green-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-green-600">
-Yes, Clock Out
-</button>
-</form>
-<a href="{{ url_for('scan') }}" class="bg-red-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-600">
-No, Cancel
-</a>
-</div>
-</div>
+<body class="gradient-bg min-h-screen flex items-center justify-center p-4">
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="text-center">
+            <div class="spinner mb-4"></div>
+            <p class="text-white text-lg">Clocking out...</p>
+        </div>
+    </div>
+    
+    <div class="page-transition" id="pageContent">
+        <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md card-entrance relative">
+            <div class="status-indicator"></div>
+            
+            <div class="mb-6">
+                <div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center relative">
+                    <svg class="w-10 h-10 text-white clock-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12,6 12,12 16,14"></polyline>
+                    </svg>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">Action Required</h1>
+                <div class="w-16 h-1 bg-gradient-to-r from-blue-500 to-purple-600 mx-auto rounded-full"></div>
+            </div>
+            
+            <div class="mb-6 welcome-text">
+                <p class="text-lg text-gray-700 leading-relaxed mb-2">
+                    Welcome back,
+                </p>
+                <div class="name-badge text-white px-4 py-2 rounded-full inline-block mb-2">
+                    <strong class="text-lg">{{ worker_name }}</strong>
+                </div>
+                <div class="time-display">
+                    <span id="currentTime"></span>
+                </div>
+            </div>
+            
+            <div class="mb-8 action-text">
+                <div class="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-xl mb-4">
+                    <p class="text-gray-700 text-lg">
+                        <span class="text-green-600 font-semibold">✓ Clock-in complete</span>
+                    </p>
+                </div>
+                <p class="text-gray-600 text-lg font-medium">Would you like to clock out now?</p>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row justify-center gap-4 buttons-container">
+                <form action="{{ url_for('execute') }}" method="POST" class="flex-1" onsubmit="showLoading()">
+                    <button type="submit" 
+                            class="btn-clock-out text-white font-bold px-8 py-4 rounded-xl w-full shadow-lg hover:shadow-xl transform transition-all duration-300">
+                        <span class="flex items-center justify-center relative z-10">
+                            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                            </svg>
+                            Yes, Clock Out
+                        </span>
+                    </button>
+                </form>
+                
+                <a href="{{ url_for('scan') }}" 
+                   onclick="pageTransition(this.href); return false;"
+                   class="btn-cancel text-white font-bold px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-300 flex items-center justify-center flex-1">
+                    <span class="flex items-center justify-center relative z-10">
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        No, Cancel
+                    </span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.add('show');
+        }
+        
+        function pageTransition(url) {
+            const pageContent = document.getElementById('pageContent');
+            pageContent.classList.add('fade-out');
+            
+            setTimeout(() => {
+                window.location.href = url;
+            }, 600);
+        }
+        
+        // Real-time clock display
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', {
+                hour12: true,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('currentTime').textContent = timeString;
+        }
+        
+        updateTime();
+        setInterval(updateTime, 1000);
+        
+        // Enhanced button interactions
+        document.querySelectorAll('button, a').forEach(element => {
+            element.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-3px) scale(1.05)';
+            });
+            
+            element.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+            
+            element.addEventListener('mousedown', function() {
+                this.style.transform = 'translateY(-1px) scale(1.02)';
+            });
+            
+            element.addEventListener('mouseup', function() {
+                this.style.transform = 'translateY(-3px) scale(1.05)';
+            });
+        });
+        
+        // Particle effect on hover (optional enhancement)
+        function createParticle(x, y) {
+            const particle = document.createElement('div');
+            particle.className = 'absolute w-2 h-2 bg-white rounded-full pointer-events-none';
+            particle.style.left = x + 'px';
+            particle.style.top = y + 'px';
+            particle.style.animation = 'particle-float 1s ease-out forwards';
+            document.body.appendChild(particle);
+            
+            setTimeout(() => {
+                particle.remove();
+            }, 1000);
+        }
+        
+        // Add particle animation CSS
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes particle-float {
+                0% { opacity: 1; transform: translateY(0) scale(1); }
+                100% { opacity: 0; transform: translateY(-50px) scale(0); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
 </body>
 </html>

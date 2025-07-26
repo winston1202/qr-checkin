@@ -1,13 +1,484 @@
 <!DOCTYPE html>
 <html lang='en'>
 <head>
-  <meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'>
-  <script src='https://cdn.tailwindcss.com'></script><title>Status</title>
-  <style> h2 { font-size: 1.5rem; font-weight: bold; margin-bottom: 0.5rem; } </style>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <script src='https://cdn.tailwindcss.com'></script>
+    <title>Status</title>
+    <style>
+        @keyframes successBounce {
+            0% {
+                opacity: 0;
+                transform: scale(0.3) translateY(-100px);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.1) translateY(0);
+            }
+            70% {
+                transform: scale(0.9);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        @keyframes confettiPop {
+            0% {
+                transform: scale(0) rotate(0deg);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.2) rotate(180deg);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1) rotate(360deg);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes glowPulse {
+            0%, 100% {
+                box-shadow: 0 0 30px rgba(34, 197, 94, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 50px rgba(34, 197, 94, 0.8);
+            }
+        }
+        
+        @keyframes sparkle {
+            0%, 100% {
+                opacity: 0;
+                transform: scale(0) rotate(0deg);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1) rotate(180deg);
+            }
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .gradient-bg::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(34, 197, 94, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(168, 85, 247, 0.3) 0%, transparent 50%);
+            animation: celebration 8s ease-in-out infinite;
+        }
+        
+        @keyframes celebration {
+            0%, 100% { 
+                transform: translateY(0px) rotate(0deg); 
+                opacity: 0.8;
+            }
+            33% { 
+                transform: translateY(-20px) rotate(2deg); 
+                opacity: 1;
+            }
+            66% { 
+                transform: translateY(10px) rotate(-2deg); 
+                opacity: 0.9;
+            }
+        }
+        
+        .success-card {
+            animation: successBounce 1s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        
+        .success-icon {
+            animation: confettiPop 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            animation-delay: 0.3s;
+            animation-fill-mode: both;
+        }
+        
+        .success-message {
+            animation: fadeInUp 0.6s ease-out;
+            animation-delay: 0.6s;
+            animation-fill-mode: both;
+        }
+        
+        .back-button {
+            animation: fadeInUp 0.6s ease-out;
+            animation-delay: 0.9s;
+            animation-fill-mode: both;
+        }
+        
+        .success-glow {
+            animation: glowPulse 3s infinite;
+        }
+        
+        .sparkle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #fbbf24;
+            border-radius: 50%;
+            animation: sparkle 2s infinite;
+        }
+        
+        .sparkle:nth-child(1) {
+            top: 20%;
+            left: 15%;
+            animation-delay: 0s;
+        }
+        
+        .sparkle:nth-child(2) {
+            top: 30%;
+            right: 20%;
+            animation-delay: 0.5s;
+        }
+        
+        .sparkle:nth-child(3) {
+            bottom: 30%;
+            left: 20%;
+            animation-delay: 1s;
+        }
+        
+        .sparkle:nth-child(4) {
+            bottom: 20%;
+            right: 15%;
+            animation-delay: 1.5s;
+        }
+        
+        .confetti {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #ffeaa7);
+            animation: confettiFall 3s infinite linear;
+        }
+        
+        @keyframes confettiFall {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        
+        .btn-back {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .btn-back:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 15px 35px rgba(59, 130, 246, 0.4);
+        }
+        
+        .btn-back::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn-back:hover::before {
+            left: 100%;
+        }
+        
+        .clock-in-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+        
+        .clock-out-success {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+        
+        .already-complete {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        }
+        
+        .status-badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pulse 2s infinite;
+        }
+        
+        .floating-elements {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        
+        .floating-check {
+            position: absolute;
+            color: #10b981;
+            opacity: 0.6;
+            animation: floatUp 4s infinite linear;
+        }
+        
+        @keyframes floatUp {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.6;
+            }
+            90% {
+                opacity: 0.6;
+            }
+            100% {
+                transform: translateY(-100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        .message-content h2 {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #1f2937, #374151);
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .message-content p {
+            font-size: 1.125rem;
+            color: #4b5563;
+            line-height: 1.6;
+        }
+        
+        .celebration-text {
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+        
+        .page-transition {
+            opacity: 1;
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .page-transition.fade-out {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+    </style>
 </head>
-<body class='bg-gray-100 h-screen flex items-center justify-center'>
-  <div class='bg-white p-6 rounded-xl shadow-md text-center w-full max-w-md'>
-    <div class='mb-4'>{{ message | safe }}</div>
-  </div>
+<body class='gradient-bg min-h-screen flex items-center justify-center p-4'>
+    <div class="floating-elements" id="floatingElements"></div>
+    
+    <div class="page-transition" id="pageContent">
+        <div class='bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md success-card relative'>
+            <!-- Sparkles -->
+            <div class="sparkle"></div>
+            <div class="sparkle"></div>
+            <div class="sparkle"></div>
+            <div class="sparkle"></div>
+            
+            <!-- Status Badge -->
+            <div class="status-badge bg-green-500">
+                <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            
+            <!-- Success Icon -->
+            <div class="mb-6">
+                <div class="w-24 h-24 mx-auto mb-4 flex items-center justify-center success-icon success-glow rounded-full" id="successIcon">
+                    <svg class="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+            </div>
+            
+            <!-- Success Message -->
+            <div class='success-message message-content mb-8'>
+                {{ message | safe }}
+            </div>
+            
+            <!-- Back Button (conditionally shown) -->
+            {% if show_back_button %}
+            <div class="back-button">
+                <a href="{{ url_for('scan') }}" 
+                   onclick="pageTransition(this.href); return false;"
+                   class="btn-back text-white font-bold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-300 inline-flex items-center">
+                    <span class="flex items-center relative z-10">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                        Back to Check-In
+                    </span>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        function pageTransition(url) {
+            const pageContent = document.getElementById('pageContent');
+            pageContent.classList.add('fade-out');
+            
+            setTimeout(() => {
+                window.location.href = url;
+            }, 600);
+        }
+        
+        // Determine success type and apply appropriate styling
+        function determineSuccessType() {
+            const messageContent = document.querySelector('.message-content').innerHTML.toLowerCase();
+            const successIcon = document.getElementById('successIcon');
+            
+            if (messageContent.includes('welcome')) {
+                // Clock In
+                successIcon.classList.add('clock-in-success');
+                createFloatingElements('clock-in');
+            } else if (messageContent.includes('goodbye')) {
+                // Clock Out
+                successIcon.classList.add('clock-out-success');
+                createFloatingElements('clock-out');
+            } else {
+                // Already complete
+                successIcon.classList.add('already-complete');
+                createFloatingElements('complete');
+            }
+        }
+        
+        // Create floating animation elements
+        function createFloatingElements(type) {
+            const container = document.getElementById('floatingElements');
+            const icons = {
+                'clock-in': '→',
+                'clock-out': '←',
+                'complete': '✓'
+            };
+            
+            for (let i = 0; i < 8; i++) {
+                setTimeout(() => {
+                    const element = document.createElement('div');
+                    element.className = 'floating-check';
+                    element.style.left = Math.random() * 100 + '%';
+                    element.style.fontSize = '24px';
+                    element.style.animationDelay = Math.random() * 2 + 's';
+                    element.textContent = icons[type] || '✓';
+                    container.appendChild(element);
+                    
+                    // Remove element after animation
+                    setTimeout(() => {
+                        element.remove();
+                    }, 4000);
+                }, i * 500);
+            }
+        }
+        
+        // Create confetti effect
+        function createConfetti() {
+            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#fd79a8'];
+            for (let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * 100 + '%';
+                    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animationDelay = Math.random() * 2 + 's';
+                    confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                    document.body.appendChild(confetti);
+                    // Remove confetti after animation
+                    setTimeout(() => {
+                        confetti.remove();
+                    }, 5000);
+                }, i * 50);
+            }
+        }
+        
+        // Enhanced button interactions
+        document.querySelectorAll('.btn-back').forEach(button => {
+            button.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-3px) scale(1.05)';
+            });
+            button.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+            button.addEventListener('mousedown', function() {
+                this.style.transform = 'translateY(-1px) scale(1.02)';
+            });
+            button.addEventListener('mouseup', function() {
+                this.style.transform = 'translateY(-3px) scale(1.05)';
+            });
+        });
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Only run JS if .message-content exists
+            const messageContentElem = document.querySelector('.message-content');
+            if (messageContentElem) {
+                determineSuccessType();
+                // Add celebration effect for successful actions
+                setTimeout(() => {
+                    createConfetti();
+                }, 500);
+                // Auto-redirect for clock-out pages (optional)
+                const messageContent = messageContentElem.innerHTML.toLowerCase();
+                if (messageContent.includes('goodbye') || messageContent.includes('completed')) {
+                    // Uncomment the next lines if you want auto-redirect after clock-out
+                    // setTimeout(() => {
+                    //     pageTransition("{{ url_for('scan') }}");
+                    // }, 5000);
+                }
+                // Add celebration text animation to headings
+                document.querySelectorAll('.message-content h2').forEach(heading => {
+                    heading.classList.add('celebration-text');
+                });
+            }
+        });
+    </script>
 </body>
 </html>

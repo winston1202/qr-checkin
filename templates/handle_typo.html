@@ -1,26 +1,300 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script><title>Verify Identity</title>
-</head>
-<body class="bg-gray-100 h-screen flex items-center justify-center">
-  <div class="bg-white p-8 rounded-xl shadow-md text-center w-full max-w-md">
-    <h1 class="text-2xl font-bold mb-4">Identity Check</h1>
-    <p class="text-lg text-gray-700 mb-6">This device is registered to <strong>{{ correct_name }}</strong>. <br><br>Are you this person?</p>
-    <div class="flex justify-center space-x-4">
-       
-        <form action="{{ url_for('handle_typo') }}" method="POST">
-            <input type="hidden" name="choice" value="yes">
-            <button type="submit" class="bg-green-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-green-600">Yes, that's me</button>
-        </form>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Verify Identity</title>
+    <style>
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
         
-        <form action="{{ url_for('handle_typo') }}" method="POST">
-            <input type="hidden" name="choice" value="no">
-            <button type="submit" class="bg-red-500 text-white font-bold px-6 py-2 rounded-lg hover:bg-red-600">No, that's not me</button>
-        </form>
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        @keyframes bounceIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.3);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.05);
+            }
+            70% {
+                transform: scale(0.9);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        
+        @keyframes heartbeat {
+            0% { transform: scale(1); }
+            14% { transform: scale(1.1); }
+            28% { transform: scale(1); }
+            42% { transform: scale(1.1); }
+            70% { transform: scale(1); }
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .gradient-bg::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: shimmer 3s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        .card-enter {
+            animation: bounceIn 0.8s ease-out;
+        }
+        
+        .slide-left {
+            animation: slideInLeft 0.6s ease-out;
+        }
+        
+        .slide-right {
+            animation: slideInRight 0.6s ease-out;
+        }
+        
+        .identity-icon {
+            animation: heartbeat 2s infinite;
+        }
+        
+        .btn-yes {
+            background: linear-gradient(135deg, #10b981, #059669);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .btn-yes:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 15px 35px rgba(16, 185, 129, 0.4);
+        }
+        
+        .btn-no {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .btn-no:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 15px 35px rgba(239, 68, 68, 0.4);
+            animation: shake 0.5s ease-in-out;
+        }
+        
+        .name-highlight {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: pulse 2s infinite;
+        }
+        
+        .security-badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pulse 2s infinite;
+        }
+        
+        .loading-dots {
+            display: inline-flex;
+            gap: 4px;
+        }
+        
+        .loading-dots span {
+            width: 6px;
+            height: 6px;
+            background: currentColor;
+            border-radius: 50%;
+            animation: wave 1.4s ease-in-out infinite both;
+        }
+        
+        .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+        .loading-dots span:nth-child(3) { animation-delay: 0s; }
+        
+        @keyframes wave {
+            0%, 60%, 100% {
+                transform: initial;
+                opacity: 1;
+            }
+            30% {
+                transform: translateY(-15px);
+                opacity: 0.7;
+            }
+        }
+        
+        .page-transition {
+            opacity: 1;
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .page-transition.fade-out {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen flex items-center justify-center p-4">
+    <div class="page-transition" id="pageContent">
+        <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md card-enter relative">
+            <div class="security-badge">
+                <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            
+            <div class="mb-6">
+                <div class="w-20 h-20 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full mx-auto mb-4 flex items-center justify-center identity-icon">
+                    <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">Identity Check</h1>
+                <div class="w-16 h-1 bg-gradient-to-r from-blue-500 to-purple-600 mx-auto rounded-full"></div>
+            </div>
+            
+            <div class="mb-8 slide-left" style="animation-delay: 0.3s">
+                <p class="text-lg text-gray-700 leading-relaxed mb-4">
+                    This device is registered to
+                </p>
+                <div class="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-xl mb-4">
+                    <p class="text-2xl font-bold name-highlight">{{ correct_name }}</p>
+                </div>
+                <p class="text-gray-600 text-lg font-medium">Are you this person?</p>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <form action="{{ url_for('handle_typo') }}" method="POST" class="flex-1 slide-left" style="animation-delay: 0.5s" onsubmit="handleSubmit(this, 'yes')">
+                    <input type="hidden" name="choice" value="yes">
+                    <button type="submit" 
+                            class="btn-yes text-white font-bold px-8 py-4 rounded-xl w-full shadow-lg hover:shadow-xl transform transition-all duration-300">
+                        <span class="flex items-center justify-center">
+                            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            <span class="button-text">Yes, that's me</span>
+                        </span>
+                    </button>
+                </form>
+
+                <form action="{{ url_for('handle_typo') }}" method="POST" class="flex-1 slide-right" style="animation-delay: 0.7s" onsubmit="handleSubmit(this, 'no')">
+                    <input type="hidden" name="choice" value="no">
+                    <button type="submit" 
+                            class="btn-no text-white font-bold px-8 py-4 rounded-xl w-full shadow-lg hover:shadow-xl transform transition-all duration-300">
+                        <span class="flex items-center justify-center">
+                            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                            <span class="button-text">No, that's not me</span>
+                        </span>
+                    </button>
+                </form>
+            </div>
+        </div>
     </div>
-  </div>
+
+    <script>
+        let isSubmitting = false;
+        
+        function handleSubmit(form, choice) {
+            if (isSubmitting) return false;
+            isSubmitting = true;
+            
+            const button = form.querySelector('button');
+            const buttonText = button.querySelector('.button-text');
+            const originalText = buttonText.textContent;
+            
+            // Show loading state
+            buttonText.innerHTML = `
+                <div class="loading-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            `;
+            
+            // Add visual feedback
+            button.style.transform = 'scale(0.95)';
+            
+            // Start page transition
+            setTimeout(() => {
+                document.getElementById('pageContent').classList.add('fade-out');
+            }, 300);
+            
+            return true;
+        }
+        
+        // Add hover sound effects (visual feedback)
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-2px) scale(1.02)';
+            });
+            
+            button.addEventListener('mouseleave', function() {
+                if (!isSubmitting) {
+                    this.style.transform = 'translateY(0) scale(1)';
+                }
+            });
+        });
+        
+        // Enhanced security indicator animation
+        const securityBadge = document.querySelector('.security-badge');
+        setInterval(() => {
+            securityBadge.style.transform = 'rotate(360deg) scale(1.1)';
+            setTimeout(() => {
+                securityBadge.style.transform = 'rotate(0deg) scale(1)';
+            }, 300);
+        }, 5000);
+    </script>
 </body>
 </html>
