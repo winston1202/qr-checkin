@@ -166,35 +166,37 @@ def process():
 
 @app.route("/handle_typo", methods=["GET", "POST"])
 def handle_typo():
+    """
+    Handles the screen where a user must confirm their identity if their
+    entered name doesn't match the name registered to their device token.
+    """
     conflict = session.get('typo_conflict')
     if not conflict:
+        # If there's no conflict data, they shouldn't be here. Send them to the start.
         return redirect(url_for('scan'))
 
     if request.method == 'POST':
         choice = request.form.get('choice')
         
-        # Determine the name to proceed with based on the user's choice.
-        if choice == 'yes':
-            worker_name = conflict['correct_name']
-        else: # The user clicked "No, that's not me"
-            # This is the new, streamlined logic.
-            # 1. Unlink the token from the old user.
-            old_user_cell = users_sheet.find(conflict['correct_name'], in_column=1)
-            if old_user_cell:
-                users_sheet.update_cell(old_user_cell.row, 2, "") # Clear the token
-            
-            # 2. The correct worker name is the one they just tried to enter.
-            worker_name = conflict['attempted_name']
-
-        # Clean up the session.
+        # We've handled the choice, so we can clear the conflict from memory.
         session.pop('typo_conflict', None)
-        
-        # Now, prepare the action for the determined worker_name and go straight to confirm.
-        # This avoids redirecting to /scan and prevents the loophole.
-        prepare_action(worker_name)
-        return redirect(url_for('confirm'))
 
-    # If it's a GET request (i.e., the page first loads), just show the identity check.
+        if choice == 'yes':
+            # The user confirmed they are the registered person.
+            # Proceed with the correct name associated with the device token.
+            worker_name = conflict['correct_name']
+            prepare_action(worker_name)
+            return redirect(url_for('confirm'))
+        
+        else: # The user clicked "No, that's not me"
+            # ★★★ THIS IS THE NEW, STRICT LOGIC ★★★
+            # Do NOT change any data. Do NOT unlink the device.
+            # Simply inform the user of the error and send them back.
+            flash(f"Incorrect name. This device is registered to <strong>{conflict['correct_name']}</strong>. Please enter the correct name to proceed.")
+            return redirect(url_for('scan'))
+
+    # If it's a GET request, this is the first time the user is seeing the page.
+    # Just show them the identity check screen.
     return render_template("handle_typo.html", correct_name=conflict['correct_name'])
     
 
