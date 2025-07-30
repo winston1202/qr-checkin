@@ -229,9 +229,9 @@ def execute():
     if action_type == 'Clock Out':
         log_sheet.update_cell(action['row_to_update'], cols['clock_out'], action['time'])
         log_sheet.update_cell(action['row_to_update'], cols['verified'], action['verified'])
-        # Use a green wave icon for goodbye
+        # Use a solid blue text color for the name, matching other screens
         message = f"""
-        <h2><span style='font-size:2.5rem; color:#10b981;'>Goodbye, {action['name']}!</h2>
+        <h2>Goodbye, <span style='font-size:2.5rem; color:#3b82f6;'>{action['name']}</span>!</h2>
         <p>You have been clocked out successfully.</p>"""
     elif action_type == 'Clock In':
         num_cols = len(log_sheet.get_all_values()[0])
