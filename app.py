@@ -109,11 +109,9 @@ def prepare_action(worker_name):
     session['pending_action'] = pending_action # Use session just to pass data between requests
 
 def handle_already_clocked_out(worker_name):
-    # This function remains the same
-    session['final_status'] = {
-        'message': f"<h2>Action Completed</h2><p>{worker_name}, you have already completed your entry for the day.</p>",
-        'type': 'Already Clocked Out'
-    }
+    # Show a dedicated success page for already clocked out
+    message = f"<h2>{worker_name}, you have already completed your entry for the day.</h2>"
+    session['final_status'] = {'message': message, 'type': 'Already Clocked Out'}
     return redirect(url_for('success'))
 
 @app.route("/")
@@ -227,7 +225,10 @@ def execute():
     if action_type == 'Clock Out':
         log_sheet.update_cell(action['row_to_update'], cols['clock_out'], action['time'])
         log_sheet.update_cell(action['row_to_update'], cols['verified'], action['verified'])
-        message = f"<h2>Goodbye, {action['name']}!</h2><p>You have been clocked out successfully.</p>"
+        # Use a green wave icon for goodbye
+        message = f"""
+        <h2><span style='font-size:2.5rem; color:#10b981;'>👋</span> Goodbye, {action['name']}!</h2>
+        <p>You have been clocked out successfully.</p>"""
     elif action_type == 'Clock In':
         num_cols = len(log_sheet.get_all_values()[0])
         new_row_data = [""] * num_cols
@@ -247,5 +248,8 @@ def success():
     final_status = session.pop('final_status', {})
     message = final_status.get('message', "<p>Action completed.</p>")
     action_type = final_status.get('type')
-    show_back_button = action_type not in ['Clock Out', 'Already Clocked Out']
+    # Only show back button if not a Clock In (welcome), Clock Out, or Already Clocked Out
+    show_back_button = action_type not in ['Clock In', 'Clock Out', 'Already Clocked Out']
+    # Remove back button for all success screens
+    show_back_button = False
     return render_template("success.html", message=message, show_back_button=show_back_button)
