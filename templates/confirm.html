@@ -37,15 +37,8 @@
             }
         }
         
-        @keyframes ripple {
-            0% {
-                transform: scale(0);
-                opacity: 1;
-            }
-            100% {
-                transform: scale(4);
-                opacity: 0;
-            }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
         
         .page-enter {
@@ -57,8 +50,6 @@
         }
         
         .btn-confirm {
-            position: relative;
-            overflow: hidden;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
@@ -76,29 +67,6 @@
             box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);
         }
         
-        .btn-ripple::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.5);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }
-        
-        .btn-ripple:active::before {
-            width: 300px;
-            height: 300px;
-            animation: ripple 0.6s ease-out;
-        }
-        
-        .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        
         .card-float {
             animation: float 6s ease-in-out infinite;
         }
@@ -111,137 +79,48 @@
                 transform: translateY(-10px);
             }
         }
-        
-        .text-glow {
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-        }
-        
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .loading-overlay.show {
-            opacity: 1;
-            visibility: visible;
-        }
-        
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top: 4px solid #22c55e;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .page-transition {
-            opacity: 1;
-            transition: opacity 0.5s ease-out;
-        }
-        
-        .page-transition.fade-out {
-            opacity: 0;
-        }
     </style>
 </head>
 <body class="gradient-bg min-h-screen flex items-center justify-center p-4">
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="text-center">
-            <div class="spinner mb-4"></div>
-            <p class="text-white text-lg">Processing...</p>
+    <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md page-enter card-float">
+        <div class="mb-6">
+            <div class="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center slide-up">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2 slide-up">Please Confirm</h1>
+        </div>
+        
+        <div class="mb-8 slide-up" style="animation-delay: 0.2s">
+            <p class="text-lg text-gray-700 leading-relaxed">
+                You are about to <strong class="text-blue-600">{{ action_type }}</strong> for 
+                <strong class="text-purple-600">{{ worker_name }}</strong>
+            </p>
+            <p class="text-gray-600 mt-2">Is this correct?</p>
+        </div>
+        
+        <div class="flex flex-col sm:flex-row justify-center gap-4 slide-up" style="animation-delay: 0.4s">
+            <form action="{{ url_for('execute') }}" method="POST" class="flex-1">
+                <button type="submit" 
+                        class="btn-confirm bg-gradient-to-r from-green-500 to-green-600 text-white font-bold px-8 py-3 rounded-xl w-full shadow-lg hover:shadow-xl">
+                    <span class="flex items-center justify-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Yes, Confirm
+                    </span>
+                </button>
+            </form>
+            
+            <a href="{{ url_for('scan') }}" 
+               class="btn-cancel bg-gradient-to-r from-red-500 to-red-600 text-white font-bold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl flex items-center justify-center flex-1">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                No, Cancel
+            </a>
         </div>
     </div>
-    
-    <div class="page-transition" id="pageContent">
-        <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md page-enter card-float">
-            <div class="mb-6">
-                <div class="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center slide-up">
-                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                </div>
-                <h1 class="text-3xl font-bold text-gray-800 mb-2 text-glow slide-up">Please Confirm</h1>
-            </div>
-            
-            <div class="mb-8 slide-up" style="animation-delay: 0.2s">
-                <p class="text-lg text-gray-700 leading-relaxed">
-                    You are about to <strong class="text-blue-600">{{ action_type }}</strong> for 
-                    <strong class="text-purple-600">{{ worker_name }}</strong>
-                </p>
-                <p class="text-gray-600 mt-2">Is this correct?</p>
-            </div>
-            
-            <div class="flex flex-col sm:flex-row justify-center gap-4 slide-up" style="animation-delay: 0.4s">
-                <form action="{{ url_for('execute') }}" method="POST" onsubmit="showLoading()" class="flex-1">
-                    <button type="submit" 
-                            class="btn-confirm btn-ripple bg-gradient-to-r from-green-500 to-green-600 text-white font-bold px-8 py-3 rounded-xl w-full shadow-lg hover:shadow-xl transform transition-all duration-300">
-                        <span class="flex items-center justify-center">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                            </svg>
-                            Yes, Confirm
-                        </span>
-                    </button>
-                </form>
-                
-                <a href="{{ url_for('scan') }}" 
-                   onclick="pageTransition(this.href); return false;"
-                   class="btn-cancel bg-gradient-to-r from-red-500 to-red-600 text-white font-bold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-300 flex items-center justify-center flex-1">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                    No, Cancel
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        function showLoading() {
-            document.getElementById('loadingOverlay').classList.add('show');
-        }
-        
-        function pageTransition(url) {
-            const pageContent = document.getElementById('pageContent');
-            pageContent.classList.add('fade-out');
-            
-            setTimeout(() => {
-                window.location.href = url;
-            }, 500);
-        }
-        
-        // Add click sound effect (optional)
-        document.querySelectorAll('button, a').forEach(element => {
-            element.addEventListener('click', function() {
-                // You can add a subtle click sound here if desired
-                this.style.transform = 'scale(0.95)';
-                setTimeout(() => {
-                    this.style.transform = '';
-                }, 100);
-            });
-        });
-        
-        // Enhanced loading states
-        window.addEventListener('beforeunload', function() {
-            document.getElementById('loadingOverlay').classList.add('show');
-        });
-    </script>
 </body>
 </html>
