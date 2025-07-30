@@ -22,7 +22,7 @@ try:
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
-    log_sheet = client.open("QR Check-Ins").worksheet("Attendance")
+    log_sheet = client.open("QR Check-Ins").worksheet("Time Clock")
     users_sheet = client.open("QR Check-Ins").worksheet("Users")
 except (json.JSONDecodeError, gspread.exceptions.GSpreadException) as e:
     raise Exception(f"Could not connect to Google Sheets. Please check your credentials and sheet names. Error: {e}")
@@ -36,7 +36,7 @@ def get_day_with_suffix(d):
 def prepare_action(worker_name):
     log_values = log_sheet.get_all_values()
     if not log_values:
-        raise Exception("The 'Attendance' sheet is empty. It must have at least a header row.")
+        raise Exception("The 'Time Clock' sheet is empty. It must have at least a header row.")
 
     headers = [h.strip().lower() for h in log_values[0]]
     records = log_values[1:]
@@ -48,26 +48,25 @@ def prepare_action(worker_name):
         clock_out_col_idx = headers.index("clock out")
         verified_col_idx = headers.index("verified")
     except ValueError as e:
-        raise Exception(f"A required column is missing in 'Attendance'. Checked for '{e.args[0]}'. Please ensure all required headers exist.")
+        raise Exception(f"A required column is missing in 'Time Clock'. Checked for '{e.args[0]}'. Please ensure all required headers exist.")
 
     user_cell = users_sheet.find(worker_name, in_column=1)
     user_row_number = user_cell.row if user_cell else None
-    
-    # ★★★ FIX: Read the token from the regular browser cookie, not the session ★★★
     actual_token = request.cookies.get('device_token')
     verification_status = "No"
 
+    # Only associate token for new users if explicitly allowed (after confirmation)
+    allow_new_user_token = session.pop('allow_new_user_token', False)
+
     if user_row_number:
         expected_token = users_sheet.cell(user_row_number, 2).value
-        # If the user has a token in the sheet, check if it matches the browser's token
         if expected_token and expected_token == actual_token:
             verification_status = "Yes"
-        # If the user has NO token in the sheet, we associate the browser's token with them.
         elif not expected_token and actual_token:
             users_sheet.update_cell(user_row_number, 2, actual_token)
             verification_status = "Yes"
-    else: # This is a new user
-        if actual_token:
+    else:
+        if allow_new_user_token and actual_token:
             users_sheet.append_row([worker_name, actual_token])
             user_row_number = len(users_sheet.get_all_records()) + 1
             verification_status = "Yes"
@@ -154,6 +153,12 @@ def process():
                 session['typo_conflict'] = {'correct_name': correct_name, 'attempted_name': attempted_name}
                 return redirect(url_for('handle_typo'))
 
+    # Check if this is a new user (not in users_sheet)
+    user_cell = users_sheet.find(attempted_name, in_column=1)
+    if not user_cell:
+        # New user: show confirmation screen before associating token
+        session['typo_conflict'] = {'correct_name': attempted_name, 'attempted_name': attempted_name, 'new_user': True}
+        return redirect(url_for('handle_typo'))
     prepare_action(attempted_name)
     pending = session.get('pending_action', {})
     if pending.get('type') == 'Already Clocked Out':
@@ -175,21 +180,20 @@ def handle_typo():
 
     if request.method == 'POST':
         choice = request.form.get('choice')
-        
-        # We've handled the choice, so we can clear the conflict from memory.
+        is_new_user = conflict.get('new_user', False)
         session.pop('typo_conflict', None)
 
         if choice == 'yes':
-            # The user confirmed they are the registered person.
-            # Proceed with the correct name associated with the device token.
             worker_name = conflict['correct_name']
+            if is_new_user:
+                # Only now, after confirmation, allow token association
+                session['allow_new_user_token'] = True
             prepare_action(worker_name)
             return redirect(url_for('confirm'))
-        
-        else: # The user clicked "No, that's not me"
-            # ★★★ THIS IS THE NEW, STRICT LOGIC ★★★
-            # Do NOT change any data. Do NOT unlink the device.
-            # Simply inform the user of the error and send them back.
+        else:
+            if is_new_user:
+                # For new users, just go back to scan
+                return redirect(url_for('scan'))
             flash(f"Incorrect name. This device is registered to <strong>{conflict['correct_name']}</strong>. Please enter the correct name to proceed.")
             return redirect(url_for('scan'))
 
@@ -227,7 +231,7 @@ def execute():
         log_sheet.update_cell(action['row_to_update'], cols['verified'], action['verified'])
         # Use a green wave icon for goodbye
         message = f"""
-        <h2><span style='font-size:2.5rem; color:#10b981;'>👋</span> Goodbye, {action['name']}!</h2>
+        <h2><span style='font-size:2.5rem; color:#10b981;'>Goodbye, {action['name']}!</h2>
         <p>You have been clocked out successfully.</p>"""
     elif action_type == 'Clock In':
         num_cols = len(log_sheet.get_all_values()[0])
