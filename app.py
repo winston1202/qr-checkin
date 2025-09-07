@@ -142,30 +142,55 @@ def process():
         return redirect(url_for('scan'))
 
     attempted_name = f"{first_name} {last_name}"
-    
-    # ★★★ FIX: Read from request.cookies for the identity check ★★★
     actual_token = request.cookies.get('device_token')
-    if actual_token:
-        token_cell = users_sheet.find(actual_token, in_column=2)
-        if token_cell:
-            correct_name = users_sheet.cell(token_cell.row, 1).value
-            if correct_name.strip().lower() != attempted_name.strip().lower():
-                session['typo_conflict'] = {'correct_name': correct_name, 'attempted_name': attempted_name}
-                return redirect(url_for('handle_typo'))
 
-    # Check if this is a new user (not in users_sheet)
-    user_cell = users_sheet.find(attempted_name, in_column=1)
-    if not user_cell:
-        # New user: show confirmation screen before associating token
-        session['typo_conflict'] = {'correct_name': attempted_name, 'attempted_name': attempted_name, 'new_user': True}
+    # This should never happen since the JS creates one, but it's a good safeguard.
+    if not actual_token:
+        flash("Your browser could not be identified. Please enable cookies and try again.")
+        return redirect(url_for('scan'))
+
+    # --- NEW, STRICTER LOGIC ---
+
+    # Case 1: Is this a recognized device?
+    token_cell = users_sheet.find(actual_token, in_column=2)
+    if token_cell:
+        # The device is known. We just need to check if the name they entered is a typo.
+        correct_name = users_sheet.cell(token_cell.row, 1).value
+        if correct_name.strip().lower() != attempted_name.strip().lower():
+            # It's a typo. Send them to the "Is this you?" screen.
+            session['typo_conflict'] = {'correct_name': correct_name, 'attempted_name': attempted_name}
+            return redirect(url_for('handle_typo'))
+        
+        # If the name matches, proceed as normal.
+        worker_name = correct_name
+
+    # Case 2: This is an unrecognized device (the token was not found).
+    else:
+        # Check if the name they are trying to use already belongs to someone.
+        user_cell = users_sheet.find(attempted_name, in_column=1)
+        if user_cell:
+            # BLOCK! The name is registered, but the device is not.
+            flash(f"The name <strong>{attempted_name}</strong> is already registered to a different device. "
+                  f"Please use your registered device. If this is a new device, "
+                  f"contact an administrator to get it updated.")
+            return redirect(url_for('scan'))
+        
+        # This is a genuinely new user on a new device.
+        # Send them to the confirmation screen to register themselves.
+        session['typo_conflict'] = {
+            'correct_name': attempted_name, 
+            'attempted_name': attempted_name, 
+            'new_user': True
+        }
         return redirect(url_for('handle_typo'))
-    prepare_action(attempted_name)
+
+    # If we've gotten this far, the user is valid and on their correct device.
+    prepare_action(worker_name)
     pending = session.get('pending_action', {})
     if pending.get('type') == 'Already Clocked Out':
-        return handle_already_clocked_out(attempted_name)
+        return handle_already_clocked_out(worker_name)
+    
     return redirect(url_for('confirm'))
-
-# No other functions need to change. Only replace this one.
 
 @app.route("/handle_typo", methods=["GET", "POST"])
 def handle_typo():
