@@ -556,7 +556,7 @@ def admin_api_dashboard_data():
     return jsonify(list(clocked_in_today.values()))
 
 # ===============================================================
-# == THIS IS THE MISSING FUNCTION THAT CAUSED THE CRASH =========
+# == THIS IS THE MISSING EXPORT AND PRINT SECTION ================
 # ===============================================================
 @app.route("/admin/export_csv")
 @admin_required
@@ -571,7 +571,6 @@ def export_csv():
     filtered_logs_for_csv = []
     for i in range(len(all_logs_raw) - 1, -1, -1):
         log_dict = dict(zip(headers, all_logs_raw[i]))
-        
         name_matches = (not filter_name) or (filter_name == log_dict.get('Name'))
         date_matches = True
         if filter_date:
@@ -582,7 +581,6 @@ def export_csv():
                 date_matches = (sheet_date == filter_dt)
             except (ValueError, TypeError):
                 date_matches = False
-
         if name_matches and date_matches:
             filtered_logs_for_csv.append(log_dict)
 
@@ -596,3 +594,37 @@ def export_csv():
     response.headers["Content-type"] = "text/csv"
     
     return response
+
+@app.route("/admin/print_view")
+@admin_required
+def admin_print_view():
+    log_values = log_sheet.get_all_values()
+    headers = log_values[0]
+    all_logs_raw = log_values[1:]
+
+    filter_name = request.args.get('name', '')
+    filter_date = request.args.get('date', '')
+
+    filtered_logs = []
+    for i in range(len(all_logs_raw) - 1, -1, -1):
+        log_dict = dict(zip(headers, all_logs_raw[i]))
+        name_matches = (not filter_name) or (filter_name == log_dict.get('Name'))
+        date_matches = True
+        if filter_date:
+            try:
+                sheet_date_str = log_dict.get('Date', '').replace('st,', ',').replace('nd,', ',').replace('rd,', ',').replace('th,', ',')
+                sheet_date = datetime.strptime(sheet_date_str, "%b. %d, %Y").date()
+                filter_dt = datetime.strptime(filter_date, "%Y-%m-%d").date()
+                date_matches = (sheet_date == filter_dt)
+            except (ValueError, TypeError):
+                date_matches = False
+        if name_matches and date_matches:
+            filtered_logs.append(log_dict)
+    
+    generation_time = datetime.now(CENTRAL_TIMEZONE).strftime("%Y-%m-%d %I:%M %p")
+
+    return render_template("admin_print_view.html",
+                           logs=filtered_logs,
+                           filter_name=filter_name,
+                           filter_date=filter_date,
+                           generation_time=generation_time)
