@@ -1,3 +1,4 @@
+html
 {% extends "admin_layout.html" %}
 
 {% block title %}Application Settings{% endblock %}
@@ -17,12 +18,24 @@
                 </p>
             </div>
             
-            <!-- Tailwind Toggle Switch -->
             <label for="location-toggle" class="flex items-center cursor-pointer">
                 <div class="relative">
+                    
+                    <!-- 
+                      ===============================================================
+                      == THIS IS THE FIX FOR THE RED TEXT ===========================
+                      ===============================================================
+                      1. We set a variable 'is_checked' BEFORE the <input> tag.
+                      2. We simply print the 'is_checked' variable inside the tag.
+                      This separates the logic from the HTML, which makes the syntax
+                      highlighter happy and removes the red highlighting.
+                    -->
+                    {% set is_checked = 'checked' if settings.get('LocationVerificationEnabled') == 'TRUE' else '' %}
+                    
                     <input type="checkbox" id="location-toggle" name="setting_value" class="sr-only" 
                            onchange="this.form.submit()" 
-                           {% if settings.get('LocationVerificationEnabled') == 'TRUE' %}checked{% endif %}>
+                           {{ is_checked }}>
+                    
                     <div class="block bg-gray-600 w-14 h-8 rounded-full"></div>
                     <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
                 </div>

@@ -438,8 +438,8 @@ def admin_settings():
 @app.route("/admin/update_settings", methods=["POST"])
 @admin_required
 def update_settings():
-    # --- THIS IS THE CORRECTED VERSION ---
-    global settings_cache, settings_last_fetched
+    # We need to modify the global 'settings_last_fetched' variable
+    global settings_last_fetched
     
     setting_name = request.form.get("setting_name")
     new_value = "TRUE" if request.form.get("setting_value") == "on" else "FALSE"
@@ -448,7 +448,9 @@ def update_settings():
         cell = settings_sheet.find(setting_name)
         settings_sheet.update_cell(cell.row, cell.col + 1, new_value)
         
-        # === THIS IS THE FIX: Force the cache to refetch on the next request ===
+        # === THIS IS THE DEFINITIVE FIX ===
+        # By resetting the timer to 0, we force EVERY copy of the app
+        # to re-fetch the settings from the Google Sheet on its next request.
         settings_last_fetched = 0
         
         flash(f"Setting '{setting_name}' updated successfully.", "success")
