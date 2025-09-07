@@ -144,53 +144,69 @@ def process():
     attempted_name = f"{first_name} {last_name}"
     actual_token = request.cookies.get('device_token')
 
-    # This should never happen since the JS creates one, but it's a good safeguard.
     if not actual_token:
         flash("Your browser could not be identified. Please enable cookies and try again.")
         return redirect(url_for('scan'))
 
-    # --- NEW, STRICTER LOGIC ---
-
     # Case 1: Is this a recognized device?
     token_cell = users_sheet.find(actual_token, in_column=2)
     if token_cell:
-        # The device is known. We just need to check if the name they entered is a typo.
         correct_name = users_sheet.cell(token_cell.row, 1).value
         if correct_name.strip().lower() != attempted_name.strip().lower():
-            # It's a typo. Send them to the "Is this you?" screen.
             session['typo_conflict'] = {'correct_name': correct_name, 'attempted_name': attempted_name}
             return redirect(url_for('handle_typo'))
-        
-        # If the name matches, proceed as normal.
         worker_name = correct_name
 
-    # Case 2: This is an unrecognized device (the token was not found).
+    # Case 2: This is an unrecognized device.
     else:
-        # Check if the name they are trying to use already belongs to someone.
         user_cell = users_sheet.find(attempted_name, in_column=1)
         if user_cell:
-            # BLOCK! The name is registered, but the device is not.
             flash(f"The name <strong>{attempted_name}</strong> is already registered to a different device. "
                   f"Please use your registered device. If this is a new device, "
                   f"contact an administrator to get it updated.")
             return redirect(url_for('scan'))
         
-        # This is a genuinely new user on a new device.
-        # Send them to the confirmation screen to register themselves.
-        session['typo_conflict'] = {
-            'correct_name': attempted_name, 
-            'attempted_name': attempted_name, 
-            'new_user': True
-        }
-        return redirect(url_for('handle_typo'))
+        # --- THIS IS THE KEY CHANGE ---
+        # It's a new user. Send them to the dedicated registration confirmation page.
+        # We use a different session variable to keep it separate from typo conflicts.
+        session['new_user_registration'] = {'name': attempted_name}
+        return redirect(url_for('register')) # <-- DIRECTS TO THE NEW ROUTE
 
-    # If we've gotten this far, the user is valid and on their correct device.
+    # If we get here, the user is valid. Proceed to confirmation.
     prepare_action(worker_name)
     pending = session.get('pending_action', {})
     if pending.get('type') == 'Already Clocked Out':
         return handle_already_clocked_out(worker_name)
     
     return redirect(url_for('confirm'))
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    """
+    Handles the confirmation screen for a new user to register their device.
+    """
+    new_user_data = session.get('new_user_registration')
+    if not new_user_data:
+        # If there's no data, they shouldn't be here. Send them to the start.
+        return redirect(url_for('scan'))
+
+    if request.method == 'POST':
+        choice = request.form.get('choice')
+        worker_name = new_user_data['name']
+        session.pop('new_user_registration', None) # Clear the session data
+
+        if choice == 'yes':
+            # User confirmed their name. Now we can allow the token to be associated.
+            session['allow_new_user_token'] = True
+            prepare_action(worker_name)
+            return redirect(url_for('confirm'))
+        else:
+            # User clicked "No", they made a typo. Send them back to fix it.
+            flash("Registration cancelled. Please re-enter your name.")
+            return redirect(url_for('scan'))
+
+    # For a GET request, just show the confirmation page.
+    return render_template("register.html", new_name=new_user_data['name'])
 
 @app.route("/handle_typo", methods=["GET", "POST"])
 def handle_typo():

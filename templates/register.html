@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Confirm Registration</title>
+    <style>
+        /* Re-using the same animation styles is fine */
+        @keyframes bounceIn { 0% { opacity: 0; transform: scale(0.3); } 50% { opacity: 1; transform: scale(1.05); } 70% { transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-enter { animation: bounceIn 0.8s ease-out; }
+        .btn-yes { background: linear-gradient(135deg, #10b981, #059669); transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-yes:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 15px 35px rgba(16, 185, 129, 0.4); }
+        .btn-no { background: linear-gradient(135deg, #ef4444, #dc2626); transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-no:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 15px 35px rgba(239, 68, 68, 0.4); }
+        .name-highlight { background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; animation: pulse 2s infinite; }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md card-enter">
+        
+        <div class="mb-6">
+            <!-- NEW, more welcoming icon (User Plus) -->
+            <div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                </svg>
+            </div>
+            <!-- NEW, clearer title and text -->
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Confirm Your Name</h1>
+            <div class="w-16 h-1 bg-gradient-to-r from-blue-500 to-purple-600 mx-auto rounded-full"></div>
+        </div>
+        
+        <div class="mb-8">
+            <p class="text-lg text-gray-700 leading-relaxed mb-4">
+                You are about to register this device to the name:
+            </p>
+            <div class="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-xl mb-4">
+                <p class="text-2xl font-bold name-highlight">{{ new_name }}</p>
+            </div>
+            <p class="text-gray-600 text-lg font-medium">Is this correct?</p>
+        </div>
+        
+        <div class="flex flex-col sm:flex-row justify-center gap-4">
+            <!-- Form now points to the new /register route -->
+            <form action="{{ url_for('register') }}" method="POST" class="flex-1">
+                <input type="hidden" name="choice" value="yes">
+                <button type="submit" 
+                        class="btn-yes text-white font-bold px-8 py-4 rounded-xl w-full shadow-lg hover:shadow-xl">
+                    <span class="flex items-center justify-center">
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        Yes, Continue
+                    </span>
+                </button>
+            </form>
+
+            <form action="{{ url_for('register') }}" method="POST" class="flex-1">
+                <input type="hidden" name="choice" value="no">
+                <button type="submit" 
+                        class="btn-no text-white font-bold px-8 py-4 rounded-xl w-full shadow-lg hover:shadow-xl">
+                    <span class="flex items-center justify-center">
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        No, Go Back
+                    </span>
+                </button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
