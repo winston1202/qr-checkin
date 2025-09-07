@@ -166,34 +166,29 @@
             <p class="text-gray-600 text-lg font-medium">Are you this person?</p>
         </div>
         
-        <div class="flex flex-col sm:flex-row justify-center gap-4">
-            <form action="{{ url_for('handle_typo') }}" method="POST" class="flex-1 slide-left" style="animation-delay: 0.5s">
-                <input type="hidden" name="choice" value="yes">
-                    <button type="submit" class="btn-yes text-white font-bold px-8 py-4 rounded-xl w-full shadow-lg hover:shadow-xl">
-                        <!-- Normal State -->
-                        <span class="normal-state flex items-center justify-center">
-                            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            Yes, Continue
-                        </span>
-                        <!-- Processing State (Initially Hidden) -->
-                        <span class="processing-state hidden">Processing...</span>
-                    </button>
-            </form>
-
-            <form action="{{ url_for('handle_typo') }}" method="POST" class="flex-1 slide-right" style="animation-delay: 0.7s">
-                <input type="hidden" name="choice" value="no">
-                <button type="submit" 
-                        class="btn-no text-white font-bold px-8 py-4 rounded-xl w-full shadow-lg hover:shadow-xl">
-                    <span class="flex items-center justify-center button-text">
-                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                        No, Go Back
-                    </span>
-                </button>
-            </form>
-        </div>
-    </div>
+<div class="flex flex-col sm:flex-row justify-center gap-4">
+    <form action="{{ url_for('register') }}" method="POST" class="flex-1">
+        <!-- Add 'basis-0' to the button's class list -->
+        <button type="submit" class="btn-yes text-white font-bold px-8 py-4 rounded-xl w-full shadow-lg hover:shadow-xl basis-0">
+            <!-- Normal State -->
+            <span class="normal-state flex items-center justify-center">
+                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                Yes, Continue
+            </span>
+            <!-- Processing State (Initially Hidden) -->
+            <span class="processing-state hidden">Processing...</span>
+        </button>
+    </form>
+    <form action="{{ url_for('register') }}" method="POST" class="flex-1">
+        <!-- Add 'basis-0' to the other button as well for consistency -->
+        <button type="submit" class="btn-no text-white font-bold px-8 py-4 rounded-xl w-full shadow-lg hover:shadow-xl basis-0">
+            <span class="flex items-center justify-center">
+                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                No, Go Back
+            </span>
+        </button>
+    </form>
+</div>
 <!-- Add/replace this script at the bottom of the relevant pages, before </body> -->
 <!-- In templates/register.html AND templates/handle_typo.html -->
 <script>
