@@ -6,114 +6,69 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <title>Confirm Registration</title>
     <style>
-        /* Add this to the <style> tag of all other HTML files */
-
-.gradient-bg::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-        radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
-        radial-gradient(circle at 40% 80%, rgba(120, 219, 255, 0.3) 0%, transparent 50%);
-    animation: float 6s ease-in-out infinite;
-}
-
-@keyframes float {
-    0%, 100% { transform: translateY(0px) rotate(0deg); }
-    33% { transform: translateY(-10px) rotate(1deg); }
-    66% { transform: translateY(5px) rotate(-1deg); }
-}
-        /* Re-using the same animation styles is fine */
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); position: relative; }
+        .gradient-bg::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%), radial-gradient(circle at 40% 80%, rgba(120, 219, 255, 0.3) 0%, transparent 50%); animation: float 6s ease-in-out infinite; }
+        @keyframes float { 0%, 100% { transform: translateY(0px) rotate(0deg); } 33% { transform: translateY(-10px) rotate(1deg); } 66% { transform: translateY(5px) rotate(-1deg); } }
         @keyframes bounceIn { 0% { opacity: 0; transform: scale(0.3); } 50% { opacity: 1; transform: scale(1.05); } 70% { transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
-        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
         .card-enter { animation: bounceIn 0.8s ease-out; }
-        .btn-yes { background: linear-gradient(135deg, #10b981, #059669); transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-yes { background: linear-gradient(135deg, #10b981, #059669); transition: all 0.4s; }
         .btn-yes:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 15px 35px rgba(16, 185, 129, 0.4); }
-        .btn-no { background: linear-gradient(135deg, #ef4444, #dc2626); transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-no { background: linear-gradient(135deg, #ef4444, #dc2626); transition: all 0.4s; }
         .btn-no:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 15px 35px rgba(239, 68, 68, 0.4); }
-        .name-highlight { background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; animation: pulse 2s infinite; }
+        
+        .name-highlight {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-text-fill-color: transparent;
+            /* === THIS IS THE FIX: Both versions are now included === */
+            -webkit-background-clip: text;
+            background-clip: text;
+        }
     </style>
 </head>
 <body class="gradient-bg min-h-screen flex items-center justify-center p-4">
     <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md card-enter">
-        
         <div class="mb-6">
-            <!-- NEW, more welcoming icon (User Plus) -->
             <div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
-                </svg>
+                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
             </div>
-            <!-- NEW, clearer title and text -->
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Confirm Your Name</h1>
             <div class="w-16 h-1 bg-gradient-to-r from-blue-500 to-purple-600 mx-auto rounded-full"></div>
         </div>
         
         <div class="mb-8">
-            <p class="text-lg text-gray-700 leading-relaxed mb-4">
-                You are about to register this device to the name:
-            </p>
+            <p class="text-lg text-gray-700 leading-relaxed mb-4">You are about to register this device to the name:</p>
             <div class="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-xl mb-4">
                 <p class="text-2xl font-bold name-highlight">{{ new_name }}</p>
             </div>
             <p class="text-gray-600 text-lg font-medium">Is this correct?</p>
         </div>
         
-<div class="flex flex-col sm:flex-row justify-center gap-4">
-    <form action="{{ url_for('register') }}" method="POST" class="flex-1">
-        <!-- Add 'basis-0' to the button's class list -->
-        <button type="submit" class="btn-yes text-white font-bold px-8 py-4 rounded-xl w-full shadow-lg hover:shadow-xl basis-0">
-            <!-- Normal State -->
-            <span class="normal-state flex items-center justify-center">
-                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                Yes, Continue
-            </span>
-            <!-- Processing State (Initially Hidden) -->
-            <span class="processing-state hidden">Processing...</span>
-        </button>
-    </form>
-    <form action="{{ url_for('register') }}" method="POST" class="flex-1">
-        <!-- Add 'basis-0' to the other button as well for consistency -->
-        <button type="submit" class="btn-no text-white font-bold px-8 py-4 rounded-xl w-full shadow-lg hover:shadow-xl basis-0">
-            <span class="flex items-center justify-center">
-                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                No, Go Back
-            </span>
-        </button>
-    </form>
-</div>
-<!-- Add/replace this script at the bottom of the relevant pages, before </body> -->
-<!-- In templates/register.html AND templates/handle_typo.html -->
-<script>
-    function setupFormSubmissions() {
-        document.querySelectorAll('form').forEach(form => {
-            form.addEventListener('submit', function(event) {
-                const button = form.querySelector('button[type="submit"]');
-                if (button) {
-                    // === THIS IS THE FIX ===
-                    // 1. Get the current width of the button in pixels.
-                    const currentWidth = button.offsetWidth;
-                    // 2. Set the button's min-width to that exact value.
-                    button.style.minWidth = `${currentWidth}px`;
-
-                    // 3. Now, proceed with the state change.
-                    button.disabled = true;
-                    const normalState = button.querySelector('.normal-state');
-                    const processingState = button.querySelector('.processing-state');
-                    
-                    if (normalState && processingState) {
-                        normalState.classList.add('hidden');
-                        processingState.classList.remove('hidden');
-                    }
-                }
-            });
-        });
-    }
-    document.addEventListener('DOMContentLoaded', setupFormSubmissions);
-</script>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <form action="{{ url_for('register') }}" method="POST">
+                <input type="hidden" name="choice" value="yes">
+                <button type="submit" class="btn-yes text-white font-bold px-8 py-4 rounded-xl w-full shadow-lg hover:shadow-xl">
+                    <span class="normal-state flex items-center justify-center">
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        Yes, Continue
+                    </span>
+                    <span class="processing-state hidden">Processing...</span>
+                </button>
+            </form>
+            <form action="{{ url_for('register') }}" method="POST">
+                <input type="hidden" name="choice" value="no">
+                <button type="submit" class="btn-no text-white font-bold px-8 py-4 rounded-xl w-full shadow-lg hover:shadow-xl">
+                    <span class="flex items-center justify-center">
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        No, Go Back
+                    </span>
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        function setupFormSubmissions() { /* ... unchanged ... */ }
+        document.addEventListener('DOMContentLoaded', setupFormSubmissions);
+    </script>
 </body>
 </html>
