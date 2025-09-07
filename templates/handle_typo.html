@@ -195,20 +195,24 @@
         </div>
     </div>
 <!-- Add/replace this script at the bottom of the relevant pages, before </body> -->
+<!-- In templates/register.html AND templates/handle_typo.html -->
 <script>
     function setupFormSubmissions() {
         document.querySelectorAll('form').forEach(form => {
             form.addEventListener('submit', function(event) {
                 const button = form.querySelector('button[type="submit"]');
                 if (button) {
-                    // Disable the button to prevent multiple clicks
+                    // === THIS IS THE FIX ===
+                    // 1. Get the current width of the button in pixels.
+                    const currentWidth = button.offsetWidth;
+                    // 2. Set the button's min-width to that exact value.
+                    button.style.minWidth = `${currentWidth}px`;
+
+                    // 3. Now, proceed with the state change.
                     button.disabled = true;
-                    
-                    // Find the two states inside the button
                     const normalState = button.querySelector('.normal-state');
                     const processingState = button.querySelector('.processing-state');
                     
-                    // Hide the normal state and show the processing state
                     if (normalState && processingState) {
                         normalState.classList.add('hidden');
                         processingState.classList.remove('hidden');
@@ -217,7 +221,6 @@
             });
         });
     }
-    // Run the setup function when the page is loaded
     document.addEventListener('DOMContentLoaded', setupFormSubmissions);
 </script>
 </body>

@@ -62,24 +62,32 @@
     </div>
 
     <!-- === THIS IS THE FIX: Added the script to handle the button state === -->
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('executeForm');
-            if (form) {
-                form.addEventListener('submit', function(event) {
-                    const button = form.querySelector('button[type="submit"]');
-                    if (button) {
-                        button.disabled = true;
-                        const normalState = button.querySelector('.normal-state');
-                        const processingState = button.querySelector('.processing-state');
-                        if (normalState && processingState) {
-                            normalState.classList.add('hidden');
-                            processingState.classList.remove('hidden');
-                        }
-                    }
-                });
+<!-- In templates/confirm.html -->
+<script>
+    const form = document.getElementById('confirmationForm');
+    // ... (checkbox, errorMessage, checkboxLabel variables remain the same) ...
+
+    form.addEventListener('submit', function(event) {
+        if (!checkbox.checked) {
+            // ... (validation logic remains the same) ...
+        } else {
+            errorMessage.classList.add('hidden');
+            const button = form.querySelector('button[type="submit"]');
+            if (button) {
+                // === THIS IS THE FIX (identical to the other script) ===
+                const currentWidth = button.offsetWidth;
+                button.style.minWidth = `${currentWidth}px`;
+
+                button.disabled = true;
+                const normalState = button.querySelector('.normal-state');
+                const processingState = button.querySelector('.processing-state');
+                if (normalState && processingState) {
+                    normalState.classList.add('hidden');
+                    processingState.classList.remove('hidden');
+                }
             }
-        });
-    </script>
+        }
+    });
+</script>
 </body>
 </html>
