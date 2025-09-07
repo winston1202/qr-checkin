@@ -9,8 +9,6 @@
         {% if currently_in %}
             <div class="overflow-x-auto">
                 <table class="w-full text-left min-w-[500px]">
-                    
-                    <!-- Table Header -->
                     <thead>
                         <tr>
                             <th class="py-2">Name</th>
@@ -18,20 +16,14 @@
                             <th class="py-2">Action</th>
                         </tr>
                     </thead>
-                    
-                    <!-- Table Body -->
                     <tbody>
                         {% for person in currently_in %}
                             <tr class="border-t">
-                                <td class="py-3 font-semibold">
-                                    {{ person.name }}
-                                </td>
-                                <td class="py-3 text-gray-600">
-                                    {{ person['clock in'] }}
-                                </td>
+                                <td class="py-3 font-semibold">{{ person['Name'] }}</td>
+                                <td class="py-3 text-gray-600">{{ person['Clock In'] }}</td>
                                 <td class="py-3">
                                     <form action="{{ url_for('fix_clock_out', row_id=person.row_id) }}" method="POST">
-                                        <input type="hidden" name="name" value="{{ person.name }}">
+                                        <input type="hidden" name="name" value="{{ person['Name'] }}">
                                         <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold py-2 px-3 rounded">
                                             Clock Out Now
                                         </button>
@@ -40,13 +32,10 @@
                             </tr>
                         {% endfor %}
                     </tbody>
-                    
                 </table>
             </div>
         {% else %}
-            <!-- Message shown when no one is clocked in -->
             <p class="text-gray-600">No one is currently clocked in.</p>
         {% endif %}
-        
     </div>
 {% endblock %}

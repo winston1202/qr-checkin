@@ -52,15 +52,17 @@ def prepare_action(worker_name):
     if not log_values:
         raise Exception("The 'Time Clock' sheet is empty. It must have at least a header row.")
 
-    headers = [h.strip().lower() for h in log_values[0]]
+    # CORRECTED: Use exact headers without converting to lowercase
+    headers = [h.strip() for h in log_values[0]]
     records = log_values[1:]
 
     try:
-        name_col_idx = headers.index("name")
-        date_col_idx = headers.index("date")
-        clock_in_col_idx = headers.index("clock in")
-        clock_out_col_idx = headers.index("clock out")
-        verified_col_idx = headers.index("verified")
+        # CORRECTED: Use exact, case-sensitive header names
+        name_col_idx = headers.index("Name")
+        date_col_idx = headers.index("Date")
+        clock_in_col_idx = headers.index("Clock In")
+        clock_out_col_idx = headers.index("Clock Out")
+        verified_col_idx = headers.index("Verified")
     except ValueError as e:
         raise Exception(f"A required column is missing in 'Time Clock'. Checked for '{e.args[0]}'. Please ensure all required headers exist.")
 
@@ -72,7 +74,7 @@ def prepare_action(worker_name):
     allow_new_user_token = session.pop('allow_new_user_token', False)
 
     if user_row_number:
-        expected_token = users_sheet.cell(user_row_number, 2).value
+        expected_token = users_sheet.cell(user_row_number, 2).value # Assumes token is in column 2
         if expected_token and expected_token == actual_token:
             verification_status = "Yes"
         elif not expected_token and actual_token:
@@ -103,8 +105,8 @@ def prepare_action(worker_name):
         'name': worker_name, 'date': today_date, 'time': current_time,
         'verified': verification_status,
         'col_indices': {
-            'clock_in': clock_in_col_idx + 1, 'clock_out': clock_out_col_idx + 1,
-            'verified': verified_col_idx + 1, 'date': date_col_idx + 1, 'name': name_col_idx + 1
+            'Clock In': clock_in_col_idx + 1, 'Clock Out': clock_out_col_idx + 1,
+            'Verified': verified_col_idx + 1, 'Date': date_col_idx + 1, 'Name': name_col_idx + 1
         }
     }
 
@@ -234,21 +236,21 @@ def execute():
     cols = action.get('col_indices', {})
 
     if action_type == 'Clock Out':
-        log_sheet.update_cell(action['row_to_update'], cols['clock_out'], action['time'])
-        log_sheet.update_cell(action['row_to_update'], cols['verified'], action['verified'])
+        log_sheet.update_cell(action['row_to_update'], cols['Clock Out'], action['time'])
+        log_sheet.update_cell(action['row_to_update'], cols['Verified'], action['verified'])
         message = "You have been clocked out successfully."
         status_type = 'clock_out'
     elif action_type == 'Clock In':
         num_cols = len(log_sheet.get_all_values()[0])
         new_row_data = [""] * num_cols
-        new_row_data[cols['date'] - 1] = action['date']
-        new_row_data[cols['name'] - 1] = action['name']
-        new_row_data[cols['clock_in'] - 1] = action['time']
-        new_row_data[cols['verified'] - 1] = action['verified']
+        new_row_data[cols['Date'] - 1] = action['date']
+        new_row_data[cols['Name'] - 1] = action['name']
+        new_row_data[cols['Clock In'] - 1] = action['time']
+        new_row_data[cols['Verified'] - 1] = action['verified']
         log_sheet.append_row(new_row_data, value_input_option='USER_ENTERED')
         message = "You have been clocked in successfully."
         status_type = 'clock_in'
-    else: # Should not happen, but as a fallback
+    else: 
         message = "Action processed."
         status_type = 'default'
 
@@ -300,18 +302,19 @@ def admin_redirect():
 @app.route("/admin/dashboard")
 @admin_required
 def admin_dashboard():
-    all_logs = log_sheet.get_all_records()
+    all_logs = log_sheet.get_all_records() # Reads headers correctly
     now = datetime.now(CENTRAL_TIMEZONE)
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
     
     clocked_in_today = {}
-    log_values = log_sheet.get_all_values()[1:]
+    log_values = log_sheet.get_all_values()[1:] # Raw values list
+    headers = log_sheet.get_all_values()[0]   # Raw headers list
+
     for i, row_list in enumerate(log_values):
-        # Create a dict from the list to work with it easily
-        record = dict(zip(all_logs[0].keys(), row_list))
-        record['row_id'] = i + 2 # Sheet rows are 1-indexed, +1 for header
-        if record.get('date') == today_date and record.get('clock in') and not record.get('clock out'):
-            clocked_in_today[record.get('name')] = record
+        record = dict(zip(headers, row_list)) # Create dict with correct headers
+        record['row_id'] = i + 2 
+        if record.get('Date') == today_date and record.get('Clock In') and not record.get('Clock Out'):
+            clocked_in_today[record.get('Name')] = record
     
     return render_template("admin_dashboard.html", currently_in=list(clocked_in_today.values()))
 
@@ -319,32 +322,27 @@ def admin_dashboard():
 @app.route("/admin/time_log")
 @admin_required
 def admin_time_log():
+    all_users = users_sheet.get_all_records()
+    unique_names = sorted(list(set(user['Name'] for user in all_users)))
+    
     log_values = log_sheet.get_all_values()
     headers = log_values[0]
     all_logs_raw = log_values[1:]
-    
-    # Get unique names for the filter dropdown
-    all_users = users_sheet.get_all_records()
-    unique_names = sorted(list(set(user['Name'] for user in all_users)))
 
-    # Get filter criteria from URL
     filter_name = request.args.get('name', '')
     filter_date = request.args.get('date', '')
 
     filtered_logs = []
-    # Iterate in reverse to show newest first
     for i in range(len(all_logs_raw) - 1, -1, -1):
         log_dict = dict(zip(headers, all_logs_raw[i]))
         log_dict['row_id'] = i + 2
         
-        # Filtering logic
-        name_matches = (not filter_name) or (filter_name == log_dict.get('name'))
+        name_matches = (not filter_name) or (filter_name == log_dict.get('Name'))
         
         date_matches = True
         if filter_date:
             try:
-                # Compare dates without being strict about "st, nd, th"
-                sheet_date_str = log_dict.get('date', '').replace('st,', ',').replace('nd,', ',').replace('rd,', ',').replace('th,', ',')
+                sheet_date_str = log_dict.get('Date', '').replace('st,', ',').replace('nd,', ',').replace('rd,', ',').replace('th,', ',')
                 sheet_date = datetime.strptime(sheet_date_str, "%b. %d, %Y").date()
                 filter_dt = datetime.strptime(filter_date, "%Y-%m-%d").date()
                 date_matches = (sheet_date == filter_dt)
@@ -371,7 +369,6 @@ def admin_users():
         users_with_ids.append(user)
     return render_template("admin_users.html", users=users_with_ids)
 
-
 # --- Admin Action Routes ---
 @app.route("/admin/fix_clock_out/<int:row_id>", methods=["POST"])
 @admin_required
@@ -380,12 +377,12 @@ def fix_clock_out(row_id):
     try:
         now = datetime.now(CENTRAL_TIMEZONE)
         current_time = now.strftime("%I:%M:%S %p")
-        clock_out_col = log_sheet.find("clock out").col
+        # CORRECTED: Find the capitalized header
+        clock_out_col = log_sheet.find("Clock Out").col
         log_sheet.update_cell(row_id, clock_out_col, current_time)
         flash(f"Successfully clocked out {worker_name}.", 'success')
     except Exception as e:
         flash(f"Error updating clock out: {e}", "error")
-    # Redirect back to the page the user came from (either dashboard or log)
     return redirect(request.referrer or url_for('admin_dashboard'))
 
 @app.route("/admin/delete_log_entry/<int:row_id>", methods=["POST"])
@@ -403,6 +400,7 @@ def delete_log_entry(row_id):
 def add_user():
     name = request.form.get("name", "").strip()
     if name and not users_sheet.find(name, in_column=1):
+        # CORRECTED: Header for new row should match sheet
         users_sheet.append_row([name, ''])
         flash(f"User '{name}' added successfully.", 'success')
     else:

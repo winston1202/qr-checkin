@@ -31,12 +31,21 @@
     <div class="overflow-x-auto">
         <table class="w-full text-left text-sm min-w-[600px]">
             <thead>
-                <tr class="border-b"><th class="py-2">Name</th><th class="py-2">Date</th><th class="py-2">Clock In</th><th class="py-2">Clock Out</th><th class="py-2">Action</th></tr>
+                <tr class="border-b">
+                    <th class="py-2">Name</th>
+                    <th class="py-2">Date</th>
+                    <th class="py-2">Clock In</th>
+                    <th class="py-2">Clock Out</th>
+                    <th class="py-2">Action</th>
+                </tr>
             </thead>
             <tbody>
                 {% for log in logs %}
                 <tr class="border-b hover:bg-gray-50">
-                    <td class="py-2">{{ log.name }}</td><td class="py-2">{{ log.date }}</td><td class="py-2">{{ log['clock in'] }}</td><td class="py-2">{{ log['clock out'] }}</td>
+                    <td class="py-2">{{ log['Name'] }}</td>
+                    <td class="py-2">{{ log['Date'] }}</td>
+                    <td class="py-2">{{ log['Clock In'] }}</td>
+                    <td class="py-2">{{ log['Clock Out'] }}</td>
                     <td class="py-2">
                         <form action="{{ url_for('delete_log_entry', row_id=log.row_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this entire time entry?');">
                             <button type="submit" class="text-red-500 hover:text-red-700 text-xs font-semibold">DELETE</button>

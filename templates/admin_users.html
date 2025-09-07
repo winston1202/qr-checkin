@@ -14,21 +14,40 @@
     <div class="overflow-x-auto">
         <table class="w-full text-left text-sm min-w-[600px]">
             <thead>
-                <tr class="border-b"><th class="py-2">Name</th><th class="py-2">Device Token</th><th class="py-2 text-right">Actions</th></tr>
+                <tr class="border-b">
+                    <th class="py-2">Name</th>
+                    <th class="py-2">Device Token</th>
+                    <th class="py-2 text-right">Actions</th>
+                </tr>
             </thead>
             <tbody>
                 {% for user in users %}
                 <tr class="border-b hover:bg-gray-50">
-                    <td class="py-3 font-medium">{{ user.Name }}</td>
-                    <td class="py-3 text-gray-500 text-xs">{{ user.Token or 'Not Registered' }}</td>
+                    <td class="py-3 font-medium">{{ user['Name'] }}</td>
+                    <td class="py-3 text-gray-500 text-xs">{{ user['DeviceToken'] or 'Not Registered' }}</td>
                     <td class="py-3 text-right">
                         <div class="flex justify-end gap-3">
-                            <form action="{{ url_for('clear_user_token', row_id=user.row_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to clear the token for {{ user.Name }}? This will allow them to register a new device.');">
+                            
+                            <!-- FORM 1: Clear Token -->
+                            <form 
+                                action="{{ url_for('clear_user_token', row_id=user.row_id) }}" 
+                                method="POST"
+                                onsubmit="return showConfirm(this);"
+                                data-username="{{ user['Name'] }}"
+                                data-confirm-message="Are you sure you want to clear the token for [USER]? This will allow them to register a new device.">
                                 <button type="submit" class="text-yellow-600 hover:text-yellow-800 font-semibold">Clear Token</button>
                             </form>
-                            <form action="{{ url_for('delete_user', row_id=user.row_id) }}" method="POST" onsubmit="return confirm('WARNING: This will permanently delete {{ user.Name }}. Are you sure?');">
+                            
+                            <!-- FORM 2: Delete User -->
+                            <form 
+                                action="{{ url_for('delete_user', row_id=user.row_id) }}" 
+                                method="POST"
+                                onsubmit="return showConfirm(this);"
+                                data-username="{{ user['Name'] }}"
+                                data-confirm-message="WARNING: This will permanently delete [USER]. Are you sure?">
                                 <button type="submit" class="text-red-600 hover:text-red-800 font-semibold">Delete User</button>
                             </form>
+
                         </div>
                     </td>
                 </tr>
@@ -37,4 +56,22 @@
         </table>
     </div>
 </div>
+
+<!-- ==================================================================== -->
+<!-- == NEW JAVASCRIPT BLOCK TO FIX THE CONFIRMATION POP-UP ERRORS == -->
+<!-- ==================================================================== -->
+<script>
+    function showConfirm(formElement) {
+        // Get the username and message template from the form's safe 'data-' attributes
+        const username = formElement.getAttribute('data-username');
+        const messageTemplate = formElement.getAttribute('data-confirm-message');
+        
+        // Safely build the final message string within JavaScript
+        const finalMessage = messageTemplate.replace('[USER]', username);
+        
+        // Show the confirmation dialog and return its result (true for OK, false for Cancel)
+        // This will either submit the form (if true) or cancel it (if false)
+        return confirm(finalMessage);
+    }
+</script>
 {% endblock %}
