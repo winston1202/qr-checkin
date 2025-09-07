@@ -11,6 +11,7 @@ import os
 from functools import wraps
 import csv
 import io
+from math import radians, sin, cos, sqrt, atan2
 
 app = Flask(__name__)
 # Load secret key from environment variables for security
@@ -35,6 +36,20 @@ except (json.JSONDecodeError, gspread.exceptions.GSpreadException) as e:
 
 CENTRAL_TIMEZONE = pytz.timezone("America/Chicago")
 
+def calculate_distance(lat1, lon1, lat2, lon2):
+    """Calculates the distance between two GPS coordinates in meters."""
+    R = 6371000  # Radius of Earth in meters
+    lat1_rad, lon1_rad = radians(lat1), radians(lon1)
+    lat2_rad, lon2_rad = radians(lat2), radians(lon2)
+
+    dlon = lon2_rad - lon1_rad
+    dlat = lat2_rad - lat1_rad
+
+    a = sin(dlat / 2)**2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+    distance = R * c
+    return distance
 # --- Helper Functions ---
 def get_day_with_suffix(d):
     return f"{d}{'th' if 11<=d<=13 else {1:'st',2:'nd',3:'rd'}.get(d%10, 'th')}"
@@ -226,12 +241,39 @@ def confirm():
         return redirect(url_for('scan'))
     return render_template("confirm.html", action_type=pending['type'], worker_name=pending['name'])
 
+# Replace your entire /execute function in app.py with this
 @app.route("/execute", methods=["POST"])
 def execute():
     action = session.pop('pending_action', None)
     if not action:
         return redirect(url_for('scan'))
 
+    # --- NEW: Geolocation Verification ---
+    try:
+        # Get the user's location from the hidden form fields
+        user_lat = float(request.form.get("latitude"))
+        user_lon = float(request.form.get("longitude"))
+
+        # Get the building's location from environment variables
+        building_lat = float(os.environ.get("BUILDING_LATITUDE"))
+        building_lon = float(os.environ.get("BUILDING_LONGITUDE"))
+        
+        # Define your allowed radius in meters (e.g., 150 meters)
+        ALLOWED_RADIUS_METERS = 150 
+
+        distance = calculate_distance(building_lat, building_lon, user_lat, user_lon)
+
+        # If the user is too far away, block the action
+        if distance > ALLOWED_RADIUS_METERS:
+            flash(f"<strong>Location Check Failed.</strong> You must be within {ALLOWED_RADIUS_METERS} meters of the building to clock in or out.", "error")
+            return redirect(url_for('scan'))
+
+    except (TypeError, ValueError):
+        # This handles cases where location data is missing or invalid
+        flash("<strong>Location Check Failed.</strong> Could not get your location. Please enable location services and try again.", "error")
+        return redirect(url_for('scan'))
+    
+    # --- Original execution logic proceeds only if location check passes ---
     action_type = action.get('type')
     cols = action.get('col_indices', {})
     worker_name = action.get('name')

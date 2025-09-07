@@ -10,71 +10,42 @@
         .card-enter { animation: bounceIn 0.8s ease-out; }
         @keyframes bounceIn { 0% { opacity: 0; transform: scale(0.3); } 50% { opacity: 1; transform: scale(1.05); } 70% { transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
         
-        .btn-confirm { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .btn-confirm:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(34, 197, 94, 0.4); }
-        .btn-cancel { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-confirm { transition: all 0.3s; }
+        .btn-confirm:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(34, 197, 94, 0.4); }
+        .btn-cancel { transition: all 0.3s; }
         .btn-cancel:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3); }
-
-        /* NEW ANIMATION FOR THE VALIDATION ERROR */
-        @keyframes shake {
-            10%, 90% { transform: translateX(-1px); }
-            20%, 80% { transform: translateX(2px); }
-            30%, 50%, 70% { transform: translateX(-4px); }
-            40%, 60% { transform: translateX(4px); }
-        }
-        .shake-error {
-            animation: shake 0.82s cubic-bezier(.36,.07,.19,.97) both;
-        }
     </style>
 </head>
 <body class="gradient-bg min-h-screen flex items-center justify-center p-4">
     <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md card-enter">
         <div class="mb-6">
             <div class="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
             </div>
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">Please Confirm</h1>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Location Verification</h1>
         </div>
         
         <div class="mb-8">
             <p class="text-lg text-gray-700 leading-relaxed">
-                You are about to <strong class="text-blue-600">{{ action_type }}</strong> for 
-                <strong class="text-purple-600">{{ worker_name }}</strong>
-            </p>
-            <p class="text-gray-600 mt-2">Is this correct?</p>
-        </div>
-
-        <!-- =============================================================== -->
-        <!-- == CORRECTED AND VALIDATED CHECKBOX SECTION =================== -->
-        <!-- =============================================================== -->
-        <div class="text-left mb-2">
-            <!-- The label is now the relative parent for perfect positioning -->
-            <label class="relative flex items-center cursor-pointer select-none text-base font-medium text-gray-800 bg-gray-100 rounded-lg px-4 py-3 shadow-inner w-full justify-center">
-                <!-- The checkbox input -->
-                <input id="confirm-in-building" name="confirm_in_building" type="checkbox"
-                       class="peer appearance-none h-6 w-6 border-2 border-gray-300 rounded-md checked:bg-blue-500 checked:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200">
-                
-                <span class="ml-3">Are you in the building?</span>
-
-                <!-- The checkmark SVG, now positioned perfectly over the box -->
-                <span class="absolute left-4 top-1/2 transform -translate-y-1/2 pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity duration-200">
-                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                </span>
-            </label>
-            <!-- NEW: Error message placeholder (initially hidden) -->
-            <p id="checkbox-error" class="text-red-500 text-sm mt-2 text-center font-semibold hidden">
-                You must check this box to continue.
+                To <strong class="text-blue-600">{{ action_type }}</strong> for 
+                <strong class="text-purple-600">{{ worker_name }}</strong>, your location must be verified.
             </p>
         </div>
 
+        <!-- NEW: Location Status Message -->
+        <div id="location-status" class="mb-8 p-3 rounded-lg bg-yellow-100 text-yellow-800 font-semibold">
+            Getting your location... Please grant permission.
+        </div>
 
         <div class="flex flex-col sm:flex-row justify-between gap-4 mt-8">
-            <!-- The form now has an ID so our JavaScript can target it -->
             <form id="confirmationForm" action="{{ url_for('execute') }}" method="POST" class="flex-1 flex">
-                <button type="submit" 
-                        class="btn-confirm bg-gradient-to-r from-green-500 to-green-600 text-white font-bold px-8 py-3 rounded-xl w-full shadow-lg hover:shadow-xl flex-1">
+                <!-- NEW: Hidden fields to store coordinates -->
+                <input type="hidden" id="latitude" name="latitude">
+                <input type="hidden" id="longitude" name="longitude">
+                
+                <!-- NEW: Button is disabled by default -->
+                <button id="confirmButton" type="submit" disabled
+                        class="btn-confirm bg-gradient-to-r from-green-500 to-green-600 text-white font-bold px-8 py-3 rounded-xl w-full shadow-lg flex-1 disabled:opacity-50 disabled:cursor-not-allowed">
                     <span class="flex items-center justify-center">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                         Yes, Confirm
@@ -84,43 +55,65 @@
             <div class="flex-1 flex">
                 <a href="{{ url_for('scan') }}" 
                    class="btn-cancel bg-gradient-to-r from-red-500 to-red-600 text-white font-bold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl flex items-center justify-center w-full flex-1">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     No, Cancel
                 </a>
             </div>
         </div>
     </div>
 
-    <!-- =============================================================== -->
-    <!-- == NEW JAVASCRIPT FOR VALIDATION ============================== -->
-    <!-- =============================================================== -->
+    <!-- NEW: Geolocation Script -->
     <script>
-        // Get references to the form, checkbox, error message, and the checkbox's parent label
-        const form = document.getElementById('confirmationForm');
-        const checkbox = document.getElementById('confirm-in-building');
-        const errorMessage = document.getElementById('checkbox-error');
-        const checkboxLabel = checkbox.parentElement;
+        const confirmButton = document.getElementById('confirmButton');
+        const latitudeInput = document.getElementById('latitude');
+        const longitudeInput = document.getElementById('longitude');
+        const statusDiv = document.getElementById('location-status');
 
-        // Listen for the form's submit event
-        form.addEventListener('submit', function(event) {
-            // Check if the checkbox is NOT checked
-            if (!checkbox.checked) {
-                // 1. PREVENT the form from submitting
-                event.preventDefault();
+        function locationSuccess(position) {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
 
-                // 2. SHOW the error message
-                errorMessage.classList.remove('hidden');
+            // Populate the hidden form fields
+            latitudeInput.value = lat;
+            longitudeInput.value = lon;
 
-                // 3. APPLY the shake animation to the entire checkbox label for a clear visual cue
-                checkboxLabel.classList.add('shake-error');
-                
-                // 4. REMOVE the animation class after it finishes so it can shake again if needed
-                setTimeout(() => {
-                    checkboxLabel.classList.remove('shake-error');
-                }, 820); // 820ms matches the animation duration
+            // Update the status message and enable the button
+            statusDiv.textContent = 'Location verified successfully!';
+            statusDiv.classList.replace('bg-yellow-100', 'bg-green-100');
+            statusDiv.classList.replace('text-yellow-800', 'text-green-800');
+            confirmButton.disabled = false;
+        }
+
+        function locationError(error) {
+            let message = 'Could not get location. ';
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    message += "You denied the request for Geolocation.";
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    message += "Location information is unavailable.";
+                    break;
+                case error.TIMEOUT:
+                    message += "The request to get user location timed out.";
+                    break;
+            }
+            // Update the status message to show the error
+            statusDiv.textContent = message;
+            statusDiv.classList.replace('bg-yellow-100', 'bg-red-100');
+            statusDiv.classList.replace('text-yellow-800', 'text-red-800');
+        }
+
+        // When the page loads, request the user's location
+        document.addEventListener('DOMContentLoaded', () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(locationSuccess, locationError, {
+                    enableHighAccuracy: true, // Use GPS if available
+                    timeout: 10000,           // 10 second timeout
+                    maximumAge: 0             // Don't use a cached position
+                });
             } else {
-                // If the box IS checked, make sure the error message is hidden
-                errorMessage.classList.add('hidden');
+                statusDiv.textContent = "Geolocation is not supported by this browser.";
+                statusDiv.classList.replace('bg-yellow-100', 'bg-red-100');
+                statusDiv.classList.replace('text-yellow-800', 'text-red-800');
             }
         });
     </script>
