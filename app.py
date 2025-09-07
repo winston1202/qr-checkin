@@ -109,8 +109,9 @@ def prepare_action(worker_name):
 
 def handle_already_clocked_out(worker_name):
     # Show a dedicated success page for already clocked out
-    message = f"<h2>{worker_name}, you have already completed your entry for the day.</h2>"
-    session['final_status'] = {'message': message, 'type': 'Already Clocked Out'}
+    message = f"You have already completed your entry for the day."
+    # Pass the new status_type for the template to use
+    session['final_status'] = {'message': message, 'status_type': 'already_complete'}
     return redirect(url_for('success'))
 
 @app.route("/")
@@ -258,22 +259,15 @@ def execute():
     if not action:
         return redirect(url_for('scan'))
 
-    # ★★★ FIX: The server no longer creates tokens, so this entire block is removed ★★★
-    # if 'device_token_to_set' in session:
-    #     token = session.pop('device_token_to_set')
-    #     session['device_token'] = token
-    #     users_sheet.update_cell(action['user_row'], 2, token)
-
     action_type = action.get('type')
     cols = action.get('col_indices', {})
 
     if action_type == 'Clock Out':
         log_sheet.update_cell(action['row_to_update'], cols['clock_out'], action['time'])
         log_sheet.update_cell(action['row_to_update'], cols['verified'], action['verified'])
-        # Use a solid blue text color for the name, matching other screens, and same size as 'Goodbye,'
-        message = f"""
-        <h2>Goodbye, <span style='color:#3b82f6;'>{action['name']}</span>!</h2>
-        <p>You have been clocked out successfully.</p>"""
+        message = f"You have been clocked out successfully."
+        # Set the status type for the success page
+        status_type = 'clock_out'
     elif action_type == 'Clock In':
         num_cols = len(log_sheet.get_all_values()[0])
         new_row_data = [""] * num_cols
@@ -282,19 +276,21 @@ def execute():
         new_row_data[cols['clock_in'] - 1] = action['time']
         new_row_data[cols['verified'] - 1] = action['verified']
         log_sheet.append_row(new_row_data, value_input_option='USER_ENTERED')
-        message = f"<h2>Welcome, {action['name']}!</h2><p>You have been clocked in successfully.</p>"
+        message = f"You have been clocked in successfully."
+        # Set the status type for the success page
+        status_type = 'clock_in'
 
-    session['final_status'] = {'message': message, 'type': action_type}
+    # Store message and type in session to pass to the success page
+    session['final_status'] = {'message': message, 'status_type': status_type}
     return redirect(url_for('success'))
+
 
 @app.route("/success")
 def success():
-    # This function remains the same
     final_status = session.pop('final_status', {})
-    message = final_status.get('message', "<p>Action completed.</p>")
-    action_type = final_status.get('type')
-    # Only show back button if not a Clock In (welcome), Clock Out, or Already Clocked Out
-    show_back_button = action_type not in ['Clock In', 'Clock Out', 'Already Clocked Out']
-    # Remove back button for all success screens
-    show_back_button = False
-    return render_template("success.html", message=message, show_back_button=show_back_button)
+    message = final_status.get('message', "Action completed successfully.")
+    # Get the status_type to pass to the template
+    status_type = final_status.get('status_type', 'default')
+    
+    # We are now handling the back button directly in the template, so no complex logic is needed here.
+    return render_template("success.html", message=message, status_type=status_type)
