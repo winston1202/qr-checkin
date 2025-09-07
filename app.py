@@ -287,6 +287,11 @@ def confirm():
                            building_lon=building_lon)
 
 # In app.py, replace the /execute function with this one.
+@app.route("/location_failed")
+def location_failed():
+    # Get the specific error message from the URL query parameter
+    message = request.args.get('message', 'An unknown error occurred.')
+    return render_template("location_failed.html", message=message)
 
 @app.route("/execute", methods=["POST"])
 def execute():
