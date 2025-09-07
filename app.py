@@ -10,6 +10,8 @@ import os
 import time
 # At the top of app.py, add wraps from functools
 from functools import wraps
+# Imports required for the distance function
+from math import radians, sin, cos, sqrt, atan2
 
 app = Flask(__name__)
 # Load secret key from environment variables for security
@@ -43,6 +45,18 @@ settings_last_fetched = 0
 def get_day_with_suffix(d):
     return f"{d}{'th' if 11<=d<=13 else {1:'st',2:'nd',3:'rd'}.get(d%10, 'th')}"
 
+def calculate_distance(lat1, lon1, lat2, lon2):
+    """Calculates the distance between two GPS coordinates in meters using the Haversine formula."""
+    R = 6371000  # Radius of Earth in meters
+    lat1_rad, lon1_rad = radians(lat1), radians(lon1)
+    lat2_rad, lon2_rad = radians(lat2), radians(lon2)
+    dlon = lon2_rad - lon1_rad
+    dlat = lat2_rad - lat1_rad
+    a = sin(dlat / 2)**2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    distance = R * c
+    return distance
+
 def get_settings():
     """ Fetches settings from the Google Sheet with a 60-second cache. """
     global settings_cache, settings_last_fetched
@@ -67,7 +81,7 @@ def admin_required(f):
 
 # --- Core Check-In/Out Logic (Unchanged) ---
 def prepare_action(worker_name):
-    # ... This entire function remains the same as your last working version ...
+    # ... This entire function remains the same ...
     log_values = log_sheet.get_all_values()
     headers = [h.strip() for h in log_values[0]]
     records = log_values[1:]
@@ -130,7 +144,7 @@ def handle_already_clocked_out(worker_name):
     session['final_status'] = {'message': message, 'status_type': 'already_complete', 'worker_name': worker_name}
     return redirect(url_for('success'))
 
-# --- User-Facing Routes (Largely Unchanged) ---
+# --- User-Facing Routes ---
 @app.route("/")
 def home():
     # ... Unchanged ...
@@ -145,7 +159,6 @@ def home():
                 return handle_already_clocked_out(worker_name)
             return redirect(url_for('confirm'))
     return redirect(url_for('scan'))
-
 
 @app.route("/scan")
 def scan():
@@ -185,7 +198,6 @@ def process():
         return handle_already_clocked_out(worker_name)
     return redirect(url_for('confirm'))
 
-
 @app.route("/register", methods=["GET", "POST"])
 def register():
     # ... Unchanged ...
@@ -205,7 +217,6 @@ def register():
             return redirect(url_for('scan'))
     return render_template("register.html", new_name=new_user_data['name'])
 
-
 @app.route("/handle_typo", methods=["GET", "POST"])
 def handle_typo():
     # ... Unchanged ...
@@ -223,30 +234,48 @@ def handle_typo():
             return redirect(url_for('scan'))
     return render_template("handle_typo.html", correct_name=conflict['correct_name'])
 
-
+# ===============================================================
+# == THIS IS THE CORRECTED /confirm FUNCTION ====================
+# ===============================================================
 @app.route("/confirm")
 def confirm():
-    # --- THIS IS THE CORRECTED VERSION ---
     pending = session.get('pending_action')
     if not pending:
         return redirect(url_for('scan'))
-    
+
     settings = get_settings()
     location_check_required = settings.get('LocationVerificationEnabled') == 'TRUE'
 
-    building_lat = os.environ.get("BUILDING_LATITUDE")
-    building_lon = os.environ.get("BUILDING_LONGITUDE")
+    # === THIS IS THE FIX: These two lines were missing ===
+    user_lat_str = request.args.get('lat')
+    user_lon_str = request.args.get('lon')
 
-    if location_check_required and (not building_lat or not building_lon):
-        flash("<strong>Configuration Error:</strong> Location Verification is ON, but building coordinates are not set on the server.", "error")
-        return redirect(url_for('scan'))
+    if location_check_required:
+        if not user_lat_str or not user_lon_str:
+            return redirect(url_for('enable_location'))
+        
+        try:
+            building_lat = float(os.environ.get("BUILDING_LATITUDE"))
+            building_lon = float(os.environ.get("BUILDING_LONGITUDE"))
+            user_lat = float(user_lat_str)
+            user_lon = float(user_lon_str)
+            
+            ALLOWED_RADIUS_FEET = 500
+            METERS_TO_FEET = 3.28084
+            distance_in_meters = calculate_distance(building_lat, building_lon, user_lat, user_lon)
+            distance_in_feet = distance_in_meters * METERS_TO_FEET
 
+            if distance_in_feet > ALLOWED_RADIUS_FEET:
+                fail_message = f"You are too far away. You must be within {ALLOWED_RADIUS_FEET} feet to proceed."
+                return redirect(url_for('location_failed', message=fail_message))
+
+        except (TypeError, ValueError, AttributeError):
+            return redirect(url_for('location_failed', message="Could not verify location due to a configuration error."))
+        
     return render_template("confirm.html", 
                            action_type=pending['type'], 
                            worker_name=pending['name'],
-                           location_check_required=location_check_required,
-                           building_lat=building_lat,
-                           building_lon=building_lon)
+                           location_verified=(user_lat_str is not None))
 
 @app.route("/execute", methods=["POST"])
 def execute():
@@ -278,7 +307,6 @@ def execute():
     session['final_status'] = {'message': message, 'status_type': status_type, 'worker_name': worker_name}
     return redirect(url_for('success'))
 
-
 @app.route("/success")
 def success():
     # ... Unchanged ...
@@ -287,7 +315,6 @@ def success():
     status_type = final_status.get('status_type', 'default')
     worker_name = final_status.get('worker_name')
     return render_template("success.html", message=message, status_type=status_type, worker_name=worker_name)
-
 
 @app.route("/quick_clock_out", methods=["POST"])
 def quick_clock_out():
@@ -323,19 +350,27 @@ def quick_clock_out():
         session['final_status'] = {'message': message, 'status_type': 'already_complete', 'worker_name': worker_name}
     return redirect(url_for('success'))
 
-
 @app.route("/location_failed")
 def location_failed():
     # ... Unchanged ...
     message = request.args.get('message', 'An unknown error occurred.')
     return render_template("location_failed.html", message=message)
 
+@app.route("/enable_location")
+def enable_location():
+    # ... Unchanged ...
+    return render_template("enable_location.html")
 
 # ===============================================================
-# == ADMIN SECTION ==============================================
+# == ADMIN SECTION (Unchanged) ==================================
+# ===============================================================
+# ... All admin routes remain the same as your last working version ...
+
+# ===============================================================
+# == ADMIN SECTION (Unchanged) ==================================
 # ===============================================================
 
-# --- Admin Authentication (Unchanged) ---
+# --- Admin Authentication ---
 @app.route("/login", methods=["GET", "POST"])
 def login():
     # ... Unchanged ...
@@ -361,7 +396,7 @@ def logout():
     flash("You have been successfully logged out.", "success")
     return redirect(url_for('login'))
 
-# --- Admin Dashboard Routes (Largely Unchanged) ---
+# --- Admin Dashboard Routes ---
 @app.route("/admin")
 @admin_required
 def admin_redirect():
@@ -426,7 +461,6 @@ def admin_users():
         users_with_ids.append(user)
     return render_template("admin_users.html", users=users_with_ids)
 
-
 @app.route("/admin/settings")
 @admin_required
 def admin_settings():
@@ -434,34 +468,25 @@ def admin_settings():
     current_settings = get_settings()
     return render_template("admin_settings.html", settings=current_settings)
 
-# --- Admin Action Routes (Cache Invalidation is the key fix) ---
 @app.route("/admin/update_settings", methods=["POST"])
 @admin_required
 def update_settings():
-    # We need to modify the global 'settings_last_fetched' variable
+    # ... Unchanged ...
     global settings_last_fetched
-    
     setting_name = request.form.get("setting_name")
     new_value = "TRUE" if request.form.get("setting_value") == "on" else "FALSE"
-
     try:
         cell = settings_sheet.find(setting_name)
         settings_sheet.update_cell(cell.row, cell.col + 1, new_value)
-        
-        # === THIS IS THE DEFINITIVE FIX ===
-        # By resetting the timer to 0, we force EVERY copy of the app
-        # to re-fetch the settings from the Google Sheet on its next request.
         settings_last_fetched = 0
-        
         flash(f"Setting '{setting_name}' updated successfully.", "success")
     except Exception as e:
         flash(f"Error updating setting: {e}", "error")
-
     return redirect(url_for('admin_settings'))
 
-# ... The rest of the admin action routes (fix_clock_out, delete_log_entry, etc.) are unchanged ...
 @app.route("/admin/fix_clock_out/<int:row_id>", methods=["POST"])
 def fix_clock_out(row_id):
+    # ... Unchanged ...
     worker_name = request.form.get("name")
     try:
         now = datetime.now(CENTRAL_TIMEZONE)
@@ -475,6 +500,7 @@ def fix_clock_out(row_id):
 
 @app.route("/admin/delete_log_entry/<int:row_id>", methods=["POST"])
 def delete_log_entry(row_id):
+    # ... Unchanged ...
     try:
         log_sheet.delete_rows(row_id)
         flash("Time entry deleted successfully.", "success")
@@ -484,6 +510,7 @@ def delete_log_entry(row_id):
 
 @app.route("/admin/add_user", methods=["POST"])
 def add_user():
+    # ... Unchanged ...
     name = request.form.get("name", "").strip()
     if name and not users_sheet.find(name, in_column=1):
         users_sheet.append_row([name, ''])
@@ -494,6 +521,7 @@ def add_user():
 
 @app.route("/admin/delete_user/<int:row_id>", methods=["POST"])
 def delete_user(row_id):
+    # ... Unchanged ...
     try:
         users_sheet.delete_rows(row_id)
         flash("User deleted successfully.", "success")
@@ -503,6 +531,7 @@ def delete_user(row_id):
 
 @app.route("/admin/clear_token/<int:row_id>", methods=["POST"])
 def clear_user_token(row_id):
+    # ... Unchanged ...
     try:
         users_sheet.update_cell(row_id, 2, "")
         flash("User's device token has been cleared. They can now register a new device.", "success")
@@ -510,11 +539,10 @@ def clear_user_token(row_id):
         flash(f"Error clearing token: {e}", "error")
     return redirect(url_for('admin_users'))
 
-
-# --- API Endpoint (For real-time dashboard) ---
 @app.route("/admin/api/dashboard_data")
 @admin_required
 def admin_api_dashboard_data():
+    # ... Unchanged ...
     all_logs = log_sheet.get_all_records()
     now = datetime.now(CENTRAL_TIMEZONE)
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")

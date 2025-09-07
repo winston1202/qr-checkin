@@ -4,116 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
-    <title>Confirm Action</title>
+    <title>Final Confirmation</title>
     <style>
         .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
         .card-enter { animation: bounceIn 0.8s ease-out; }
         @keyframes bounceIn { 0% { opacity: 0; transform: scale(0.3); } 50% { opacity: 1; transform: scale(1.05); } 70% { transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
-        
         .btn { transition: all 0.3s; }
-        .btn-confirm:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(34, 197, 94, 0.4); }
+        .btn-confirm:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(34, 197, 94, 0.4); }
         .btn-cancel:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3); }
     </style>
 </head>
 <body class="gradient-bg min-h-screen flex items-center justify-center p-4">
-    <div id="location-data" data-lat="{{ building_lat }}" data-lon="{{ building_lon }}"></div>
-
     <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md card-enter">
         <div class="mb-6">
-            <div class="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            <div class="w-16 h-16 bg-gradient-to-r from-green-500 to-green-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             </div>
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">Location Verification</h1>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Final Confirmation</h1>
         </div>
         
         <div class="mb-8">
-            <p class="text-lg text-gray-700 leading-relaxed">
-                To <strong class="text-blue-600">{{ action_type }}</strong> for 
-                <strong class="text-purple-600">{{ worker_name }}</strong>, your location must be verified.
+            {% if location_verified %}
+                <p class="text-lg text-green-700 font-semibold">Location Verified Successfully!</p>
+            {% endif %}
+            <p class="text-lg text-gray-700 mt-2">
+                You are about to <strong class="text-blue-600">{{ action_type }}</strong> for 
+                <strong class="text-purple-600">{{ worker_name }}</strong>.
             </p>
-        </div>
-
-        <div id="location-status-container" class="mb-8 p-3 rounded-lg bg-yellow-100 text-yellow-800 font-semibold">
-            <span id="location-status-text">Getting your location... Please grant permission.</span>
+            <p class="text-gray-600 mt-2">Is this correct?</p>
         </div>
 
         <div class="flex flex-col sm:flex-row justify-center gap-4 mt-8">
             <div class="flex-1 flex">
-                <form id="confirmationForm" action="{{ url_for('execute') }}" method="POST" class="w-full">
-                    <button id="confirmButton" type="submit" disabled
-                            class="btn btn-confirm bg-gradient-to-r from-green-500 to-green-600 text-white font-bold px-8 py-3 rounded-xl w-full shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
-                        <span class="flex items-center justify-center button-text">
+                <form action="{{ url_for('execute') }}" method="POST" class="w-full">
+                    <button type="submit"
+                            class="btn btn-confirm bg-gradient-to-r from-green-500 to-green-600 text-white font-bold px-8 py-3 rounded-xl w-full shadow-lg">
+                        <span class="flex items-center justify-center">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                             Yes, Confirm
                         </span>
                     </button>
                 </form>
             </div>
-            
             <div class="flex-1 flex">
-                <a id="cancelButton" href="{{ url_for('scan') }}" 
+                <a href="{{ url_for('scan') }}" 
                    class="btn btn-cancel bg-gradient-to-r from-red-500 to-red-600 text-white font-bold px-8 py-3 rounded-xl shadow-lg flex items-center justify-center w-full">
-                    <span class="flex items-center justify-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                        No, Cancel
-                    </span>
+                    No, Cancel
                 </a>
             </div>
         </div>
     </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const dataDiv = document.getElementById('location-data');
-            const BUILDING_LAT = parseFloat(dataDiv.dataset.lat);
-            const BUILDING_LON = parseFloat(dataDiv.dataset.lon);
-            const ALLOWED_RADIUS_FEET = 500;
-            const METERS_TO_FEET = 3.28084;
-
-            const confirmButton = document.getElementById('confirmButton');
-            const statusText = document.getElementById('location-status-text');
-
-            function calculateDistance(lat1, lon1, lat2, lon2) { /* ... Unchanged Vincenty formula ... */ }
-
-            function redirectToFailurePage(message) {
-                const encodedMessage = encodeURIComponent(message);
-                window.location.href = `{{ url_for('location_failed') }}?message=${encodedMessage}`;
-            }
-
-            function locationSuccess(position) {
-                const userLat = position.coords.latitude;
-                const userLon = position.coords.longitude;
-                const distanceInMeters = calculateDistance(BUILDING_LAT, BUILDING_LON, userLat, userLon);
-                const distanceInFeet = distanceInMeters * METERS_TO_FEET;
-
-                if (distanceInFeet <= ALLOWED_RADIUS_FEET) {
-                    statusText.parentElement.className = 'mb-8 p-3 rounded-lg font-semibold bg-green-100 text-green-800';
-                    statusText.textContent = 'Location verified successfully. You may now confirm.';
-                    confirmButton.disabled = false;
-                } else {
-                    // === THIS IS THE FIX: Simplified, user-friendly error message ===
-                    const failMessage = `You are too far away from the building. You must be within ${ALLOWED_RADIUS_FEET} feet to proceed.`;
-                    redirectToFailurePage(failMessage);
-                }
-            }
-
-            function locationError(error) {
-                let message = 'Could not get your location. ';
-                switch(error.code) { /* ... Unchanged ... */ }
-                redirectToFailurePage(message);
-            }
-
-            if (isNaN(BUILDING_LAT) || isNaN(BUILDING_LON)) {
-                redirectToFailurePage("Server Configuration Error: Building location is not set.");
-                return;
-            }
-
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(locationSuccess, locationError, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
-            } else {
-                redirectToFailurePage("Geolocation is not supported by this browser.");
-            }
-        });
-    </script>
 </body>
 </html>
