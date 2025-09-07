@@ -178,32 +178,41 @@
                 class="input-field w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" />
             <input name="last_name" placeholder="Last Name" required
                 class="input-field w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" />
-            <button type="submit"
-                class="submit-btn text-white px-6 py-3 rounded-xl w-full font-bold shadow-lg hover:shadow-xl">
-                <span class="flex items-center justify-center button-text">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
-                    </svg>
-                    Submit
-                </span>
-            </button>
+                <button type="submit" class="submit-btn text-white px-6 py-3 rounded-xl w-full font-bold shadow-lg hover:shadow-xl">
+                    <!-- Normal State -->
+                    <span class="normal-state flex items-center justify-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+                        Submit
+                    </span>
+                    <!-- Processing State (Initially Hidden) -->
+                    <span class="processing-state hidden">Processing...</span>
+                </button>
         </form>
     </div>
-    <script>
+<!-- Add/replace this script at the bottom of the relevant pages, before </body> -->
+<script>
     function setupFormSubmissions() {
         document.querySelectorAll('form').forEach(form => {
             form.addEventListener('submit', function(event) {
                 const button = form.querySelector('button[type="submit"]');
                 if (button) {
+                    // Disable the button to prevent multiple clicks
                     button.disabled = true;
-                    const buttonText = button.querySelector('span.button-text');
-                    if (buttonText) {
-                        buttonText.textContent = 'Processing...';
+                    
+                    // Find the two states inside the button
+                    const normalState = button.querySelector('.normal-state');
+                    const processingState = button.querySelector('.processing-state');
+                    
+                    // Hide the normal state and show the processing state
+                    if (normalState && processingState) {
+                        normalState.classList.add('hidden');
+                        processingState.classList.remove('hidden');
                     }
                 }
             });
         });
     }
+    // Run the setup function when the page is loaded
     document.addEventListener('DOMContentLoaded', setupFormSubmissions);
 </script>
 </body>

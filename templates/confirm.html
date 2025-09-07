@@ -36,13 +36,19 @@
 
         <div class="flex flex-col sm:flex-row justify-center gap-4 mt-8">
             <div class="flex-1 flex">
-                <form action="{{ url_for('execute') }}" method="POST" class="w-full">
+                <form id="executeForm" action="{{ url_for('execute') }}" method="POST" class="w-full">
                     <button type="submit"
                             class="btn btn-confirm bg-gradient-to-r from-green-500 to-green-600 text-white font-bold px-8 py-3 rounded-xl w-full shadow-lg">
-                        <span class="flex items-center justify-center">
+                        
+                        <!-- === THIS IS THE FIX: Two-state button content === -->
+                        <!-- Normal State -->
+                        <span class="normal-state flex items-center justify-center">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                             Yes, Confirm
                         </span>
+                        <!-- Processing State (Initially Hidden) -->
+                        <span class="processing-state hidden">Processing...</span>
+                        
                     </button>
                 </form>
             </div>
@@ -54,5 +60,26 @@
             </div>
         </div>
     </div>
+
+    <!-- === THIS IS THE FIX: Added the script to handle the button state === -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('executeForm');
+            if (form) {
+                form.addEventListener('submit', function(event) {
+                    const button = form.querySelector('button[type="submit"]');
+                    if (button) {
+                        button.disabled = true;
+                        const normalState = button.querySelector('.normal-state');
+                        const processingState = button.querySelector('.processing-state');
+                        if (normalState && processingState) {
+                            normalState.classList.add('hidden');
+                            processingState.classList.remove('hidden');
+                        }
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>

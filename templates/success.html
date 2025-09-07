@@ -58,13 +58,15 @@
             <div style="animation: fadeInUp 0.6s ease-out; animation-delay: 0.6s; animation-fill-mode: both;">
                 <form action="{{ url_for('quick_clock_out') }}" method="POST">
                     <input type="hidden" name="worker_name" value="{{ worker_name }}">
-                    <button type="submit" 
-                           class="btn-clock-out text-white font-bold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl inline-flex items-center">
-                        <span class="flex items-center">
+                    <button type="submit" class="btn-clock-out text-white font-bold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl inline-flex items-center">
+                        <!-- Normal State -->
+                        <span class="normal-state flex items-center">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                             Clock Out Now
                         </span>
-                    </button>
+                        <!-- Processing State (Initially Hidden) -->
+                        <span class="processing-state hidden">Processing...</span>
+                    </button>   
                 </form>
             </div>
         
