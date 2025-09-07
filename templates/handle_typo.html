@@ -6,6 +6,27 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <title>Verify Identity</title>
     <style>
+        /* Add this to the <style> tag of all other HTML files */
+
+.gradient-bg::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 40% 80%, rgba(120, 219, 255, 0.3) 0%, transparent 50%);
+    animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    33% { transform: translateY(-10px) rotate(1deg); }
+    66% { transform: translateY(5px) rotate(-1deg); }
+}
         @keyframes slideInLeft {
             from {
                 opacity: 0;
@@ -150,7 +171,7 @@
                 <input type="hidden" name="choice" value="yes">
                 <button type="submit" 
                         class="btn-yes text-white font-bold px-8 py-4 rounded-xl w-full shadow-lg hover:shadow-xl">
-                    <span class="flex items-center justify-center">
+                    <span class="flex items-center justify-center button-text">
                         <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                         </svg>
@@ -163,15 +184,32 @@
                 <input type="hidden" name="choice" value="no">
                 <button type="submit" 
                         class="btn-no text-white font-bold px-8 py-4 rounded-xl w-full shadow-lg hover:shadow-xl">
-                    <span class="flex items-center justify-center">
+                    <span class="flex items-center justify-center button-text">
                         <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                         </svg>
-                        No, that's not me
+                        No, Go Back
                     </span>
                 </button>
             </form>
         </div>
     </div>
+<script>
+    function setupFormSubmissions() {
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', function(event) {
+                const button = form.querySelector('button[type="submit"]');
+                if (button) {
+                    button.disabled = true;
+                    const buttonText = button.querySelector('span.button-text');
+                    if (buttonText) {
+                        buttonText.textContent = 'Processing...';
+                    }
+                }
+            });
+        });
+    }
+    document.addEventListener('DOMContentLoaded', setupFormSubmissions);
+</script>
 </body>
 </html>

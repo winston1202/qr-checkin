@@ -8,9 +8,13 @@ from oauth2client.service_account import ServiceAccountCredentials
 import json
 import os
 from flask import Flask, request, redirect, render_template, session, url_for, flash, make_response
+# At the top of app.py, add wraps from functools
+from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "a-default-secret-key-for-development")
+app.secret_key = os.environ.get("SECRET_KEY")
+if not app.secret_key:
+    raise ValueError("A SECRET_KEY must be set in the environment variables.")
 # ... (rest of the setup code is the same) ...
 # --- Google Sheets Setup ---
 creds_json_string = os.environ.get("GOOGLE_SHEETS_CREDS")
@@ -32,7 +36,17 @@ CENTRAL_TIMEZONE = pytz.timezone("America/Chicago")
 def get_day_with_suffix(d):
     return f"{d}{'th' if 11<=d<=13 else {1:'st',2:'nd',3:'rd'}.get(d%10, 'th')}"
 
-
+# Add this function anywhere in app.py
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        admin_user = os.environ.get("ADMIN_USERNAME", "admin")
+        admin_pass = os.environ.get("ADMIN_PASSWORD", "password")
+        if not auth or not (auth.username == admin_user and auth.password == admin_pass):
+            return 'Unauthorized', 401, {'WWW-Authenticate': 'Basic realm="Login Required"'}
+        return f(*args, **kwargs)
+    return decorated
 def prepare_action(worker_name):
     log_values = log_sheet.get_all_values()
     if not log_values:
@@ -294,3 +308,88 @@ def success():
     
     # We are now handling the back button directly in the template, so no complex logic is needed here.
     return render_template("success.html", message=message, status_type=status_type)
+
+# This is the main dashboard view
+@app.route("/admin")
+@requires_auth # This decorator protects the page
+def admin_dashboard():
+    # Fetch all data
+    all_logs = log_sheet.get_all_records()
+    all_users = users_sheet.get_all_records()
+    
+    # Reverse logs so newest are first
+    all_logs.reverse()
+
+    # Determine who is currently clocked in
+    now = datetime.now(CENTRAL_TIMEZONE)
+    today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
+    
+    clocked_in_today = {}
+    # We need the original row index to send to the template for editing
+    # Enumerate the raw values list, skipping the header
+    log_values = log_sheet.get_all_values()[1:] 
+    for i, record_list in enumerate(log_values):
+        # Create a dict from the list to work with it easily
+        record = dict(zip(all_logs[0].keys(), record_list))
+        record['row_id'] = i + 2 # Add 2 because sheets are 1-indexed and we skipped the header
+
+        if record.get('date') == today_date:
+            name = record.get('name')
+            if name:
+                if record.get('clock in') and not record.get('clock out'):
+                    clocked_in_today[name] = record
+                elif name in clocked_in_today and record.get('clock out'):
+                    del clocked_in_today[name]
+    
+    currently_in_list = list(clocked_in_today.values())
+
+    return render_template("admin.html", 
+                           currently_in=currently_in_list, 
+                           all_users=all_users,
+                           all_logs=all_logs)
+
+# This route handles the form submission to fix a clock-out
+@app.route("/admin/fix_clock_out", methods=["POST"])
+@requires_auth
+def fix_clock_out():
+    row_id = request.form.get("row_id")
+    worker_name = request.form.get("name")
+    
+    if row_id:
+        now = datetime.now(CENTRAL_TIMEZONE)
+        current_time = now.strftime("%I:%M:%S %p")
+        
+        # Find the "clock out" column index (assuming headers don't change)
+        clock_out_col = log_sheet.find("clock out").col
+        log_sheet.update_cell(row_id, clock_out_col, current_time)
+        
+        flash(f"Successfully clocked out {worker_name}.", 'success')
+    else:
+        flash("Error: Could not find the record to update.", 'error')
+        
+    return redirect(url_for('admin_dashboard'))
+
+# This route handles adding a new user
+@app.route("/admin/add_user", methods=["POST"])
+@requires_auth
+def add_user():
+    name = request.form.get("name")
+    if name and not users_sheet.find(name):
+        users_sheet.append_row([name, '']) # Add name with a blank token
+        flash(f"User '{name}' added successfully.", 'success')
+    else:
+        flash(f"Error: User '{name}' already exists or name is invalid.", 'error')
+    return redirect(url_for('admin_dashboard'))
+
+# This route handles deleting a user
+@app.route("/admin/delete_user", methods=["POST"])
+@requires_auth
+def delete_user():
+    name = request.form.get("name")
+    cell = users_sheet.find(name)
+    if cell:
+        users_sheet.delete_rows(cell.row)
+        flash(f"User '{name}' deleted successfully.", 'success')
+    else:
+        flash(f"Error: Could not find user '{name}'.", 'error')
+    return redirect(url_for('admin_dashboard'))

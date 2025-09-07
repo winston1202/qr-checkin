@@ -139,10 +139,11 @@
             animation: float 3s ease-in-out infinite;
         }
         
+        /* In scan.html <style> section */
         .flash-message {
             animation: slideInDown 0.5s ease-out;
-            background: linear-gradient(135deg, #fee2e2, #fecaca);
-            border-left: 4px solid #ef4444;
+            background-color: #fee2e2; /* Solid light red */
+            border-left: 4px solid #ef4444; /* Strong red border */
         }
     </style>
 </head>
@@ -179,7 +180,7 @@
                 class="input-field w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" />
             <button type="submit"
                 class="submit-btn text-white px-6 py-3 rounded-xl w-full font-bold shadow-lg hover:shadow-xl">
-                <span class="flex items-center justify-center">
+                <span class="flex items-center justify-center button-text">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
                     </svg>
@@ -188,5 +189,22 @@
             </button>
         </form>
     </div>
+    <script>
+    function setupFormSubmissions() {
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', function(event) {
+                const button = form.querySelector('button[type="submit"]');
+                if (button) {
+                    button.disabled = true;
+                    const buttonText = button.querySelector('span.button-text');
+                    if (buttonText) {
+                        buttonText.textContent = 'Processing...';
+                    }
+                }
+            });
+        });
+    }
+    document.addEventListener('DOMContentLoaded', setupFormSubmissions);
+</script>
 </body>
 </html>

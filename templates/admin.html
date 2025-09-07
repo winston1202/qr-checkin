@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4 sm:p-8">
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Admin Dashboard</h1>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="p-4 mb-4 rounded-md {{ 'bg-green-100 text-green-800' if category == 'success' else 'bg-red-100 text-red-800' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left Column: Actions -->
+            <div class="lg:col-span-1 space-y-8">
+                <!-- Who's In Now Section -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Currently Clocked In</h2>
+                    {% if currently_in %}
+                    <ul class="space-y-4">
+                        {% for person in currently_in %}
+                        <li class="p-3 bg-gray-50 rounded-md">
+                            <form action="{{ url_for('fix_clock_out') }}" method="POST">
+                                <input type="hidden" name="row_id" value="{{ person.row_id }}">
+                                <input type="hidden" name="name" value="{{ person.name }}">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="font-semibold">{{ person.name }}</p>
+                                        <p class="text-sm text-gray-600">In since: {{ person['clock in'] }}</p>
+                                    </div>
+                                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold py-2 px-3 rounded">
+                                        Clock Out Now
+                                    </button>
+                                </div>
+                            </form>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-gray-600">No one is currently clocked in.</p>
+                    {% endif %}
+                </div>
+
+                <!-- User Management Section -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-semibold mb-4 border-b pb-2">User Management</h2>
+                    <!-- Add User Form -->
+                    <form action="{{ url_for('add_user') }}" method="POST" class="flex gap-2 mb-4">
+                        <input type="text" name="name" placeholder="First Last" required class="flex-grow p-2 border rounded-md">
+                        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Add</button>
+                    </form>
+                    <!-- User List -->
+                    <ul class="space-y-2 max-h-60 overflow-y-auto">
+                        {% for user in all_users %}
+                        <li class="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                            <span class="text-gray-700">{{ user.Name }}</span>
+                            <form action="{{ url_for('delete_user') }}" method="POST" onsubmit="return confirm('Are you sure you want to delete {{ user.Name }}?');">
+                                <input type="hidden" name="name" value="{{ user.Name }}">
+                                <button type="submit" class="text-red-500 hover:text-red-700 text-sm font-semibold">Delete</button>
+                            </form>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Right Column: Full Log -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Full Time Clock Log</h2>
+                <div class="max-h-[80vh] overflow-y-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="sticky top-0 bg-white">
+                            <tr class="border-b">
+                                <th class="py-2">Name</th><th class="py-2">Date</th><th class="py-2">Clock In</th><th class="py-2">Clock Out</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in all_logs %}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="py-2">{{ log.name }}</td><td class="py-2">{{ log.date }}</td><td class="py-2">{{ log['clock in'] }}</td><td class="py-2">{{ log['clock out'] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
