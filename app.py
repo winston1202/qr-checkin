@@ -12,6 +12,7 @@ from functools import wraps
 import csv
 import io
 from math import radians, sin, cos, sqrt, atan2
+import time
 
 app = Flask(__name__)
 # Load secret key from environment variables for security
@@ -31,11 +32,36 @@ try:
     client = gspread.authorize(creds)
     log_sheet = client.open("QR Check-Ins").worksheet("Time Clock")
     users_sheet = client.open("QR Check-Ins").worksheet("Users")
+    settings_sheet = client.open("QR Check-Ins").worksheet("Settings")
+    
 except (json.JSONDecodeError, gspread.exceptions.GSpreadException) as e:
     raise Exception(f"Could not connect to Google Sheets. Please check your credentials and sheet names. Error: {e}")
 
+settings_cache = {}
+settings_last_fetched = 0
+
 CENTRAL_TIMEZONE = pytz.timezone("America/Chicago")
 
+def get_settings():
+    """
+    Fetches settings from the Google Sheet with a 60-second cache
+    to prevent hitting API rate limits.
+    """
+    global settings_cache, settings_last_fetched
+    
+    # Refresh cache every 60 seconds
+    if (time.time() - settings_last_fetched) > 60:
+        try:
+            settings_records = settings_sheet.get_all_records()
+            # Convert list of dicts to a single dict for easy lookup
+            settings_cache = {item['SettingName']: item['SettingValue'] for item in settings_records}
+            settings_last_fetched = time.time()
+        except Exception as e:
+            print(f"ERROR: Could not fetch settings from Google Sheet: {e}")
+            # In case of error, return the last known good cache
+            return settings_cache
+
+    return settings_cache
 def calculate_distance(lat1, lon1, lat2, lon2):
     """Calculates the distance between two GPS coordinates in meters."""
     R = 6371000  # Radius of Earth in meters
@@ -240,19 +266,23 @@ def confirm():
     if not pending:
         return redirect(url_for('scan'))
     
-    # Get building coordinates from environment variables
+    # Get the current application settings
+    settings = get_settings()
+    # Check if the location verification feature is enabled
+    location_check_required = settings.get('LocationVerificationEnabled') == 'TRUE'
+
     building_lat = os.environ.get("BUILDING_LATITUDE")
     building_lon = os.environ.get("BUILDING_LONGITUDE")
 
-    # If the coordinates are not set on the server, we cannot proceed.
-    if not building_lat or not building_lon:
-        flash("<strong>Server Configuration Error:</strong> Building location is not set. Geolocation cannot be verified.", "error")
+    # If the feature is on but the server is missing coordinates, show an error
+    if location_check_required and (not building_lat or not building_lon):
+        flash("<strong>Configuration Error:</strong> Location Verification is ON, but building coordinates are not set on the server.", "error")
         return redirect(url_for('scan'))
 
-    # If the coordinates exist, pass them to the template
     return render_template("confirm.html", 
                            action_type=pending['type'], 
                            worker_name=pending['name'],
+                           location_check_required=location_check_required,
                            building_lat=building_lat,
                            building_lon=building_lon)
 
@@ -614,3 +644,31 @@ def admin_api_dashboard_data():
     
     # Flask's jsonify will automatically create a proper JSON response
     return jsonify(list(clocked_in_today.values()))
+
+@app.route("/admin/settings")
+@admin_required
+def admin_settings():
+    current_settings = get_settings()
+    return render_template("admin_settings.html", settings=current_settings)
+
+@app.route("/admin/update_settings", methods=["POST"])
+@admin_required
+def update_settings():
+    global settings_cache # We need to modify the global cache
+    
+    setting_name = request.form.get("setting_name")
+    # Checkbox forms only submit a value if 'on', otherwise they submit nothing
+    new_value = "TRUE" if request.form.get("setting_value") == "on" else "FALSE"
+
+    try:
+        cell = settings_sheet.find(setting_name)
+        settings_sheet.update_cell(cell.row, cell.col + 1, new_value)
+        
+        # IMPORTANT: Clear the cache immediately to reflect the change
+        settings_cache = {}
+        
+        flash(f"Setting '{setting_name}' updated successfully.", "success")
+    except Exception as e:
+        flash(f"Error updating setting: {e}", "error")
+
+    return redirect(url_for('admin_settings'))

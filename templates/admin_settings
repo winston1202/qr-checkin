@@ -1,0 +1,46 @@
+{% extends "admin_layout.html" %}
+
+{% block title %}Application Settings{% endblock %}
+
+{% block content %}
+<div class="bg-white p-6 rounded-lg shadow-md max-w-2xl">
+    <h2 class="text-2xl font-semibold mb-6 border-b pb-3">Feature Management</h2>
+
+    <form action="{{ url_for('update_settings') }}" method="POST">
+        <!-- We can add more settings here in the future -->
+        <input type="hidden" name="setting_name" value="LocationVerificationEnabled">
+
+        <div class="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50">
+            <div>
+                <h3 class="font-medium text-gray-800">Location Verification</h3>
+                <p class="text-sm text-gray-500">
+                    If enabled, users must be within the geofence to clock in/out.
+                </p>
+            </div>
+            
+            <!-- Tailwind Toggle Switch -->
+            <label for="location-toggle" class="flex items-center cursor-pointer">
+                <div class="relative">
+                    <input type="checkbox" id="location-toggle" name="setting_value" class="sr-only" 
+                           onchange="this.form.submit()" 
+                           {{ 'checked' if settings.LocationVerificationEnabled == 'TRUE' }}>
+                    <div class="block bg-gray-600 w-14 h-8 rounded-full"></div>
+                    <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
+                </div>
+            </label>
+        </div>
+    </form>
+    
+</div>
+
+<style>
+    /* Simple CSS for the toggle switch */
+    input:checked ~ .dot {
+        transform: translateX(100%);
+        background-color: #f7fafc;
+    }
+    input:checked ~ .block {
+        background-color: #48bb78; /* green */
+    }
+</style>
+{% endblock %}
