@@ -239,41 +239,35 @@ def confirm():
     pending = session.get('pending_action')
     if not pending:
         return redirect(url_for('scan'))
-    return render_template("confirm.html", action_type=pending['type'], worker_name=pending['name'])
+    
+    # Get building coordinates from environment variables
+    building_lat = os.environ.get("BUILDING_LATITUDE")
+    building_lon = os.environ.get("BUILDING_LONGITUDE")
 
-# Replace your entire /execute function in app.py with this
+    # If the coordinates are not set on the server, we cannot proceed.
+    if not building_lat or not building_lon:
+        flash("<strong>Server Configuration Error:</strong> Building location is not set. Geolocation cannot be verified.", "error")
+        return redirect(url_for('scan'))
+
+    # If the coordinates exist, pass them to the template
+    return render_template("confirm.html", 
+                           action_type=pending['type'], 
+                           worker_name=pending['name'],
+                           building_lat=building_lat,
+                           building_lon=building_lon)
+
+# In app.py, replace the /execute function with this one.
+
 @app.route("/execute", methods=["POST"])
 def execute():
     action = session.pop('pending_action', None)
     if not action:
+        # If session data is missing, redirect to the start
         return redirect(url_for('scan'))
 
-    # --- NEW: Geolocation Verification ---
-    try:
-        # Get the user's location from the hidden form fields
-        user_lat = float(request.form.get("latitude"))
-        user_lon = float(request.form.get("longitude"))
-
-        # Get the building's location from environment variables
-        building_lat = float(os.environ.get("BUILDING_LATITUDE"))
-        building_lon = float(os.environ.get("BUILDING_LONGITUDE"))
-        
-        # Define your allowed radius in meters (e.g., 150 meters)
-        ALLOWED_RADIUS_METERS = 150 
-
-        distance = calculate_distance(building_lat, building_lon, user_lat, user_lon)
-
-        # If the user is too far away, block the action
-        if distance > ALLOWED_RADIUS_METERS:
-            flash(f"<strong>Location Check Failed.</strong> You must be within {ALLOWED_RADIUS_METERS} meters of the building to clock in or out.", "error")
-            return redirect(url_for('scan'))
-
-    except (TypeError, ValueError):
-        # This handles cases where location data is missing or invalid
-        flash("<strong>Location Check Failed.</strong> Could not get your location. Please enable location services and try again.", "error")
-        return redirect(url_for('scan'))
+    # The location check is now handled by the JavaScript on the confirm.html page.
+    # We can proceed directly to executing the clock-in or clock-out action.
     
-    # --- Original execution logic proceeds only if location check passes ---
     action_type = action.get('type')
     cols = action.get('col_indices', {})
     worker_name = action.get('name')
@@ -283,6 +277,7 @@ def execute():
         log_sheet.update_cell(action['row_to_update'], cols['Verified'], action['verified'])
         message = "You have been clocked out successfully."
         status_type = 'clock_out'
+
     elif action_type == 'Clock In':
         num_cols = len(log_sheet.get_all_values()[0])
         new_row_data = [""] * num_cols
@@ -293,10 +288,13 @@ def execute():
         log_sheet.append_row(new_row_data, value_input_option='USER_ENTERED')
         message = "You have been clocked in successfully. You may now close this page or clock out below."
         status_type = 'clock_in'
+        
     else: 
+        # Fallback for any unexpected action type
         message = "Action processed."
         status_type = 'default'
 
+    # Store the results in the session to show on the final success page
     session['final_status'] = {'message': message, 'status_type': status_type, 'worker_name': worker_name}
     return redirect(url_for('success'))
 

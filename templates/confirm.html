@@ -17,10 +17,13 @@
     </style>
 </head>
 <body class="gradient-bg min-h-screen flex items-center justify-center p-4">
+    <!-- === THIS IS THE FIX: We store the server data here safely === -->
+    <div id="location-data" data-lat="{{ building_lat }}" data-lon="{{ building_lon }}"></div>
+
     <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md card-enter">
         <div class="mb-6">
             <div class="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 M11-6 0 3 3 0 016 0z"></path></svg>
             </div>
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Location Verification</h1>
         </div>
@@ -32,21 +35,15 @@
             </p>
         </div>
 
-        <!-- NEW: Location Status Message -->
-        <div id="location-status" class="mb-8 p-3 rounded-lg bg-yellow-100 text-yellow-800 font-semibold">
-            Getting your location... Please grant permission.
+        <div id="location-status-container" class="mb-8 p-3 rounded-lg bg-yellow-100 text-yellow-800 font-semibold">
+            <span id="location-status-text">Getting your location... Please grant permission.</span>
         </div>
 
         <div class="flex flex-col sm:flex-row justify-between gap-4 mt-8">
             <form id="confirmationForm" action="{{ url_for('execute') }}" method="POST" class="flex-1 flex">
-                <!-- NEW: Hidden fields to store coordinates -->
-                <input type="hidden" id="latitude" name="latitude">
-                <input type="hidden" id="longitude" name="longitude">
-                
-                <!-- NEW: Button is disabled by default -->
                 <button id="confirmButton" type="submit" disabled
                         class="btn-confirm bg-gradient-to-r from-green-500 to-green-600 text-white font-bold px-8 py-3 rounded-xl w-full shadow-lg flex-1 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <span class="flex items-center justify-center">
+                    <span class="flex items-center justify-center button-text">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                         Yes, Confirm
                     </span>
@@ -61,59 +58,84 @@
         </div>
     </div>
 
-    <!-- NEW: Geolocation Script -->
     <script>
-        const confirmButton = document.getElementById('confirmButton');
-        const latitudeInput = document.getElementById('latitude');
-        const longitudeInput = document.getElementById('longitude');
-        const statusDiv = document.getElementById('location-status');
-
-        function locationSuccess(position) {
-            const lat = position.coords.latitude;
-            const lon = position.coords.longitude;
-
-            // Populate the hidden form fields
-            latitudeInput.value = lat;
-            longitudeInput.value = lon;
-
-            // Update the status message and enable the button
-            statusDiv.textContent = 'Location verified successfully!';
-            statusDiv.classList.replace('bg-yellow-100', 'bg-green-100');
-            statusDiv.classList.replace('text-yellow-800', 'text-green-800');
-            confirmButton.disabled = false;
-        }
-
-        function locationError(error) {
-            let message = 'Could not get location. ';
-            switch(error.code) {
-                case error.PERMISSION_DENIED:
-                    message += "You denied the request for Geolocation.";
-                    break;
-                case error.POSITION_UNAVAILABLE:
-                    message += "Location information is unavailable.";
-                    break;
-                case error.TIMEOUT:
-                    message += "The request to get user location timed out.";
-                    break;
-            }
-            // Update the status message to show the error
-            statusDiv.textContent = message;
-            statusDiv.classList.replace('bg-yellow-100', 'bg-red-100');
-            statusDiv.classList.replace('text-yellow-800', 'text-red-800');
-        }
-
-        // When the page loads, request the user's location
         document.addEventListener('DOMContentLoaded', () => {
+            // --- Configuration ---
+            const dataDiv = document.getElementById('location-data');
+            // Safely read the data from the HTML attributes
+            const BUILDING_LAT = parseFloat(dataDiv.dataset.lat);
+            const BUILDING_LON = parseFloat(dataDiv.dataset.lon);
+            const ALLOWED_RADIUS_FEET = 500;
+            const METERS_TO_FEET = 3.28084;
+
+            // --- Element References ---
+            const confirmButton = document.getElementById('confirmButton');
+            const statusContainer = document.getElementById('location-status-container');
+            const statusText = document.getElementById('location-status-text');
+
+            function calculateDistance(lat1, lon1, lat2, lon2) {
+                const R = 6371000;
+                const toRadians = angle => angle * (Math.PI / 180);
+                const dLat = toRadians(lat2 - lat1);
+                const dLon = toRadians(lon2 - lon1);
+                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                          Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+                          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                return R * c;
+            }
+
+            function setStatus(message, type = 'loading') {
+                statusText.textContent = message;
+                statusContainer.className = 'mb-8 p-3 rounded-lg font-semibold';
+                if (type === 'success') {
+                    statusContainer.classList.add('bg-green-100', 'text-green-800');
+                } else if (type === 'error') {
+                    statusContainer.classList.add('bg-red-100', 'text-red-800');
+                } else {
+                    statusContainer.classList.add('bg-yellow-100', 'text-yellow-800');
+                }
+            }
+
+            function locationSuccess(position) {
+                const userLat = position.coords.latitude;
+                const userLon = position.coords.longitude;
+                const distanceInMeters = calculateDistance(BUILDING_LAT, BUILDING_LON, userLat, userLon);
+                const distanceInFeet = distanceInMeters * METERS_TO_FEET;
+
+                if (distanceInFeet <= ALLOWED_RADIUS_FEET) {
+                    setStatus(`Location verified successfully (${Math.round(distanceInFeet)} ft away).`, 'success');
+                    confirmButton.disabled = false;
+                } else {
+                    setStatus(`Location Check Failed. You are ${Math.round(distanceInFeet)} feet away. You must be within ${ALLOWED_RADIUS_FEET} feet of the building.`, 'error');
+                    confirmButton.disabled = true;
+                }
+            }
+
+            function locationError(error) {
+                let message = 'Could not get location. ';
+                switch(error.code) {
+                    case error.PERMISSION_DENIED: message += "Please enable location access in your browser settings to continue."; break;
+                    case error.POSITION_UNAVAILABLE: message += "Location information is unavailable on this device."; break;
+                    case error.TIMEOUT: message += "The request to get user location timed out."; break;
+                }
+                setStatus(message, 'error');
+            }
+
+            // --- Initialization ---
+            if (isNaN(BUILDING_LAT) || isNaN(BUILDING_LON)) {
+                setStatus("Server Configuration Error: Building location is not set or invalid.", 'error');
+                return;
+            }
+
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(locationSuccess, locationError, {
-                    enableHighAccuracy: true, // Use GPS if available
-                    timeout: 10000,           // 10 second timeout
-                    maximumAge: 0             // Don't use a cached position
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
                 });
             } else {
-                statusDiv.textContent = "Geolocation is not supported by this browser.";
-                statusDiv.classList.replace('bg-yellow-100', 'bg-red-100');
-                statusDiv.classList.replace('text-yellow-800', 'text-red-800');
+                setStatus("Geolocation is not supported by this browser.", 'error');
             }
         });
     </script>
