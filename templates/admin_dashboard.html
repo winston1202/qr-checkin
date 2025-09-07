@@ -1,0 +1,52 @@
+{% extends "admin_layout.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Currently Clocked In</h2>
+
+        {% if currently_in %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left min-w-[500px]">
+                    
+                    <!-- Table Header -->
+                    <thead>
+                        <tr>
+                            <th class="py-2">Name</th>
+                            <th class="py-2">Clock In Time</th>
+                            <th class="py-2">Action</th>
+                        </tr>
+                    </thead>
+                    
+                    <!-- Table Body -->
+                    <tbody>
+                        {% for person in currently_in %}
+                            <tr class="border-t">
+                                <td class="py-3 font-semibold">
+                                    {{ person.name }}
+                                </td>
+                                <td class="py-3 text-gray-600">
+                                    {{ person['clock in'] }}
+                                </td>
+                                <td class="py-3">
+                                    <form action="{{ url_for('fix_clock_out', row_id=person.row_id) }}" method="POST">
+                                        <input type="hidden" name="name" value="{{ person.name }}">
+                                        <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold py-2 px-3 rounded">
+                                            Clock Out Now
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                    
+                </table>
+            </div>
+        {% else %}
+            <!-- Message shown when no one is clocked in -->
+            <p class="text-gray-600">No one is currently clocked in.</p>
+        {% endif %}
+        
+    </div>
+{% endblock %}

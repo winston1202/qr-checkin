@@ -1,5 +1,5 @@
 # No changes needed to imports
-from flask import Flask, request, redirect, render_template, session, url_for, flash
+from flask import Flask, request, redirect, render_template, session, url_for, flash, make_response
 import uuid
 from datetime import datetime
 import pytz
@@ -7,15 +7,15 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import json
 import os
-from flask import Flask, request, redirect, render_template, session, url_for, flash, make_response
 # At the top of app.py, add wraps from functools
 from functools import wraps
 
 app = Flask(__name__)
+# Load secret key from environment variables for security
 app.secret_key = os.environ.get("SECRET_KEY")
 if not app.secret_key:
     raise ValueError("A SECRET_KEY must be set in the environment variables.")
-# ... (rest of the setup code is the same) ...
+
 # --- Google Sheets Setup ---
 creds_json_string = os.environ.get("GOOGLE_SHEETS_CREDS")
 if not creds_json_string:
@@ -33,20 +33,20 @@ except (json.JSONDecodeError, gspread.exceptions.GSpreadException) as e:
 
 CENTRAL_TIMEZONE = pytz.timezone("America/Chicago")
 
+# --- Helper Functions ---
 def get_day_with_suffix(d):
     return f"{d}{'th' if 11<=d<=13 else {1:'st',2:'nd',3:'rd'}.get(d%10, 'th')}"
 
-# Add this function anywhere in app.py
-def requires_auth(f):
+def admin_required(f):
     @wraps(f)
-    def decorated(*args, **kwargs):
-        auth = request.authorization
-        admin_user = os.environ.get("ADMIN_USERNAME", "admin")
-        admin_pass = os.environ.get("ADMIN_PASSWORD", "password")
-        if not auth or not (auth.username == admin_user and auth.password == admin_pass):
-            return 'Unauthorized', 401, {'WWW-Authenticate': 'Basic realm="Login Required"'}
+    def decorated_function(*args, **kwargs):
+        if not session.get('is_admin'):
+            flash("You must be logged in to view the admin dashboard.", "error")
+            return redirect(url_for('login'))
         return f(*args, **kwargs)
-    return decorated
+    return decorated_function
+
+# --- Core Check-In/Out Logic ---
 def prepare_action(worker_name):
     log_values = log_sheet.get_all_values()
     if not log_values:
@@ -69,7 +69,6 @@ def prepare_action(worker_name):
     actual_token = request.cookies.get('device_token')
     verification_status = "No"
 
-    # Only associate token for new users if explicitly allowed (after confirmation)
     allow_new_user_token = session.pop('allow_new_user_token', False)
 
     if user_row_number:
@@ -82,7 +81,6 @@ def prepare_action(worker_name):
     else:
         if allow_new_user_token and actual_token:
             users_sheet.append_row([worker_name, actual_token])
-            user_row_number = len(users_sheet.get_all_records()) + 1
             verification_status = "Yes"
 
     now = datetime.now(CENTRAL_TIMEZONE)
@@ -103,11 +101,10 @@ def prepare_action(worker_name):
             
     pending_action = {
         'name': worker_name, 'date': today_date, 'time': current_time,
-        'verified': verification_status, 'user_row': user_row_number,
+        'verified': verification_status,
         'col_indices': {
-            'name': name_col_idx + 1, 'date': date_col_idx + 1,
             'clock_in': clock_in_col_idx + 1, 'clock_out': clock_out_col_idx + 1,
-            'verified': verified_col_idx + 1
+            'verified': verified_col_idx + 1, 'date': date_col_idx + 1, 'name': name_col_idx + 1
         }
     }
 
@@ -119,18 +116,16 @@ def prepare_action(worker_name):
     else:
         pending_action['type'] = 'Clock In'
 
-    session['pending_action'] = pending_action # Use session just to pass data between requests
+    session['pending_action'] = pending_action
 
 def handle_already_clocked_out(worker_name):
-    # Show a dedicated success page for already clocked out
-    message = f"You have already completed your entry for the day."
-    # Pass the new status_type for the template to use
+    message = "You have already completed your entry for the day."
     session['final_status'] = {'message': message, 'status_type': 'already_complete'}
     return redirect(url_for('success'))
 
+# --- User-Facing Routes ---
 @app.route("/")
 def home():
-    # ★★★ FIX: Read from request.cookies instead of session ★★★
     device_token = request.cookies.get('device_token')
     if device_token:
         token_cell = users_sheet.find(device_token, in_column=2)
@@ -145,7 +140,6 @@ def home():
 
 @app.route("/scan")
 def scan():
-    # Your new scan.html is used here. No changes to this function.
     return render_template("scan.html")
 
 @app.route("/process", methods=["POST"])
@@ -163,7 +157,6 @@ def process():
         flash("Your browser could not be identified. Please enable cookies and try again.")
         return redirect(url_for('scan'))
 
-    # Case 1: Is this a recognized device?
     token_cell = users_sheet.find(actual_token, in_column=2)
     if token_cell:
         correct_name = users_sheet.cell(token_cell.row, 1).value
@@ -171,97 +164,61 @@ def process():
             session['typo_conflict'] = {'correct_name': correct_name, 'attempted_name': attempted_name}
             return redirect(url_for('handle_typo'))
         worker_name = correct_name
-
-    # Case 2: This is an unrecognized device.
     else:
         user_cell = users_sheet.find(attempted_name, in_column=1)
         if user_cell:
             flash(f"The name <strong>{attempted_name}</strong> is already registered to a different device. "
-                  f"Please use your registered device. If this is a new device, "
-                  f"contact an administrator to get it updated.")
+                  f"Please use your registered device or contact an administrator to update it.")
             return redirect(url_for('scan'))
         
-        # --- THIS IS THE KEY CHANGE ---
-        # It's a new user. Send them to the dedicated registration confirmation page.
-        # We use a different session variable to keep it separate from typo conflicts.
         session['new_user_registration'] = {'name': attempted_name}
-        return redirect(url_for('register')) # <-- DIRECTS TO THE NEW ROUTE
+        return redirect(url_for('register'))
 
-    # If we get here, the user is valid. Proceed to confirmation.
     prepare_action(worker_name)
     pending = session.get('pending_action', {})
     if pending.get('type') == 'Already Clocked Out':
         return handle_already_clocked_out(worker_name)
-    
     return redirect(url_for('confirm'))
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    """
-    Handles the confirmation screen for a new user to register their device.
-    """
     new_user_data = session.get('new_user_registration')
     if not new_user_data:
-        # If there's no data, they shouldn't be here. Send them to the start.
         return redirect(url_for('scan'))
 
     if request.method == 'POST':
         choice = request.form.get('choice')
         worker_name = new_user_data['name']
-        session.pop('new_user_registration', None) # Clear the session data
+        session.pop('new_user_registration', None)
 
         if choice == 'yes':
-            # User confirmed their name. Now we can allow the token to be associated.
             session['allow_new_user_token'] = True
             prepare_action(worker_name)
             return redirect(url_for('confirm'))
         else:
-            # User clicked "No", they made a typo. Send them back to fix it.
             flash("Registration cancelled. Please re-enter your name.")
             return redirect(url_for('scan'))
-
-    # For a GET request, just show the confirmation page.
     return render_template("register.html", new_name=new_user_data['name'])
 
 @app.route("/handle_typo", methods=["GET", "POST"])
 def handle_typo():
-    """
-    Handles the screen where a user must confirm their identity if their
-    entered name doesn't match the name registered to their device token.
-    """
     conflict = session.get('typo_conflict')
     if not conflict:
-        # If there's no conflict data, they shouldn't be here. Send them to the start.
         return redirect(url_for('scan'))
 
     if request.method == 'POST':
         choice = request.form.get('choice')
-        is_new_user = conflict.get('new_user', False)
         session.pop('typo_conflict', None)
-
         if choice == 'yes':
-            worker_name = conflict['correct_name']
-            if is_new_user:
-                # Only now, after confirmation, allow token association
-                session['allow_new_user_token'] = True
-            prepare_action(worker_name)
+            prepare_action(conflict['correct_name'])
             return redirect(url_for('confirm'))
         else:
-            if is_new_user:
-                # For new users, just go back to scan
-                return redirect(url_for('scan'))
             flash(f"Incorrect name. This device is registered to <strong>{conflict['correct_name']}</strong>. Please enter the correct name to proceed.")
             return redirect(url_for('scan'))
-
-    # If it's a GET request, this is the first time the user is seeing the page.
-    # Just show them the identity check screen.
     return render_template("handle_typo.html", correct_name=conflict['correct_name'])
-    
-
 
 @app.route("/confirm")
 def confirm():
-    # This function remains the same
     pending = session.get('pending_action')
     if not pending:
         return redirect(url_for('scan'))
@@ -279,8 +236,7 @@ def execute():
     if action_type == 'Clock Out':
         log_sheet.update_cell(action['row_to_update'], cols['clock_out'], action['time'])
         log_sheet.update_cell(action['row_to_update'], cols['verified'], action['verified'])
-        message = f"You have been clocked out successfully."
-        # Set the status type for the success page
+        message = "You have been clocked out successfully."
         status_type = 'clock_out'
     elif action_type == 'Clock In':
         num_cols = len(log_sheet.get_all_values()[0])
@@ -290,106 +246,186 @@ def execute():
         new_row_data[cols['clock_in'] - 1] = action['time']
         new_row_data[cols['verified'] - 1] = action['verified']
         log_sheet.append_row(new_row_data, value_input_option='USER_ENTERED')
-        message = f"You have been clocked in successfully."
-        # Set the status type for the success page
+        message = "You have been clocked in successfully."
         status_type = 'clock_in'
+    else: # Should not happen, but as a fallback
+        message = "Action processed."
+        status_type = 'default'
 
-    # Store message and type in session to pass to the success page
     session['final_status'] = {'message': message, 'status_type': status_type}
     return redirect(url_for('success'))
-
 
 @app.route("/success")
 def success():
     final_status = session.pop('final_status', {})
     message = final_status.get('message', "Action completed successfully.")
-    # Get the status_type to pass to the template
     status_type = final_status.get('status_type', 'default')
-    
-    # We are now handling the back button directly in the template, so no complex logic is needed here.
     return render_template("success.html", message=message, status_type=status_type)
 
-# This is the main dashboard view
-@app.route("/admin")
-@requires_auth # This decorator protects the page
-def admin_dashboard():
-    # Fetch all data
-    all_logs = log_sheet.get_all_records()
-    all_users = users_sheet.get_all_records()
-    
-    # Reverse logs so newest are first
-    all_logs.reverse()
 
-    # Determine who is currently clocked in
+# ===============================================================
+# == ADMIN SECTION ==============================================
+# ===============================================================
+
+# --- Admin Authentication ---
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == 'POST':
+        username = request.form.get("username")
+        password = request.form.get("password")
+        admin_user = os.environ.get("ADMIN_USERNAME", "admin")
+        admin_pass = os.environ.get("ADMIN_PASSWORD", "password")
+        if username == admin_user and password == admin_pass:
+            session['is_admin'] = True
+            return redirect(url_for('admin_dashboard'))
+        else:
+            flash("Invalid username or password. Please try again.", "error")
+            return redirect(url_for('login'))
+    if session.get('is_admin'):
+        return redirect(url_for('admin_dashboard'))
+    return render_template("login.html")
+
+@app.route("/logout")
+def logout():
+    session.pop('is_admin', None)
+    flash("You have been successfully logged out.", "success")
+    return redirect(url_for('login'))
+
+# --- Admin Dashboard (Tab 1) ---
+@app.route("/admin")
+@admin_required
+def admin_redirect():
+    return redirect(url_for('admin_dashboard'))
+
+@app.route("/admin/dashboard")
+@admin_required
+def admin_dashboard():
+    all_logs = log_sheet.get_all_records()
     now = datetime.now(CENTRAL_TIMEZONE)
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
     
     clocked_in_today = {}
-    # We need the original row index to send to the template for editing
-    # Enumerate the raw values list, skipping the header
-    log_values = log_sheet.get_all_values()[1:] 
-    for i, record_list in enumerate(log_values):
+    log_values = log_sheet.get_all_values()[1:]
+    for i, row_list in enumerate(log_values):
         # Create a dict from the list to work with it easily
-        record = dict(zip(all_logs[0].keys(), record_list))
-        record['row_id'] = i + 2 # Add 2 because sheets are 1-indexed and we skipped the header
-
-        if record.get('date') == today_date:
-            name = record.get('name')
-            if name:
-                if record.get('clock in') and not record.get('clock out'):
-                    clocked_in_today[name] = record
-                elif name in clocked_in_today and record.get('clock out'):
-                    del clocked_in_today[name]
+        record = dict(zip(all_logs[0].keys(), row_list))
+        record['row_id'] = i + 2 # Sheet rows are 1-indexed, +1 for header
+        if record.get('date') == today_date and record.get('clock in') and not record.get('clock out'):
+            clocked_in_today[record.get('name')] = record
     
-    currently_in_list = list(clocked_in_today.values())
+    return render_template("admin_dashboard.html", currently_in=list(clocked_in_today.values()))
 
-    return render_template("admin.html", 
-                           currently_in=currently_in_list, 
-                           all_users=all_users,
-                           all_logs=all_logs)
+# --- Admin Time Clock Log (Tab 2) ---
+@app.route("/admin/time_log")
+@admin_required
+def admin_time_log():
+    log_values = log_sheet.get_all_values()
+    headers = log_values[0]
+    all_logs_raw = log_values[1:]
+    
+    # Get unique names for the filter dropdown
+    all_users = users_sheet.get_all_records()
+    unique_names = sorted(list(set(user['Name'] for user in all_users)))
 
-# This route handles the form submission to fix a clock-out
-@app.route("/admin/fix_clock_out", methods=["POST"])
-@requires_auth
-def fix_clock_out():
-    row_id = request.form.get("row_id")
+    # Get filter criteria from URL
+    filter_name = request.args.get('name', '')
+    filter_date = request.args.get('date', '')
+
+    filtered_logs = []
+    # Iterate in reverse to show newest first
+    for i in range(len(all_logs_raw) - 1, -1, -1):
+        log_dict = dict(zip(headers, all_logs_raw[i]))
+        log_dict['row_id'] = i + 2
+        
+        # Filtering logic
+        name_matches = (not filter_name) or (filter_name == log_dict.get('name'))
+        
+        date_matches = True
+        if filter_date:
+            try:
+                # Compare dates without being strict about "st, nd, th"
+                sheet_date_str = log_dict.get('date', '').replace('st,', ',').replace('nd,', ',').replace('rd,', ',').replace('th,', ',')
+                sheet_date = datetime.strptime(sheet_date_str, "%b. %d, %Y").date()
+                filter_dt = datetime.strptime(filter_date, "%Y-%m-%d").date()
+                date_matches = (sheet_date == filter_dt)
+            except (ValueError, TypeError):
+                date_matches = False
+
+        if name_matches and date_matches:
+            filtered_logs.append(log_dict)
+
+    return render_template("admin_time_log.html", 
+                           logs=filtered_logs, 
+                           unique_names=unique_names,
+                           filter_name=filter_name,
+                           filter_date=filter_date)
+
+# --- Admin User Management (Tab 3) ---
+@app.route("/admin/users")
+@admin_required
+def admin_users():
+    users_with_ids = []
+    user_records = users_sheet.get_all_records()
+    for i, user in enumerate(user_records):
+        user['row_id'] = i + 2
+        users_with_ids.append(user)
+    return render_template("admin_users.html", users=users_with_ids)
+
+
+# --- Admin Action Routes ---
+@app.route("/admin/fix_clock_out/<int:row_id>", methods=["POST"])
+@admin_required
+def fix_clock_out(row_id):
     worker_name = request.form.get("name")
-    
-    if row_id:
+    try:
         now = datetime.now(CENTRAL_TIMEZONE)
         current_time = now.strftime("%I:%M:%S %p")
-        
-        # Find the "clock out" column index (assuming headers don't change)
         clock_out_col = log_sheet.find("clock out").col
         log_sheet.update_cell(row_id, clock_out_col, current_time)
-        
         flash(f"Successfully clocked out {worker_name}.", 'success')
-    else:
-        flash("Error: Could not find the record to update.", 'error')
-        
-    return redirect(url_for('admin_dashboard'))
+    except Exception as e:
+        flash(f"Error updating clock out: {e}", "error")
+    # Redirect back to the page the user came from (either dashboard or log)
+    return redirect(request.referrer or url_for('admin_dashboard'))
 
-# This route handles adding a new user
+@app.route("/admin/delete_log_entry/<int:row_id>", methods=["POST"])
+@admin_required
+def delete_log_entry(row_id):
+    try:
+        log_sheet.delete_rows(row_id)
+        flash("Time entry deleted successfully.", "success")
+    except Exception as e:
+        flash(f"Error deleting entry: {e}", "error")
+    return redirect(url_for('admin_time_log'))
+
 @app.route("/admin/add_user", methods=["POST"])
-@requires_auth
+@admin_required
 def add_user():
-    name = request.form.get("name")
-    if name and not users_sheet.find(name):
-        users_sheet.append_row([name, '']) # Add name with a blank token
+    name = request.form.get("name", "").strip()
+    if name and not users_sheet.find(name, in_column=1):
+        users_sheet.append_row([name, ''])
         flash(f"User '{name}' added successfully.", 'success')
     else:
         flash(f"Error: User '{name}' already exists or name is invalid.", 'error')
-    return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('admin_users'))
 
-# This route handles deleting a user
-@app.route("/admin/delete_user", methods=["POST"])
-@requires_auth
-def delete_user():
-    name = request.form.get("name")
-    cell = users_sheet.find(name)
-    if cell:
-        users_sheet.delete_rows(cell.row)
-        flash(f"User '{name}' deleted successfully.", 'success')
-    else:
-        flash(f"Error: Could not find user '{name}'.", 'error')
-    return redirect(url_for('admin_dashboard'))
+@app.route("/admin/delete_user/<int:row_id>", methods=["POST"])
+@admin_required
+def delete_user(row_id):
+    try:
+        users_sheet.delete_rows(row_id)
+        flash("User deleted successfully.", "success")
+    except Exception as e:
+        flash(f"Error deleting user: {e}", "error")
+    return redirect(url_for('admin_users'))
+
+@app.route("/admin/clear_token/<int:row_id>", methods=["POST"])
+@admin_required
+def clear_user_token(row_id):
+    try:
+        # Assumes token is in the 2nd column
+        users_sheet.update_cell(row_id, 2, "")
+        flash("User's device token has been cleared. They can now register a new device.", "success")
+    except Exception as e:
+        flash(f"Error clearing token: {e}", "error")
+    return redirect(url_for('admin_users'))
