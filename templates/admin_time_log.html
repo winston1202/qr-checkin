@@ -4,34 +4,45 @@
 
 {% block content %}
 <div class="bg-white p-6 rounded-lg shadow-md">
-    <!-- Filter Form -->
-    <form id="filterForm" method="GET" action="{{ url_for('admin_time_log') }}" class="mb-6 pb-6 border-b">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-            <div>
-                <label for="nameFilter" class="block text-sm font-medium text-gray-700">Filter by Name</label>
-                <select name="name" id="nameFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
-                    <option value="">All Names</option>
-                    {% for name in unique_names %}
-                    <option value="{{ name }}" {{ 'selected' if name == filter_name }}>{{ name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-                <label for="dateFilter" class="block text-sm font-medium text-gray-700">Filter by Date</label>
-                <input type="date" name="date" id="dateFilter" value="{{ filter_date }}" class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
-            </div>
-            <div class="flex flex-wrap gap-2">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">Filter</button>
-                <a href="{{ url_for('admin_time_log') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md">Clear</a>
+<!-- In templates/admin_time_log.html -->
+
+<!-- Filter Form -->
+<form method="GET" action="{{ url_for('admin_time_log') }}" class="mb-6 pb-6 border-b">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+        <div>
+            <label for="nameFilter" class="block text-sm font-medium text-gray-700">Filter by Name</label>
+            <select name="name" id="nameFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                <option value="">All Names</option>
                 
-                <!-- NEW EXPORT BUTTON (triggers the modal) -->
-                <button type="button" id="exportBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md flex items-center">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                    Export
-                </button>
-            </div>
+                <!--
+                  ===============================================================
+                  == THIS IS THE CLEANEST, EDITOR-FRIENDLY FIX ================
+                  ===============================================================
+                  1. Loop through each name.
+                  2. Set a variable 'is_selected' BEFORE the <option> tag.
+                  3. Simply print the 'is_selected' variable inside the tag.
+                  This separates the logic from the HTML, which makes the syntax
+                  highlighter happy and removes the red highlighting.
+                -->
+                {% for name in unique_names %}
+                    {% set is_selected = 'selected' if name == filter_name else '' %}
+                    <option value="{{ name }}" {{ is_selected }}>
+                        {{ name }}
+                    </option>
+                {% endfor %}
+
+            </select>
         </div>
-    </form>
+        <div>
+            <label for="dateFilter" class="block text-sm font-medium text-gray-700">Filter by Date</label>
+            <input type="date" name="date" id="dateFilter" value="{{ filter_date }}" class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">Filter</button>
+            <a href="{{ url_for('admin_time_log') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md">Clear</a>
+        </div>
+    </div>
+</form>
 
     <!-- Log Table -->
     <div class="overflow-x-auto">

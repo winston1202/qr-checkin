@@ -419,37 +419,60 @@ def admin_dashboard():
             clocked_in_today[record.get('Name')] = record
     return render_template("admin_dashboard.html", currently_in=list(clocked_in_today.values()))
 
+# In app.py, replace the entire admin_time_log function with this one.
+
 @app.route("/admin/time_log")
 @admin_required
 def admin_time_log():
-    # ... Unchanged ...
     all_users = users_sheet.get_all_records()
-    unique_names = sorted(list(set(user['Name'] for user in all_users)))
+    unique_names = sorted(list(set(user.get('Name', '') for user in all_users if user.get('Name'))))
+    
     log_values = log_sheet.get_all_values()
     headers = log_values[0]
     all_logs_raw = log_values[1:]
+
     filter_name = request.args.get('name', '')
     filter_date = request.args.get('date', '')
+
     filtered_logs = []
+    # Iterate in reverse to show newest first
     for i in range(len(all_logs_raw) - 1, -1, -1):
         log_dict = dict(zip(headers, all_logs_raw[i]))
         log_dict['row_id'] = i + 2
+        
+        # === THIS IS THE FIX: More robust checks ===
+
+        # 1. Skip any row that doesn't even have a name.
+        if not log_dict.get('Name'):
+            continue
+
+        # 2. Apply name filter
         name_matches = (not filter_name) or (filter_name == log_dict.get('Name'))
+        
+        # 3. Apply date filter safely
         date_matches = True
         if filter_date:
             try:
-                sheet_date_str = log_dict.get('Date', '').replace('st,', ',').replace('nd,', ',').replace('rd,', ',').replace('th,', ',')
-                sheet_date = datetime.strptime(sheet_date_str, "%b. %d, %Y").date()
+                # Get the date string safely, default to empty string if None
+                sheet_date_str = log_dict.get('Date') or ''
+                # Clean the string
+                cleaned_date_str = sheet_date_str.replace('st,', ',').replace('nd,', ',').replace('rd,', ',').replace('th,', ',')
+                # Parse the dates
+                sheet_date = datetime.strptime(cleaned_date_str, "%b. %d, %Y").date()
                 filter_dt = datetime.strptime(filter_date, "%Y-%m-%d").date()
                 date_matches = (sheet_date == filter_dt)
             except (ValueError, TypeError):
+                # If any part of the date processing fails, it's not a match.
                 date_matches = False
+
         if name_matches and date_matches:
             filtered_logs.append(log_dict)
-    return render_template("admin_time_log.html", 
-                           logs=filtered_logs, unique_names=unique_names,
-                           filter_name=filter_name, filter_date=filter_date)
 
+    return render_template("admin_time_log.html", 
+                           logs=filtered_logs, 
+                           unique_names=unique_names,
+                           filter_name=filter_name,
+                           filter_date=filter_date)
 @app.route("/admin/users")
 @admin_required
 def admin_users():
