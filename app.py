@@ -52,12 +52,10 @@ def prepare_action(worker_name):
     if not log_values:
         raise Exception("The 'Time Clock' sheet is empty. It must have at least a header row.")
 
-    # CORRECTED: Use exact headers without converting to lowercase
     headers = [h.strip() for h in log_values[0]]
     records = log_values[1:]
 
     try:
-        # CORRECTED: Use exact, case-sensitive header names
         name_col_idx = headers.index("Name")
         date_col_idx = headers.index("Date")
         clock_in_col_idx = headers.index("Clock In")
@@ -74,7 +72,7 @@ def prepare_action(worker_name):
     allow_new_user_token = session.pop('allow_new_user_token', False)
 
     if user_row_number:
-        expected_token = users_sheet.cell(user_row_number, 2).value # Assumes token is in column 2
+        expected_token = users_sheet.cell(user_row_number, 2).value
         if expected_token and expected_token == actual_token:
             verification_status = "Yes"
         elif not expected_token and actual_token:
@@ -122,7 +120,7 @@ def prepare_action(worker_name):
 
 def handle_already_clocked_out(worker_name):
     message = "You have already completed your entry for the day."
-    session['final_status'] = {'message': message, 'status_type': 'already_complete'}
+    session['final_status'] = {'message': message, 'status_type': 'already_complete', 'worker_name': worker_name}
     return redirect(url_for('success'))
 
 # --- User-Facing Routes ---
@@ -234,6 +232,7 @@ def execute():
 
     action_type = action.get('type')
     cols = action.get('col_indices', {})
+    worker_name = action.get('name')
 
     if action_type == 'Clock Out':
         log_sheet.update_cell(action['row_to_update'], cols['Clock Out'], action['time'])
@@ -248,13 +247,13 @@ def execute():
         new_row_data[cols['Clock In'] - 1] = action['time']
         new_row_data[cols['Verified'] - 1] = action['verified']
         log_sheet.append_row(new_row_data, value_input_option='USER_ENTERED')
-        message = "You have been clocked in successfully."
+        message = "You have been clocked in successfully. You may now close this page or clock out below."
         status_type = 'clock_in'
     else: 
         message = "Action processed."
         status_type = 'default'
 
-    session['final_status'] = {'message': message, 'status_type': status_type}
+    session['final_status'] = {'message': message, 'status_type': status_type, 'worker_name': worker_name}
     return redirect(url_for('success'))
 
 @app.route("/success")
@@ -262,8 +261,50 @@ def success():
     final_status = session.pop('final_status', {})
     message = final_status.get('message', "Action completed successfully.")
     status_type = final_status.get('status_type', 'default')
-    return render_template("success.html", message=message, status_type=status_type)
+    worker_name = final_status.get('worker_name')
+    return render_template("success.html", message=message, status_type=status_type, worker_name=worker_name)
 
+# NEW ROUTE: To handle the "Clock Out Now" button on the success page
+@app.route("/quick_clock_out", methods=["POST"])
+def quick_clock_out():
+    worker_name = request.form.get("worker_name")
+    if not worker_name:
+        flash("Could not identify the user to clock out.", "error")
+        return redirect(url_for('scan'))
+
+    # Find the user's row to update
+    log_values = log_sheet.get_all_values()
+    headers = log_values[0]
+    records = log_values[1:]
+
+    try:
+        name_col_idx = headers.index("Name")
+        date_col_idx = headers.index("Date")
+        clock_out_col_idx = headers.index("Clock Out")
+    except ValueError as e:
+        flash(f"A required column is missing in the sheet: {e}", "error")
+        return redirect(url_for('scan'))
+
+    now = datetime.now(CENTRAL_TIMEZONE)
+    today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
+    current_time = now.strftime("%I:%M:%S %p")
+    
+    row_to_update = None
+    for i, record in reversed(list(enumerate(records))):
+        if record[name_col_idx] == worker_name and record[date_col_idx] == today_date and not record[clock_out_col_idx].strip():
+            row_to_update = i + 2 # +1 for 1-based index, +1 for header
+            break
+            
+    if row_to_update:
+        log_sheet.update_cell(row_to_update, clock_out_col_idx + 1, current_time)
+        message = "You have been clocked out successfully."
+        session['final_status'] = {'message': message, 'status_type': 'clock_out', 'worker_name': worker_name}
+    else:
+        # This can happen if the user opens the clock-in success page in two tabs and clocks out on both
+        message = "You have already been clocked out for the day."
+        session['final_status'] = {'message': message, 'status_type': 'already_complete', 'worker_name': worker_name}
+        
+    return redirect(url_for('success'))
 
 # ===============================================================
 # == ADMIN SECTION ==============================================
@@ -302,16 +343,16 @@ def admin_redirect():
 @app.route("/admin/dashboard")
 @admin_required
 def admin_dashboard():
-    all_logs = log_sheet.get_all_records() # Reads headers correctly
+    all_logs = log_sheet.get_all_records()
     now = datetime.now(CENTRAL_TIMEZONE)
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
     
     clocked_in_today = {}
-    log_values = log_sheet.get_all_values()[1:] # Raw values list
-    headers = log_sheet.get_all_values()[0]   # Raw headers list
+    log_values = log_sheet.get_all_values()[1:]
+    headers = log_sheet.get_all_values()[0]
 
     for i, row_list in enumerate(log_values):
-        record = dict(zip(headers, row_list)) # Create dict with correct headers
+        record = dict(zip(headers, row_list))
         record['row_id'] = i + 2 
         if record.get('Date') == today_date and record.get('Clock In') and not record.get('Clock Out'):
             clocked_in_today[record.get('Name')] = record
@@ -377,7 +418,6 @@ def fix_clock_out(row_id):
     try:
         now = datetime.now(CENTRAL_TIMEZONE)
         current_time = now.strftime("%I:%M:%S %p")
-        # CORRECTED: Find the capitalized header
         clock_out_col = log_sheet.find("Clock Out").col
         log_sheet.update_cell(row_id, clock_out_col, current_time)
         flash(f"Successfully clocked out {worker_name}.", 'success')
@@ -400,7 +440,6 @@ def delete_log_entry(row_id):
 def add_user():
     name = request.form.get("name", "").strip()
     if name and not users_sheet.find(name, in_column=1):
-        # CORRECTED: Header for new row should match sheet
         users_sheet.append_row([name, ''])
         flash(f"User '{name}' added successfully.", 'success')
     else:
@@ -421,7 +460,6 @@ def delete_user(row_id):
 @admin_required
 def clear_user_token(row_id):
     try:
-        # Assumes token is in the 2nd column
         users_sheet.update_cell(row_id, 2, "")
         flash("User's device token has been cleared. They can now register a new device.", "success")
     except Exception as e:
