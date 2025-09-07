@@ -9,6 +9,8 @@ import json
 import os
 # At the top of app.py, add wraps from functools
 from functools import wraps
+import csv
+import io
 
 app = Flask(__name__)
 # Load secret key from environment variables for security
@@ -465,3 +467,83 @@ def clear_user_token(row_id):
     except Exception as e:
         flash(f"Error clearing token: {e}", "error")
     return redirect(url_for('admin_users'))
+@app.route("/admin/export_csv")
+@admin_required
+def export_csv():
+    # This logic is almost identical to the admin_time_log route
+    # to ensure the exported data matches what the user sees.
+    log_values = log_sheet.get_all_values()
+    headers = log_values[0]
+    all_logs_raw = log_values[1:]
+
+    filter_name = request.args.get('name', '')
+    filter_date = request.args.get('date', '')
+
+    filtered_logs_for_csv = []
+    for i in range(len(all_logs_raw) - 1, -1, -1):
+        log_dict = dict(zip(headers, all_logs_raw[i]))
+        
+        name_matches = (not filter_name) or (filter_name == log_dict.get('Name'))
+        date_matches = True
+        if filter_date:
+            try:
+                sheet_date_str = log_dict.get('Date', '').replace('st,', ',').replace('nd,', ',').replace('rd,', ',').replace('th,', ',')
+                sheet_date = datetime.strptime(sheet_date_str, "%b. %d, %Y").date()
+                filter_dt = datetime.strptime(filter_date, "%Y-%m-%d").date()
+                date_matches = (sheet_date == filter_dt)
+            except (ValueError, TypeError):
+                date_matches = False
+
+        if name_matches and date_matches:
+            filtered_logs_for_csv.append(log_dict)
+
+    # --- CSV Generation ---
+    # We use io.StringIO to build the CSV in memory instead of creating a physical file
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=headers)
+
+    writer.writeheader()
+    writer.writerows(filtered_logs_for_csv)
+
+    # --- Create the Flask Response ---
+    response = make_response(output.getvalue())
+    response.headers["Content-Disposition"] = f"attachment; filename=timesheet_export_{datetime.now().strftime('%Y-%m-%d')}.csv"
+    response.headers["Content-type"] = "text/csv"
+    
+    return response
+@app.route("/admin/print_view")
+@admin_required
+def admin_print_view():
+    # This data fetching and filtering logic is duplicated to ensure
+    # the print view gets the exact same data as the log and CSV export.
+    log_values = log_sheet.get_all_values()
+    headers = log_values[0]
+    all_logs_raw = log_values[1:]
+
+    filter_name = request.args.get('name', '')
+    filter_date = request.args.get('date', '')
+
+    filtered_logs = []
+    for i in range(len(all_logs_raw) - 1, -1, -1):
+        log_dict = dict(zip(headers, all_logs_raw[i]))
+        name_matches = (not filter_name) or (filter_name == log_dict.get('Name'))
+        date_matches = True
+        if filter_date:
+            try:
+                sheet_date_str = log_dict.get('Date', '').replace('st,', ',').replace('nd,', ',').replace('rd,', ',').replace('th,', ',')
+                sheet_date = datetime.strptime(sheet_date_str, "%b. %d, %Y").date()
+                filter_dt = datetime.strptime(filter_date, "%Y-%m-%d").date()
+                date_matches = (sheet_date == filter_dt)
+            except (ValueError, TypeError):
+                date_matches = False
+
+        if name_matches and date_matches:
+            filtered_logs.append(log_dict)
+    
+    generation_time = datetime.now(CENTRAL_TIMEZONE).strftime("%Y-%m-%d %I:%M %p")
+
+    return render_template("admin_print_view.html",
+                           logs=filtered_logs,
+                           filter_name=filter_name,
+                           filter_date=filter_date,
+                           generation_time=generation_time)
