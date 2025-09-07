@@ -10,8 +10,10 @@ import os
 import time
 # At the top of app.py, add wraps from functools
 from functools import wraps
-# Imports required for the distance function
+# Imports required for the distance function and CSV export
 from math import radians, sin, cos, sqrt, atan2
+import csv
+import io
 
 app = Flask(__name__)
 # Load secret key from environment variables for security
@@ -47,7 +49,7 @@ def get_day_with_suffix(d):
 
 def calculate_distance(lat1, lon1, lat2, lon2):
     """Calculates the distance between two GPS coordinates in meters using the Haversine formula."""
-    R = 6371000  # Radius of Earth in meters
+    R = 6371000
     lat1_rad, lon1_rad = radians(lat1), radians(lon1)
     lat2_rad, lon2_rad = radians(lat2), radians(lon2)
     dlon = lon2_rad - lon1_rad
@@ -144,7 +146,7 @@ def handle_already_clocked_out(worker_name):
     session['final_status'] = {'message': message, 'status_type': 'already_complete', 'worker_name': worker_name}
     return redirect(url_for('success'))
 
-# --- User-Facing Routes ---
+# --- User-Facing Routes (Unchanged) ---
 @app.route("/")
 def home():
     # ... Unchanged ...
@@ -234,44 +236,33 @@ def handle_typo():
             return redirect(url_for('scan'))
     return render_template("handle_typo.html", correct_name=conflict['correct_name'])
 
-# ===============================================================
-# == THIS IS THE CORRECTED /confirm FUNCTION ====================
-# ===============================================================
 @app.route("/confirm")
 def confirm():
+    # ... Unchanged ...
     pending = session.get('pending_action')
     if not pending:
         return redirect(url_for('scan'))
-
     settings = get_settings()
     location_check_required = settings.get('LocationVerificationEnabled') == 'TRUE'
-
-    # === THIS IS THE FIX: These two lines were missing ===
     user_lat_str = request.args.get('lat')
     user_lon_str = request.args.get('lon')
-
     if location_check_required:
         if not user_lat_str or not user_lon_str:
             return redirect(url_for('enable_location'))
-        
         try:
             building_lat = float(os.environ.get("BUILDING_LATITUDE"))
             building_lon = float(os.environ.get("BUILDING_LONGITUDE"))
             user_lat = float(user_lat_str)
             user_lon = float(user_lon_str)
-            
             ALLOWED_RADIUS_FEET = 500
             METERS_TO_FEET = 3.28084
             distance_in_meters = calculate_distance(building_lat, building_lon, user_lat, user_lon)
             distance_in_feet = distance_in_meters * METERS_TO_FEET
-
             if distance_in_feet > ALLOWED_RADIUS_FEET:
                 fail_message = f"You are too far away. You must be within {ALLOWED_RADIUS_FEET} feet to proceed."
                 return redirect(url_for('location_failed', message=fail_message))
-
         except (TypeError, ValueError, AttributeError):
             return redirect(url_for('location_failed', message="Could not verify location due to a configuration error."))
-        
     return render_template("confirm.html", 
                            action_type=pending['type'], 
                            worker_name=pending['name'],
@@ -362,15 +353,10 @@ def enable_location():
     return render_template("enable_location.html")
 
 # ===============================================================
-# == ADMIN SECTION (Unchanged) ==================================
-# ===============================================================
-# ... All admin routes remain the same as your last working version ...
-
-# ===============================================================
-# == ADMIN SECTION (Unchanged) ==================================
+# == ADMIN SECTION ==============================================
 # ===============================================================
 
-# --- Admin Authentication ---
+# --- Admin Authentication (Unchanged) ---
 @app.route("/login", methods=["GET", "POST"])
 def login():
     # ... Unchanged ...
@@ -396,7 +382,7 @@ def logout():
     flash("You have been successfully logged out.", "success")
     return redirect(url_for('login'))
 
-# --- Admin Dashboard Routes ---
+# --- Admin Dashboard Routes (Unchanged) ---
 @app.route("/admin")
 @admin_required
 def admin_redirect():
@@ -419,60 +405,40 @@ def admin_dashboard():
             clocked_in_today[record.get('Name')] = record
     return render_template("admin_dashboard.html", currently_in=list(clocked_in_today.values()))
 
-# In app.py, replace the entire admin_time_log function with this one.
-
 @app.route("/admin/time_log")
 @admin_required
 def admin_time_log():
+    # ... Unchanged ...
     all_users = users_sheet.get_all_records()
     unique_names = sorted(list(set(user.get('Name', '') for user in all_users if user.get('Name'))))
-    
     log_values = log_sheet.get_all_values()
     headers = log_values[0]
     all_logs_raw = log_values[1:]
-
     filter_name = request.args.get('name', '')
     filter_date = request.args.get('date', '')
-
     filtered_logs = []
-    # Iterate in reverse to show newest first
     for i in range(len(all_logs_raw) - 1, -1, -1):
         log_dict = dict(zip(headers, all_logs_raw[i]))
         log_dict['row_id'] = i + 2
-        
-        # === THIS IS THE FIX: More robust checks ===
-
-        # 1. Skip any row that doesn't even have a name.
         if not log_dict.get('Name'):
             continue
-
-        # 2. Apply name filter
         name_matches = (not filter_name) or (filter_name == log_dict.get('Name'))
-        
-        # 3. Apply date filter safely
         date_matches = True
         if filter_date:
             try:
-                # Get the date string safely, default to empty string if None
                 sheet_date_str = log_dict.get('Date') or ''
-                # Clean the string
                 cleaned_date_str = sheet_date_str.replace('st,', ',').replace('nd,', ',').replace('rd,', ',').replace('th,', ',')
-                # Parse the dates
                 sheet_date = datetime.strptime(cleaned_date_str, "%b. %d, %Y").date()
                 filter_dt = datetime.strptime(filter_date, "%Y-%m-%d").date()
                 date_matches = (sheet_date == filter_dt)
             except (ValueError, TypeError):
-                # If any part of the date processing fails, it's not a match.
                 date_matches = False
-
         if name_matches and date_matches:
             filtered_logs.append(log_dict)
-
     return render_template("admin_time_log.html", 
-                           logs=filtered_logs, 
-                           unique_names=unique_names,
-                           filter_name=filter_name,
-                           filter_date=filter_date)
+                           logs=filtered_logs, unique_names=unique_names,
+                           filter_name=filter_name, filter_date=filter_date)
+
 @app.route("/admin/users")
 @admin_required
 def admin_users():
@@ -508,6 +474,7 @@ def update_settings():
     return redirect(url_for('admin_settings'))
 
 @app.route("/admin/fix_clock_out/<int:row_id>", methods=["POST"])
+@admin_required
 def fix_clock_out(row_id):
     # ... Unchanged ...
     worker_name = request.form.get("name")
@@ -522,6 +489,7 @@ def fix_clock_out(row_id):
     return redirect(request.referrer or url_for('admin_dashboard'))
 
 @app.route("/admin/delete_log_entry/<int:row_id>", methods=["POST"])
+@admin_required
 def delete_log_entry(row_id):
     # ... Unchanged ...
     try:
@@ -532,6 +500,7 @@ def delete_log_entry(row_id):
     return redirect(url_for('admin_time_log'))
 
 @app.route("/admin/add_user", methods=["POST"])
+@admin_required
 def add_user():
     # ... Unchanged ...
     name = request.form.get("name", "").strip()
@@ -543,6 +512,7 @@ def add_user():
     return redirect(url_for('admin_users'))
 
 @app.route("/admin/delete_user/<int:row_id>", methods=["POST"])
+@admin_required
 def delete_user(row_id):
     # ... Unchanged ...
     try:
@@ -553,6 +523,7 @@ def delete_user(row_id):
     return redirect(url_for('admin_users'))
 
 @app.route("/admin/clear_token/<int:row_id>", methods=["POST"])
+@admin_required
 def clear_user_token(row_id):
     # ... Unchanged ...
     try:
@@ -583,3 +554,45 @@ def admin_api_dashboard_data():
             }
             clocked_in_today[record.get('Name')] = clean_record
     return jsonify(list(clocked_in_today.values()))
+
+# ===============================================================
+# == THIS IS THE MISSING FUNCTION THAT CAUSED THE CRASH =========
+# ===============================================================
+@app.route("/admin/export_csv")
+@admin_required
+def export_csv():
+    log_values = log_sheet.get_all_values()
+    headers = log_values[0]
+    all_logs_raw = log_values[1:]
+
+    filter_name = request.args.get('name', '')
+    filter_date = request.args.get('date', '')
+
+    filtered_logs_for_csv = []
+    for i in range(len(all_logs_raw) - 1, -1, -1):
+        log_dict = dict(zip(headers, all_logs_raw[i]))
+        
+        name_matches = (not filter_name) or (filter_name == log_dict.get('Name'))
+        date_matches = True
+        if filter_date:
+            try:
+                sheet_date_str = log_dict.get('Date', '').replace('st,', ',').replace('nd,', ',').replace('rd,', ',').replace('th,', ',')
+                sheet_date = datetime.strptime(sheet_date_str, "%b. %d, %Y").date()
+                filter_dt = datetime.strptime(filter_date, "%Y-%m-%d").date()
+                date_matches = (sheet_date == filter_dt)
+            except (ValueError, TypeError):
+                date_matches = False
+
+        if name_matches and date_matches:
+            filtered_logs_for_csv.append(log_dict)
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=headers)
+    writer.writeheader()
+    writer.writerows(filtered_logs_for_csv)
+
+    response = make_response(output.getvalue())
+    response.headers["Content-Disposition"] = f"attachment; filename=timesheet_export_{datetime.now().strftime('%Y-%m-%d')}.csv"
+    response.headers["Content-type"] = "text/csv"
+    
+    return response
