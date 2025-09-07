@@ -1,5 +1,5 @@
 # No changes needed to imports
-from flask import Flask, request, redirect, render_template, session, url_for, flash, make_response
+from flask import Flask, request, redirect, render_template, session, url_for, flash, make_response, jsonify
 import uuid
 from datetime import datetime
 import pytz
@@ -547,3 +547,30 @@ def admin_print_view():
                            filter_name=filter_name,
                            filter_date=filter_date,
                            generation_time=generation_time)
+@app.route("/admin/api/dashboard_data")
+@admin_required
+def admin_api_dashboard_data():
+    # This logic is a simplified version of the admin_dashboard route
+    # It fetches the currently clocked-in users and returns them as JSON
+    all_logs = log_sheet.get_all_records()
+    now = datetime.now(CENTRAL_TIMEZONE)
+    today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
+    
+    clocked_in_today = {}
+    log_values = log_sheet.get_all_values()[1:]
+    headers = log_sheet.get_all_values()[0]
+
+    for i, row_list in enumerate(log_values):
+        record = dict(zip(headers, row_list))
+        record['row_id'] = i + 2
+        if record.get('Date') == today_date and record.get('Clock In') and not record.get('Clock Out'):
+            # We only need specific fields for the API response
+            clean_record = {
+                'Name': record.get('Name'),
+                'Clock In': record.get('Clock In'),
+                'row_id': record.get('row_id')
+            }
+            clocked_in_today[record.get('Name')] = clean_record
+    
+    # Flask's jsonify will automatically create a proper JSON response
+    return jsonify(list(clocked_in_today.values()))

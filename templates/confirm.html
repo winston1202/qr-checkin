@@ -6,122 +6,37 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <title>Confirm Action</title>
     <style>
-        /* Add this to the <style> tag of all other HTML files */
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-enter { animation: bounceIn 0.8s ease-out; }
+        @keyframes bounceIn { 0% { opacity: 0; transform: scale(0.3); } 50% { opacity: 1; transform: scale(1.05); } 70% { transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
+        
+        .btn-confirm { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-confirm:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(34, 197, 94, 0.4); }
+        .btn-cancel { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-cancel:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3); }
 
-.gradient-bg::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-        radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
-        radial-gradient(circle at 40% 80%, rgba(120, 219, 255, 0.3) 0%, transparent 50%);
-    animation: float 6s ease-in-out infinite;
-}
-
-@keyframes float {
-    0%, 100% { transform: translateY(0px) rotate(0deg); }
-    33% { transform: translateY(-10px) rotate(1deg); }
-    66% { transform: translateY(5px) rotate(-1deg); }
-}
-        @keyframes slideInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        /* NEW ANIMATION FOR THE VALIDATION ERROR */
+        @keyframes shake {
+            10%, 90% { transform: translateX(-1px); }
+            20%, 80% { transform: translateX(2px); }
+            30%, 50%, 70% { transform: translateX(-4px); }
+            40%, 60% { transform: translateX(4px); }
         }
-        
-        @keyframes fadeInScale {
-            from {
-                opacity: 0;
-                transform: scale(0.95);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-        
-        @keyframes pulseGlow {
-            0%, 100% {
-                box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
-            }
-            50% {
-                box-shadow: 0 0 30px rgba(34, 197, 94, 0.5);
-            }
-        }
-        
-        .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        
-        /* In confirm.html <style> section */
-        @keyframes bounceIn {
-            0% { opacity: 0; transform: scale(0.3); }
-            50% { opacity: 1; transform: scale(1.05); }
-            70% { transform: scale(0.9); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-
-        .card-enter {
-            animation: bounceIn 0.8s ease-out;
-        }
-        
-        .slide-up {
-            animation: slideInUp 0.5s ease-out;
-        }
-        
-        .btn-confirm {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .btn-confirm:hover {
-            transform: translateY(-2px);
-            animation: pulseGlow 2s infinite;
-        }
-        
-        .btn-cancel {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .btn-cancel:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);
-        }
-        
-        .card-float {
-            animation: float 6s ease-in-out infinite;
-        }
-        
-        @keyframes float {
-            0%, 100% {
-                transform: translateY(0px);
-            }
-            50% {
-                transform: translateY(-10px);
-            }
+        .shake-error {
+            animation: shake 0.82s cubic-bezier(.36,.07,.19,.97) both;
         }
     </style>
 </head>
 <body class="gradient-bg min-h-screen flex items-center justify-center p-4">
-    <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md card-enter card-float">
+    <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md card-enter">
         <div class="mb-6">
-            <div class="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center slide-up">
-                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
+            <div class="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             </div>
-            <h1 class="text-3xl font-bold text-gray-800 mb-2 slide-up">Please Confirm</h1>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Please Confirm</h1>
         </div>
         
-        <div class="mb-8 slide-up" style="animation-delay: 0.2s">
+        <div class="mb-8">
             <p class="text-lg text-gray-700 leading-relaxed">
                 You are about to <strong class="text-blue-600">{{ action_type }}</strong> for 
                 <strong class="text-purple-600">{{ worker_name }}</strong>
@@ -129,36 +44,39 @@
             <p class="text-gray-600 mt-2">Is this correct?</p>
         </div>
 
-        <!-- Custom Checkbox -->
-<!-- === START: CORRECTED Custom Checkbox in confirm.html === -->
-<div class="flex items-center justify-center mb-6 w-full">
-    <!-- The label is now the relative parent for positioning -->
-    <label class="relative flex items-center cursor-pointer select-none text-base font-medium text-gray-800 bg-gray-100 rounded-lg px-4 py-3 shadow-inner w-full justify-center">
-        <!-- The checkbox input -->
-        <input id="confirm-in-building" name="confirm_in_building" type="checkbox" required 
-               class="peer appearance-none h-6 w-6 border-2 border-blue-400 rounded-md checked:bg-blue-500 checked:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200">
-        
-        <!-- The text label -->
-        <span class="ml-3">Are you in the building?</span>
+        <!-- =============================================================== -->
+        <!-- == CORRECTED AND VALIDATED CHECKBOX SECTION =================== -->
+        <!-- =============================================================== -->
+        <div class="text-left mb-2">
+            <!-- The label is now the relative parent for perfect positioning -->
+            <label class="relative flex items-center cursor-pointer select-none text-base font-medium text-gray-800 bg-gray-100 rounded-lg px-4 py-3 shadow-inner w-full justify-center">
+                <!-- The checkbox input -->
+                <input id="confirm-in-building" name="confirm_in_building" type="checkbox"
+                       class="peer appearance-none h-6 w-6 border-2 border-gray-300 rounded-md checked:bg-blue-500 checked:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200">
+                
+                <span class="ml-3">I confirm I am in the building.</span>
 
-        <!-- The checkmark SVG, now positioned perfectly -->
-        <span class="checkmark absolute left-4 top-1/2 transform -translate-y-1/2 pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity duration-200">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-        </span>
-    </label>
-</div>
-<!-- === END: CORRECTED Custom Checkbox in confirm.html === -->
+                <!-- The checkmark SVG, now positioned perfectly over the box -->
+                <span class="absolute left-4 top-1/2 transform -translate-y-1/2 pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity duration-200">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                </span>
+            </label>
+            <!-- NEW: Error message placeholder (initially hidden) -->
+            <p id="checkbox-error" class="text-red-500 text-sm mt-2 text-center font-semibold hidden">
+                You must check this box to continue.
+            </p>
+        </div>
 
-        <div class="flex flex-col sm:flex-row justify-between gap-4 slide-up" style="animation-delay: 0.4s">
-            <form action="{{ url_for('execute') }}" method="POST" class="flex-1 flex" onsubmit="return document.getElementById('confirm-in-building').checked;">
+
+        <div class="flex flex-col sm:flex-row justify-between gap-4 mt-8">
+            <!-- The form now has an ID so our JavaScript can target it -->
+            <form id="confirmationForm" action="{{ url_for('execute') }}" method="POST" class="flex-1 flex">
                 <button type="submit" 
                         class="btn-confirm bg-gradient-to-r from-green-500 to-green-600 text-white font-bold px-8 py-3 rounded-xl w-full shadow-lg hover:shadow-xl flex-1">
-                    <span class="flex items-center justify-center button-text">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                        </svg>
+                    <span class="flex items-center justify-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                         Yes, Confirm
                     </span>
                 </button>
@@ -166,30 +84,45 @@
             <div class="flex-1 flex">
                 <a href="{{ url_for('scan') }}" 
                    class="btn-cancel bg-gradient-to-r from-red-500 to-red-600 text-white font-bold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl flex items-center justify-center w-full flex-1">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                    No, Go Back
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    No, Cancel
                 </a>
             </div>
         </div>
     </div>
-<script>
-    function setupFormSubmissions() {
-        document.querySelectorAll('form').forEach(form => {
-            form.addEventListener('submit', function(event) {
-                const button = form.querySelector('button[type="submit"]');
-                if (button) {
-                    button.disabled = true;
-                    const buttonText = button.querySelector('span.button-text');
-                    if (buttonText) {
-                        buttonText.textContent = 'Processing...';
-                    }
-                }
-            });
+
+    <!-- =============================================================== -->
+    <!-- == NEW JAVASCRIPT FOR VALIDATION ============================== -->
+    <!-- =============================================================== -->
+    <script>
+        // Get references to the form, checkbox, error message, and the checkbox's parent label
+        const form = document.getElementById('confirmationForm');
+        const checkbox = document.getElementById('confirm-in-building');
+        const errorMessage = document.getElementById('checkbox-error');
+        const checkboxLabel = checkbox.parentElement;
+
+        // Listen for the form's submit event
+        form.addEventListener('submit', function(event) {
+            // Check if the checkbox is NOT checked
+            if (!checkbox.checked) {
+                // 1. PREVENT the form from submitting
+                event.preventDefault();
+
+                // 2. SHOW the error message
+                errorMessage.classList.remove('hidden');
+
+                // 3. APPLY the shake animation to the entire checkbox label for a clear visual cue
+                checkboxLabel.classList.add('shake-error');
+                
+                // 4. REMOVE the animation class after it finishes so it can shake again if needed
+                setTimeout(() => {
+                    checkboxLabel.classList.remove('shake-error');
+                }, 820); // 820ms matches the animation duration
+            } else {
+                // If the box IS checked, make sure the error message is hidden
+                errorMessage.classList.add('hidden');
+            }
         });
-    }
-    document.addEventListener('DOMContentLoaded', setupFormSubmissions);
-</script>
+    </script>
 </body>
 </html>
