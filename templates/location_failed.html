@@ -37,7 +37,7 @@
         
         <div class="mb-8">
             <p class="text-lg text-gray-700 leading-relaxed">
-                <!-- The specific error message will be passed from the URL -->
+                <!-- The specific error message passed from the URL -->
                 {{ message | safe }}
             </p>
             <p class="text-gray-600 mt-4">
@@ -46,6 +46,7 @@
         </div>
 
         <div class="mt-8">
+            <!-- === THIS IS THE FIX: The link now correctly points to the 'scan' page === -->
             <a href="{{ url_for('scan') }}" 
                class="btn-try-again text-white font-bold px-8 py-4 rounded-xl shadow-lg hover:shadow-xl inline-flex items-center text-xl">
                 <span class="flex items-center">
