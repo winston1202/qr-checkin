@@ -1,54 +1,71 @@
-# No changes needed to imports
+# ===============================================================
+# == IMPORTS AND SETUP ==========================================
+# ===============================================================
 from flask import Flask, request, redirect, render_template, session, url_for, flash, make_response, jsonify
 import uuid
 from datetime import datetime
 import pytz
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 import json
 import os
 import time
-# At the top of app.py, add wraps from functools
 from functools import wraps
-# Imports required for the distance function and CSV export
 from math import radians, sin, cos, sqrt, atan2
 import csv
 import io
+# NEW: Import the database tools
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
-# Load secret key from environment variables for security
 app.secret_key = os.environ.get("SECRET_KEY")
 if not app.secret_key:
     raise ValueError("A SECRET_KEY must be set in the environment variables.")
 
-# --- Google Sheets Setup ---
-creds_json_string = os.environ.get("GOOGLE_SHEETS_CREDS")
-if not creds_json_string:
-    raise Exception("Missing GOOGLE_SHEETS_CREDS environment variable.")
-
-try:
-    creds_dict = json.loads(creds_json_string)
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-    client = gspread.authorize(creds)
-    log_sheet = client.open("QR Check-Ins").worksheet("Time Clock")
-    users_sheet = client.open("QR Check-Ins").worksheet("Users")
-    settings_sheet = client.open("QR Check-Ins").worksheet("Settings")
-except (json.JSONDecodeError, gspread.exceptions.GSpreadException) as e:
-    raise Exception(f"Could not connect to Google Sheets. Please check your credentials and sheet names. Error: {e}")
+# NEW: Configure the database connection from the DATABASE_URL environment variable
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
 CENTRAL_TIMEZONE = pytz.timezone("America/Chicago")
 
-# Simple in-memory cache for settings
-settings_cache = {}
-settings_last_fetched = 0
+# ===============================================================
+# == DATABASE MODELS (Our new "Tables") =========================
+# ===============================================================
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    uuid = db.Column(db.String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    device_token = db.Column(db.String(36), unique=True, nullable=True)
 
-# --- Helper Functions ---
+class TimeLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    uuid = db.Column(db.String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
+    user_name = db.Column(db.String(100), nullable=False)
+    date = db.Column(db.String(50), nullable=False)
+    clock_in = db.Column(db.String(50), nullable=False)
+    clock_out = db.Column(db.String(50), nullable=True)
+    verified = db.Column(db.String(10), nullable=False)
+
+class Setting(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    value = db.Column(db.String(50), nullable=False)
+
+# This command creates the tables in your database if they don't exist
+with app.app_context():
+    db.create_all()
+    # Create the default setting if it doesn't exist
+    if not Setting.query.filter_by(name='LocationVerificationEnabled').first():
+        default_setting = Setting(name='LocationVerificationEnabled', value='TRUE')
+        db.session.add(default_setting)
+        db.session.commit()
+
+# ===============================================================
+# == HELPER FUNCTIONS (Now using the database) ==================
+# ===============================================================
 def get_day_with_suffix(d):
     return f"{d}{'th' if 11<=d<=13 else {1:'st',2:'nd',3:'rd'}.get(d%10, 'th')}"
 
 def calculate_distance(lat1, lon1, lat2, lon2):
-    """Calculates the distance between two GPS coordinates in meters using the Haversine formula."""
     R = 6371000
     lat1_rad, lon1_rad = radians(lat1), radians(lon1)
     lat2_rad, lon2_rad = radians(lat2), radians(lon2)
@@ -56,21 +73,11 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     dlat = lat2_rad - lat1_rad
     a = sin(dlat / 2)**2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2)**2
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
-    distance = R * c
-    return distance
+    return R * c
 
 def get_settings():
-    """ Fetches settings from the Google Sheet with a 60-second cache. """
-    global settings_cache, settings_last_fetched
-    if (time.time() - settings_last_fetched) > 60:
-        try:
-            settings_records = settings_sheet.get_all_records()
-            settings_cache = {item['SettingName']: item['SettingValue'] for item in settings_records}
-            settings_last_fetched = time.time()
-        except Exception as e:
-            print(f"ERROR: Could not fetch settings from Google Sheet: {e}")
-            return settings_cache
-    return settings_cache
+    settings_list = Setting.query.all()
+    return {setting.name: setting.value for setting in settings_list}
 
 def admin_required(f):
     @wraps(f)
@@ -81,64 +88,52 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# --- Core Check-In/Out Logic (Unchanged) ---
+# ===============================================================
+# == CORE CHECK-IN/OUT LOGIC (Now using the database) ============
+# ===============================================================
 def prepare_action(worker_name):
-    # ... This entire function remains the same ...
-    log_values = log_sheet.get_all_values()
-    headers = [h.strip() for h in log_values[0]]
-    records = log_values[1:]
-    try:
-        name_col_idx = headers.index("Name")
-        date_col_idx = headers.index("Date")
-        clock_in_col_idx = headers.index("Clock In")
-        clock_out_col_idx = headers.index("Clock Out")
-        verified_col_idx = headers.index("Verified")
-    except ValueError as e:
-        raise Exception(f"A required column is missing in 'Time Clock'. Checked for '{e.args[0]}'.")
-    user_cell = users_sheet.find(worker_name, in_column=1)
-    user_row_number = user_cell.row if user_cell else None
     actual_token = request.cookies.get('device_token')
+    user = User.query.filter_by(name=worker_name).first()
     verification_status = "No"
+    
     allow_new_user_token = session.pop('allow_new_user_token', False)
-    if user_row_number:
-        expected_token = users_sheet.cell(user_row_number, 2).value
-        if expected_token and expected_token == actual_token:
+
+    if user:
+        if user.device_token and user.device_token == actual_token:
             verification_status = "Yes"
-        elif not expected_token and actual_token:
-            users_sheet.update_cell(user_row_number, 2, actual_token)
+        elif not user.device_token and actual_token:
+            user.device_token = actual_token
+            db.session.commit()
             verification_status = "Yes"
-    else:
-        if allow_new_user_token and actual_token:
-            users_sheet.append_row([worker_name, actual_token])
-            verification_status = "Yes"
+    elif allow_new_user_token and actual_token:
+        # Find user by name and add token, or create new user
+        user_to_update = User.query.filter_by(name=worker_name).first()
+        if user_to_update:
+            user_to_update.device_token = actual_token
+        else:
+            new_user = User(name=worker_name, device_token=actual_token)
+            db.session.add(new_user)
+        db.session.commit()
+        verification_status = "Yes"
+        
     now = datetime.now(CENTRAL_TIMEZONE)
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
     current_time = now.strftime("%I:%M:%S %p")
-    row_to_update = None
-    already_clocked_out = False
-    for i, record in reversed(list(enumerate(records))):
-        if len(record) > max(name_col_idx, date_col_idx, clock_out_col_idx) and record[name_col_idx] == worker_name and record[date_col_idx] == today_date:
-            clock_out_value = record[clock_out_col_idx]
-            if clock_out_value and clock_out_value.strip():
-                already_clocked_out = True
-            else:
-                row_to_update = i + 2
-            break
-    pending_action = {
-        'name': worker_name, 'date': today_date, 'time': current_time,
-        'verified': verification_status,
-        'col_indices': {
-            'Clock In': clock_in_col_idx + 1, 'Clock Out': clock_out_col_idx + 1,
-            'Verified': verified_col_idx + 1, 'Date': date_col_idx + 1, 'Name': name_col_idx + 1
-        }
-    }
-    if already_clocked_out:
-        pending_action['type'] = 'Already Clocked Out'
-    elif row_to_update:
+
+    log_entry = TimeLog.query.filter_by(user_name=worker_name, date=today_date, clock_out=None).first()
+
+    pending_action = {'name': worker_name, 'date': today_date, 'time': current_time, 'verified': verification_status}
+
+    if log_entry:
         pending_action['type'] = 'Clock Out'
-        pending_action['row_to_update'] = row_to_update
+        pending_action['log_id'] = log_entry.id
     else:
-        pending_action['type'] = 'Clock In'
+        already_clocked_out = TimeLog.query.filter(TimeLog.user_name == worker_name, TimeLog.date == today_date, TimeLog.clock_out != None).first()
+        if already_clocked_out:
+            pending_action['type'] = 'Already Clocked Out'
+        else:
+            pending_action['type'] = 'Clock In'
+
     session['pending_action'] = pending_action
 
 def handle_already_clocked_out(worker_name):
@@ -146,19 +141,19 @@ def handle_already_clocked_out(worker_name):
     session['final_status'] = {'message': message, 'status_type': 'already_complete', 'worker_name': worker_name}
     return redirect(url_for('success'))
 
-# --- User-Facing Routes (Unchanged) ---
+# ===============================================================
+# == USER-FACING ROUTES (Now using the database) ================
+# ===============================================================
 @app.route("/")
 def home():
-    # ... Unchanged ...
     device_token = request.cookies.get('device_token')
     if device_token:
-        token_cell = users_sheet.find(device_token, in_column=2)
-        if token_cell:
-            worker_name = users_sheet.cell(token_cell.row, 1).value
-            prepare_action(worker_name)
+        user = User.query.filter_by(device_token=device_token).first()
+        if user:
+            prepare_action(user.name)
             pending = session.get('pending_action', {})
             if pending.get('type') == 'Already Clocked Out':
-                return handle_already_clocked_out(worker_name)
+                return handle_already_clocked_out(user.name)
             return redirect(url_for('confirm'))
     return redirect(url_for('scan'))
 
@@ -168,32 +163,35 @@ def scan():
 
 @app.route("/process", methods=["POST"])
 def process():
-    # ... Unchanged ...
     first_name = request.form.get("first_name", "").strip()
     last_name = request.form.get("last_name", "").strip()
     if not first_name or not last_name:
         flash("First and Last Name are required.")
         return redirect(url_for('scan'))
+
     attempted_name = f"{first_name} {last_name}"
     actual_token = request.cookies.get('device_token')
+
     if not actual_token:
         flash("Your browser could not be identified. Please enable cookies and try again.")
         return redirect(url_for('scan'))
-    token_cell = users_sheet.find(actual_token, in_column=2)
-    if token_cell:
-        correct_name = users_sheet.cell(token_cell.row, 1).value
-        if correct_name.strip().lower() != attempted_name.strip().lower():
-            session['typo_conflict'] = {'correct_name': correct_name, 'attempted_name': attempted_name}
+
+    user_by_token = User.query.filter_by(device_token=actual_token).first()
+    if user_by_token:
+        if user_by_token.name.strip().lower() != attempted_name.strip().lower():
+            session['typo_conflict'] = {'correct_name': user_by_token.name, 'attempted_name': attempted_name}
             return redirect(url_for('handle_typo'))
-        worker_name = correct_name
+        worker_name = user_by_token.name
     else:
-        user_cell = users_sheet.find(attempted_name, in_column=1)
-        if user_cell:
-            flash(f"The name <strong>{attempted_name}</strong> is already registered to a different device. "
-                  f"Please use your registered device or contact an administrator to update it.")
-            return redirect(url_for('scan'))
+        user_by_name = User.query.filter_by(name=attempted_name).first()
+        if user_by_name:
+            if user_by_name.device_token:
+                flash(f"The name <strong>{attempted_name}</strong> is already registered to a different device.", "error")
+                return redirect(url_for('scan'))
+        
         session['new_user_registration'] = {'name': attempted_name}
         return redirect(url_for('register'))
+
     prepare_action(worker_name)
     pending = session.get('pending_action', {})
     if pending.get('type') == 'Already Clocked Out':
@@ -202,7 +200,6 @@ def process():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    # ... Unchanged ...
     new_user_data = session.get('new_user_registration')
     if not new_user_data:
         return redirect(url_for('scan'))
@@ -221,7 +218,6 @@ def register():
 
 @app.route("/handle_typo", methods=["GET", "POST"])
 def handle_typo():
-    # ... Unchanged ...
     conflict = session.get('typo_conflict')
     if not conflict:
         return redirect(url_for('scan'))
@@ -232,13 +228,12 @@ def handle_typo():
             prepare_action(conflict['correct_name'])
             return redirect(url_for('confirm'))
         else:
-            flash(f"Incorrect name. This device is registered to <strong>{conflict['correct_name']}</strong>.")
+            flash(f"Incorrect name. This device is registered to <strong>{conflict['correct_name']}</strong>.", "error")
             return redirect(url_for('scan'))
     return render_template("handle_typo.html", correct_name=conflict['correct_name'])
 
 @app.route("/confirm")
 def confirm():
-    # ... Unchanged ...
     pending = session.get('pending_action')
     if not pending:
         return redirect(url_for('scan'))
@@ -246,6 +241,7 @@ def confirm():
     location_check_required = settings.get('LocationVerificationEnabled') == 'TRUE'
     user_lat_str = request.args.get('lat')
     user_lon_str = request.args.get('lon')
+
     if location_check_required:
         if not user_lat_str or not user_lon_str:
             return redirect(url_for('enable_location'))
@@ -263,6 +259,7 @@ def confirm():
                 return redirect(url_for('location_failed', message=fail_message))
         except (TypeError, ValueError, AttributeError):
             return redirect(url_for('location_failed', message="Could not verify location due to a configuration error."))
+    
     return render_template("confirm.html", 
                            action_type=pending['type'], 
                            worker_name=pending['name'],
@@ -270,37 +267,42 @@ def confirm():
 
 @app.route("/execute", methods=["POST"])
 def execute():
-    # ... Unchanged ...
     action = session.pop('pending_action', None)
     if not action:
         return redirect(url_for('scan'))
+    
     action_type = action.get('type')
-    cols = action.get('col_indices', {})
     worker_name = action.get('name')
+
     if action_type == 'Clock Out':
-        log_sheet.update_cell(action['row_to_update'], cols['Clock Out'], action['time'])
-        log_sheet.update_cell(action['row_to_update'], cols['Verified'], action['verified'])
+        log_entry = TimeLog.query.get(action['log_id'])
+        if log_entry:
+            log_entry.clock_out = action['time']
+            log_entry.verified = action['verified']
+            db.session.commit()
         message = "You have been clocked out successfully."
         status_type = 'clock_out'
     elif action_type == 'Clock In':
-        num_cols = len(log_sheet.get_all_values()[0])
-        new_row_data = [""] * num_cols
-        new_row_data[cols['Date'] - 1] = action['date']
-        new_row_data[cols['Name'] - 1] = action['name']
-        new_row_data[cols['Clock In'] - 1] = action['time']
-        new_row_data[cols['Verified'] - 1] = action['verified']
-        log_sheet.append_row(new_row_data, value_input_option='USER_ENTERED')
+        new_log = TimeLog(
+            user_name=action['name'],
+            date=action['date'],
+            clock_in=action['time'],
+            clock_out=None,
+            verified=action['verified']
+        )
+        db.session.add(new_log)
+        db.session.commit()
         message = "You have been clocked in successfully. You may now close this page or clock out below."
         status_type = 'clock_in'
-    else: 
+    else:
         message = "Action processed."
         status_type = 'default'
+
     session['final_status'] = {'message': message, 'status_type': status_type, 'worker_name': worker_name}
     return redirect(url_for('success'))
 
 @app.route("/success")
 def success():
-    # ... Unchanged ...
     final_status = session.pop('final_status', {})
     message = final_status.get('message', "Action completed successfully.")
     status_type = final_status.get('status_type', 'default')
@@ -309,57 +311,42 @@ def success():
 
 @app.route("/quick_clock_out", methods=["POST"])
 def quick_clock_out():
-    # ... Unchanged ...
     worker_name = request.form.get("worker_name")
     if not worker_name:
         flash("Could not identify the user to clock out.", "error")
         return redirect(url_for('scan'))
-    log_values = log_sheet.get_all_values()
-    headers = log_values[0]
-    records = log_values[1:]
-    try:
-        name_col_idx = headers.index("Name")
-        date_col_idx = headers.index("Date")
-        clock_out_col_idx = headers.index("Clock Out")
-    except ValueError as e:
-        flash(f"A required column is missing in the sheet: {e}", "error")
-        return redirect(url_for('scan'))
+
     now = datetime.now(CENTRAL_TIMEZONE)
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
-    current_time = now.strftime("%I:%M:%S %p")
-    row_to_update = None
-    for i, record in reversed(list(enumerate(records))):
-        if record[name_col_idx] == worker_name and record[date_col_idx] == today_date and not record[clock_out_col_idx].strip():
-            row_to_update = i + 2
-            break
-    if row_to_update:
-        log_sheet.update_cell(row_to_update, clock_out_col_idx + 1, current_time)
+    
+    log_entry = TimeLog.query.filter_by(user_name=worker_name, date=today_date, clock_out=None).first()
+            
+    if log_entry:
+        log_entry.clock_out = now.strftime("%I:%M:%S %p")
+        db.session.commit()
         message = "You have been clocked out successfully."
         session['final_status'] = {'message': message, 'status_type': 'clock_out', 'worker_name': worker_name}
     else:
         message = "You have already been clocked out for the day."
         session['final_status'] = {'message': message, 'status_type': 'already_complete', 'worker_name': worker_name}
+        
     return redirect(url_for('success'))
 
 @app.route("/location_failed")
 def location_failed():
-    # ... Unchanged ...
     message = request.args.get('message', 'An unknown error occurred.')
     return render_template("location_failed.html", message=message)
 
 @app.route("/enable_location")
 def enable_location():
-    # ... Unchanged ...
     return render_template("enable_location.html")
 
 # ===============================================================
-# == ADMIN SECTION ==============================================
+# == ADMIN SECTION (Now using the database) =====================
 # ===============================================================
 
-# --- Admin Authentication (Unchanged) ---
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    # ... Unchanged ...
     if request.method == 'POST':
         username = request.form.get("username")
         password = request.form.get("password")
@@ -377,12 +364,10 @@ def login():
 
 @app.route("/logout")
 def logout():
-    # ... Unchanged ...
     session.pop('is_admin', None)
     flash("You have been successfully logged out.", "success")
     return redirect(url_for('login'))
 
-# --- Admin Dashboard Routes (Unchanged) ---
 @app.route("/admin")
 @admin_required
 def admin_redirect():
@@ -391,238 +376,207 @@ def admin_redirect():
 @app.route("/admin/dashboard")
 @admin_required
 def admin_dashboard():
-    # ... Unchanged ...
-    all_logs = log_sheet.get_all_records()
     now = datetime.now(CENTRAL_TIMEZONE)
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
-    clocked_in_today = {}
-    log_values = log_sheet.get_all_values()[1:]
-    headers = log_sheet.get_all_values()[0]
-    for i, row_list in enumerate(log_values):
-        record = dict(zip(headers, row_list))
-        record['row_id'] = i + 2 
-        if record.get('Date') == today_date and record.get('Clock In') and not record.get('Clock Out'):
-            clocked_in_today[record.get('Name')] = record
-    return render_template("admin_dashboard.html", currently_in=list(clocked_in_today.values()))
+    
+    currently_in = TimeLog.query.filter(TimeLog.date == today_date, TimeLog.clock_out == None).all()
+    
+    return render_template("admin_dashboard.html", currently_in=currently_in)
 
 @app.route("/admin/time_log")
 @admin_required
 def admin_time_log():
-    # ... Unchanged ...
-    all_users = users_sheet.get_all_records()
-    unique_names = sorted(list(set(user.get('Name', '') for user in all_users if user.get('Name'))))
-    log_values = log_sheet.get_all_values()
-    headers = log_values[0]
-    all_logs_raw = log_values[1:]
+    all_users = User.query.with_entities(User.name).distinct().order_by(User.name).all()
+    unique_names = [user.name for user in all_users]
+    
+    query = TimeLog.query
+
     filter_name = request.args.get('name', '')
     filter_date = request.args.get('date', '')
-    filtered_logs = []
-    for i in range(len(all_logs_raw) - 1, -1, -1):
-        log_dict = dict(zip(headers, all_logs_raw[i]))
-        log_dict['row_id'] = i + 2
-        if not log_dict.get('Name'):
-            continue
-        name_matches = (not filter_name) or (filter_name == log_dict.get('Name'))
-        date_matches = True
-        if filter_date:
-            try:
-                sheet_date_str = log_dict.get('Date') or ''
-                cleaned_date_str = sheet_date_str.replace('st,', ',').replace('nd,', ',').replace('rd,', ',').replace('th,', ',')
-                sheet_date = datetime.strptime(cleaned_date_str, "%b. %d, %Y").date()
-                filter_dt = datetime.strptime(filter_date, "%Y-%m-%d").date()
-                date_matches = (sheet_date == filter_dt)
-            except (ValueError, TypeError):
-                date_matches = False
-        if name_matches and date_matches:
-            filtered_logs.append(log_dict)
+    sort_by = request.args.get('sort_by', 'date')
+    sort_order = request.args.get('sort_order', 'desc')
+
+    if filter_name:
+        query = query.filter(TimeLog.user_name == filter_name)
+    if filter_date:
+        try:
+            filter_dt = datetime.strptime(filter_date, "%Y-%m-%d")
+            date_str = f"%b. {get_day_with_suffix(filter_dt.day)}, %Y"
+            query = query.filter(TimeLog.date == filter_dt.strftime(date_str))
+        except ValueError:
+            pass
+
+    # Sorting logic
+    sort_column = getattr(TimeLog, sort_by, TimeLog.id)
+    if sort_order == 'desc':
+        query = query.order_by(sort_column.desc())
+    else:
+        query = query.order_by(sort_column.asc())
+
+    filtered_logs = query.all()
+
     return render_template("admin_time_log.html", 
-                           logs=filtered_logs, unique_names=unique_names,
-                           filter_name=filter_name, filter_date=filter_date)
+                           logs=filtered_logs, 
+                           unique_names=unique_names,
+                           filter_name=filter_name,
+                           filter_date=filter_date,
+                           sort_by=sort_by,
+                           sort_order=sort_order)
 
 @app.route("/admin/users")
 @admin_required
 def admin_users():
-    # ... Unchanged ...
-    users_with_ids = []
-    user_records = users_sheet.get_all_records()
-    for i, user in enumerate(user_records):
-        user['row_id'] = i + 2
-        users_with_ids.append(user)
-    return render_template("admin_users.html", users=users_with_ids)
+    all_users = User.query.order_by(User.name).all()
+    return render_template("admin_users.html", users=all_users)
 
 @app.route("/admin/settings")
 @admin_required
 def admin_settings():
-    # ... Unchanged ...
     current_settings = get_settings()
     return render_template("admin_settings.html", settings=current_settings)
 
 @app.route("/admin/update_settings", methods=["POST"])
 @admin_required
 def update_settings():
-    # ... Unchanged ...
-    global settings_last_fetched
     setting_name = request.form.get("setting_name")
     new_value = "TRUE" if request.form.get("setting_value") == "on" else "FALSE"
-    try:
-        cell = settings_sheet.find(setting_name)
-        settings_sheet.update_cell(cell.row, cell.col + 1, new_value)
-        settings_last_fetched = 0
+    
+    setting = Setting.query.filter_by(name=setting_name).first()
+    if setting:
+        setting.value = new_value
+        db.session.commit()
         flash(f"Setting '{setting_name}' updated successfully.", "success")
-    except Exception as e:
-        flash(f"Error updating setting: {e}", "error")
+    else:
+        flash(f"Error: Could not find setting '{setting_name}'.", "error")
+
     return redirect(url_for('admin_settings'))
 
-@app.route("/admin/fix_clock_out/<int:row_id>", methods=["POST"])
+@app.route("/admin/fix_clock_out/<int:log_id>", methods=["POST"])
 @admin_required
-def fix_clock_out(row_id):
-    # ... Unchanged ...
-    worker_name = request.form.get("name")
-    try:
-        now = datetime.now(CENTRAL_TIMEZONE)
-        current_time = now.strftime("%I:%M:%S %p")
-        clock_out_col = log_sheet.find("Clock Out").col
-        log_sheet.update_cell(row_id, clock_out_col, current_time)
-        flash(f"Successfully clocked out {worker_name}.", 'success')
-    except Exception as e:
-        flash(f"Error updating clock out: {e}", "error")
+def fix_clock_out(log_id):
+    log_entry = TimeLog.query.get(log_id)
+    if log_entry:
+        log_entry.clock_out = datetime.now(CENTRAL_TIMEZONE).strftime("%I:%M:%S %p")
+        db.session.commit()
+        flash(f"Successfully clocked out {log_entry.user_name}.", 'success')
+    else:
+        flash("Error: Could not find the time entry to update.", 'error')
     return redirect(request.referrer or url_for('admin_dashboard'))
 
-@app.route("/admin/delete_log_entry/<int:row_id>", methods=["POST"])
+@app.route("/admin/delete_log_entry/<int:log_id>", methods=["POST"])
 @admin_required
-def delete_log_entry(row_id):
-    # ... Unchanged ...
-    try:
-        log_sheet.delete_rows(row_id)
+def delete_log_entry(log_id):
+    log_entry = TimeLog.query.get(log_id)
+    if log_entry:
+        db.session.delete(log_entry)
+        db.session.commit()
         flash("Time entry deleted successfully.", "success")
-    except Exception as e:
-        flash(f"Error deleting entry: {e}", "error")
+    else:
+        flash("Error: Could not find the time entry to delete.", "error")
     return redirect(url_for('admin_time_log'))
 
 @app.route("/admin/add_user", methods=["POST"])
 @admin_required
 def add_user():
-    # ... Unchanged ...
     name = request.form.get("name", "").strip()
-    if name and not users_sheet.find(name, in_column=1):
-        users_sheet.append_row([name, ''])
+    if name and not User.query.filter_by(name=name).first():
+        new_user = User(name=name)
+        db.session.add(new_user)
+        db.session.commit()
         flash(f"User '{name}' added successfully.", 'success')
     else:
         flash(f"Error: User '{name}' already exists or name is invalid.", 'error')
     return redirect(url_for('admin_users'))
 
-@app.route("/admin/delete_user/<int:row_id>", methods=["POST"])
+@app.route("/admin/delete_user/<int:user_id>", methods=["POST"])
 @admin_required
-def delete_user(row_id):
-    # ... Unchanged ...
-    try:
-        users_sheet.delete_rows(row_id)
-        flash("User deleted successfully.", "success")
-    except Exception as e:
-        flash(f"Error deleting user: {e}", "error")
+def delete_user(user_id):
+    user = User.query.get(user_id)
+    if user:
+        TimeLog.query.filter_by(user_name=user.name).delete()
+        db.session.delete(user)
+        db.session.commit()
+        flash(f"User '{user.name}' and all their logs have been deleted.", 'success')
+    else:
+        flash("Error: Could not find user to delete.", "error")
     return redirect(url_for('admin_users'))
 
-@app.route("/admin/clear_token/<int:row_id>", methods=["POST"])
+@app.route("/admin/clear_token/<int:user_id>", methods=["POST"])
 @admin_required
-def clear_user_token(row_id):
-    # ... Unchanged ...
-    try:
-        users_sheet.update_cell(row_id, 2, "")
-        flash("User's device token has been cleared. They can now register a new device.", "success")
-    except Exception as e:
-        flash(f"Error clearing token: {e}", "error")
+def clear_user_token(user_id):
+    user = User.query.get(user_id)
+    if user:
+        user.device_token = None
+        db.session.commit()
+        flash(f"User '{user.name}'s device token has been cleared.", "success")
+    else:
+        flash("Error: Could not find user to clear token.", "error")
     return redirect(url_for('admin_users'))
 
 @app.route("/admin/api/dashboard_data")
 @admin_required
 def admin_api_dashboard_data():
-    # ... Unchanged ...
-    all_logs = log_sheet.get_all_records()
     now = datetime.now(CENTRAL_TIMEZONE)
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
-    clocked_in_today = {}
-    log_values = log_sheet.get_all_values()[1:]
-    headers = log_sheet.get_all_values()[0]
-    for i, row_list in enumerate(log_values):
-        record = dict(zip(headers, row_list))
-        record['row_id'] = i + 2
-        if record.get('Date') == today_date and record.get('Clock In') and not record.get('Clock Out'):
-            clean_record = {
-                'Name': record.get('Name'),
-                'Clock In': record.get('Clock In'),
-                'row_id': record.get('row_id')
-            }
-            clocked_in_today[record.get('Name')] = clean_record
-    return jsonify(list(clocked_in_today.values()))
+    
+    clocked_in_today = TimeLog.query.filter(TimeLog.date == today_date, TimeLog.clock_out == None).all()
+    
+    data = [{'Name': log.user_name, 'Clock In': log.clock_in, 'row_id': log.id} for log in clocked_in_today]
+    return jsonify(data)
 
-# ===============================================================
-# == THIS IS THE MISSING EXPORT AND PRINT SECTION ================
-# ===============================================================
 @app.route("/admin/export_csv")
 @admin_required
 def export_csv():
-    log_values = log_sheet.get_all_values()
-    headers = log_values[0]
-    all_logs_raw = log_values[1:]
-
+    query = TimeLog.query
     filter_name = request.args.get('name', '')
     filter_date = request.args.get('date', '')
+    if filter_name:
+        query = query.filter(TimeLog.user_name == filter_name)
+    if filter_date:
+        try:
+            filter_dt = datetime.strptime(filter_date, "%Y-%m-%d")
+            date_str = f"%b. {get_day_with_suffix(filter_dt.day)}, %Y"
+            query = query.filter(TimeLog.date == filter_dt.strftime(date_str))
+        except ValueError: pass
 
-    filtered_logs_for_csv = []
-    for i in range(len(all_logs_raw) - 1, -1, -1):
-        log_dict = dict(zip(headers, all_logs_raw[i]))
-        name_matches = (not filter_name) or (filter_name == log_dict.get('Name'))
-        date_matches = True
-        if filter_date:
-            try:
-                sheet_date_str = log_dict.get('Date', '').replace('st,', ',').replace('nd,', ',').replace('rd,', ',').replace('th,', ',')
-                sheet_date = datetime.strptime(sheet_date_str, "%b. %d, %Y").date()
-                filter_dt = datetime.strptime(filter_date, "%Y-%m-%d").date()
-                date_matches = (sheet_date == filter_dt)
-            except (ValueError, TypeError):
-                date_matches = False
-        if name_matches and date_matches:
-            filtered_logs_for_csv.append(log_dict)
-
+    filtered_logs = query.order_by(TimeLog.id.desc()).all()
+    
+    logs_for_csv = [
+        {'Name': log.user_name, 'Date': log.date, 'Clock In': log.clock_in, 'Clock Out': log.clock_out, 'Verified': log.verified}
+        for log in filtered_logs
+    ]
+    
     output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=headers)
-    writer.writeheader()
-    writer.writerows(filtered_logs_for_csv)
+    if logs_for_csv:
+        # Use the exact keys from the dictionary
+        fieldnames = ['Name', 'Date', 'Clock In', 'Clock Out', 'Verified']
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(logs_for_csv)
 
     response = make_response(output.getvalue())
     response.headers["Content-Disposition"] = f"attachment; filename=timesheet_export_{datetime.now().strftime('%Y-%m-%d')}.csv"
     response.headers["Content-type"] = "text/csv"
-    
     return response
 
 @app.route("/admin/print_view")
 @admin_required
 def admin_print_view():
-    log_values = log_sheet.get_all_values()
-    headers = log_values[0]
-    all_logs_raw = log_values[1:]
-
+    query = TimeLog.query
     filter_name = request.args.get('name', '')
     filter_date = request.args.get('date', '')
-
-    filtered_logs = []
-    for i in range(len(all_logs_raw) - 1, -1, -1):
-        log_dict = dict(zip(headers, all_logs_raw[i]))
-        name_matches = (not filter_name) or (filter_name == log_dict.get('Name'))
-        date_matches = True
-        if filter_date:
-            try:
-                sheet_date_str = log_dict.get('Date', '').replace('st,', ',').replace('nd,', ',').replace('rd,', ',').replace('th,', ',')
-                sheet_date = datetime.strptime(sheet_date_str, "%b. %d, %Y").date()
-                filter_dt = datetime.strptime(filter_date, "%Y-%m-%d").date()
-                date_matches = (sheet_date == filter_dt)
-            except (ValueError, TypeError):
-                date_matches = False
-        if name_matches and date_matches:
-            filtered_logs.append(log_dict)
+    if filter_name:
+        query = query.filter(TimeLog.user_name == filter_name)
+    if filter_date:
+        try:
+            filter_dt = datetime.strptime(filter_date, "%Y-%m-%d")
+            date_str = f"%b. {get_day_with_suffix(filter_dt.day)}, %Y"
+            query = query.filter(TimeLog.date == filter_dt.strftime(date_str))
+        except ValueError: pass
+        
+    filtered_logs = query.order_by(TimeLog.id.desc()).all()
     
     generation_time = datetime.now(CENTRAL_TIMEZONE).strftime("%Y-%m-%d %I:%M %p")
-
     return render_template("admin_print_view.html",
                            logs=filtered_logs,
                            filter_name=filter_name,
