@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Time Clock Report</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @page { size: auto; margin: 0.5in; }
+        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+    </style>
+</head>
+<body class="p-4">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-2xl font-bold border-b pb-2 mb-4">Time Clock Report</h1>
+        <div class="mb-4 text-sm text-gray-600">
+            <p><strong>Report Generated:</strong> {{ generation_time }}</p>
+            {% if filter_name %}<p><strong>Filtered by Name:</strong> {{ filter_name }}</p>{% endif %}
+            {% if filter_date %}<p><strong>Filtered by Date:</strong> {{ filter_date }}</p>{% endif %}
+        </div>
+        <table class="w-full text-left text-sm">
+            <thead>
+                <tr class="border-b bg-gray-100">
+                    <th class="p-2">Name</th>
+                    <th class="p-2">Date</th>
+                    <th class="p-2">Clock In</th>
+                    <th class="p-2">Clock Out</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr class="border-b">
+                    <td class="p-2">{{ log.user.name }}</td>
+                    <td class="p-2">{{ log.date }}</td>
+                    <td class="p-2">{{ log.clock_in }}</td>
+                    <td class="p-2">{{ log.clock_out or 'N/A' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <script>
+        window.onload = function() { window.print(); };
+    </script>
+</body>
+</html>

@@ -272,20 +272,54 @@ def execute_action():
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
     current_time = now.strftime("%I:%M:%S %p")
     
+    status_type = ''
     if action_data['action_type'] == 'Clock Out':
         log_entry = TimeLog.query.filter_by(user_id=user.id, date=today_date, clock_out=None).first()
         if log_entry: log_entry.clock_out = current_time
+        status_type = 'clock_out'
     else: # Clock In
         new_log = TimeLog(user_id=user.id, team_id=user.team_id, date=today_date, clock_in=current_time)
         db.session.add(new_log)
+        status_type = 'clock_in'
     
     db.session.commit()
-    return redirect(url_for('success', status=action_data['action_type'].lower().replace(' ', '_'), name=user.name))
+    # === THIS IS THE FIX: We now pass the user's unique ID ===
+    return redirect(url_for('success', status=status_type, name=user.name, user_id=user.id))
 
 @app.route("/success")
 def success():
-    return render_template("success.html", status_type=request.args.get('status'), worker_name=request.args.get('name'))
+    status = request.args.get('status')
+    name = request.args.get('name')
+    # === THIS IS THE FIX: We get the user_id to pass to the template ===
+    user_id = request.args.get('user_id')
+    return render_template("success.html", status_type=status, worker_name=name, user_id=user_id)
+@app.route("/quick_clock_out", methods=["POST"])
+def quick_clock_out():
+    user_id = request.form.get("user_id")
+    if not user_id:
+        flash("Could not identify the user to clock out.", "error")
+        return redirect(url_for('scan'))
 
+    user = User.query.get(user_id)
+    if not user:
+        flash("User not found.", "error")
+        return redirect(url_for('scan'))
+
+    now = datetime.now(CENTRAL_TIMEZONE)
+    today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
+    
+    log_entry = TimeLog.query.filter_by(user_id=user.id, date=today_date, clock_out=None).first()
+            
+    if log_entry:
+        log_entry.clock_out = now.strftime("%I:%M:%S %p")
+        db.session.commit()
+        # Redirect to the success page with a 'clock_out' status
+        return redirect(url_for('success', status='clock_out', name=user.name))
+    else:
+        # This handles the case where the user might have already clocked out in another tab
+        flash("You have already been clocked out for the day.", "success")
+        return redirect(url_for('home'))
+    
 @app.route("/location_failed")
 def location_failed():
     return render_template("location_failed.html", message=request.args.get('message'))
@@ -420,3 +454,92 @@ def admin_api_dashboard_data():
     currently_in = TimeLog.query.filter(TimeLog.team_id == g.user.team_id, TimeLog.date == today_date, TimeLog.clock_out == None).all()
     data = [{'Name': log.user.name, 'Clock In': log.clock_in, 'id': log.id} for log in currently_in]
     return jsonify(data)
+@app.route("/admin/time_log")
+@admin_required
+def admin_time_log():
+    query = TimeLog.query.join(User).filter(TimeLog.team_id == g.user.team_id)
+    all_users_on_team = User.query.filter_by(team_id=g.user.team_id).order_by(User.name).all()
+    unique_names = [user.name for user in all_users_on_team]
+    
+    filter_name = request.args.get('name', '')
+    filter_date = request.args.get('date', '')
+    sort_by = request.args.get('sort_by', 'id')
+    sort_order = request.args.get('sort_order', 'desc')
+
+    if filter_name:
+        query = query.filter(User.name == filter_name)
+    if filter_date:
+        try:
+            filter_dt = datetime.strptime(filter_date, "%Y-%m-%d")
+            date_str = f"%b. {get_day_with_suffix(filter_dt.day)}, %Y"
+            query = query.filter(TimeLog.date == date_str)
+        except ValueError: pass
+
+    sort_column = getattr(TimeLog, sort_by, TimeLog.id)
+    if sort_order == 'desc':
+        query = query.order_by(sort_column.desc())
+    else:
+        query = query.order_by(sort_column.asc())
+    
+    filtered_logs = query.all()
+
+    return render_template("admin/time_log.html", 
+                           logs=filtered_logs, 
+                           unique_names=unique_names,
+                           filter_name=filter_name,
+                           filter_date=filter_date,
+                           sort_by=sort_by,
+                           sort_order=sort_order)
+
+@app.route("/admin/export_csv")
+@admin_required
+def export_csv():
+    query = TimeLog.query.join(User).filter(TimeLog.team_id == g.user.team_id)
+    filter_name = request.args.get('name', '')
+    filter_date = request.args.get('date', '')
+    if filter_name:
+        query = query.filter(User.name == filter_name)
+    if filter_date:
+        try:
+            filter_dt = datetime.strptime(filter_date, "%Y-%m-%d")
+            date_str = f"%b. {get_day_with_suffix(filter_dt.day)}, %Y"
+            query = query.filter(TimeLog.date == date_str)
+        except ValueError: pass
+    
+    filtered_logs = query.order_by(TimeLog.id.desc()).all()
+    logs_for_csv = [{'Name': log.user.name, 'Date': log.date, 'Clock In': log.clock_in, 'Clock Out': log.clock_out} for log in filtered_logs]
+    
+    output = io.StringIO()
+    if logs_for_csv:
+        writer = csv.DictWriter(output, fieldnames=['Name', 'Date', 'Clock In', 'Clock Out'])
+        writer.writeheader()
+        writer.writerows(logs_for_csv)
+
+    response = make_response(output.getvalue())
+    response.headers["Content-Disposition"] = f"attachment; filename=timesheet_export_{datetime.now().strftime('%Y-%m-%d')}.csv"
+    response.headers["Content-type"] = "text/csv"
+    return response
+
+@app.route("/admin/print_view")
+@admin_required
+def admin_print_view():
+    query = TimeLog.query.join(User).filter(TimeLog.team_id == g.user.team_id)
+    filter_name = request.args.get('name', '')
+    filter_date = request.args.get('date', '')
+    if filter_name:
+        query = query.filter(User.name == filter_name)
+    if filter_date:
+        try:
+            filter_dt = datetime.strptime(filter_date, "%Y-%m-%d")
+            date_str = f"%b. {get_day_with_suffix(filter_dt.day)}, %Y"
+            query = query.filter(TimeLog.date == date_str)
+        except ValueError: pass
+        
+    filtered_logs = query.order_by(TimeLog.id.desc()).all()
+    
+    generation_time = datetime.now(CENTRAL_TIMEZONE).strftime("%Y-%m-%d %I:%M %p")
+    return render_template("admin/print_view.html",
+                           logs=filtered_logs,
+                           filter_name=filter_name,
+                           filter_date=filter_date,
+                           generation_time=generation_time)

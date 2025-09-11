@@ -24,8 +24,11 @@
                 {% endif %}
             </p>
         </div>
+
         {% if status_type == 'clock_in' %}
-            <form action="{{ url_for('execute_action') }}" method="POST">
+            <!-- === THIS IS THE FIX: The form now points to the correct route and includes the user's ID === -->
+            <form action="{{ url_for('quick_clock_out') }}" method="POST">
+                <input type="hidden" name="user_id" value="{{ user_id }}">
                 <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl">Clock Out Now</button>
             </form>
         {% else %}
