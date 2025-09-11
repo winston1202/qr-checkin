@@ -1,66 +1,44 @@
-{% extends "admin/base_layout.html" %}
-
-{% block title %}User Management{% endblock %}
-
-{% block content %}
-<div class="bg-white p-6 rounded-lg shadow-md">
-    <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Manage Users for {{ g.user.team.name }}</h2>
-    <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm min-w-[700px]">
-            <thead>
-                <tr class="border-b">
-                    <th class="py-2">Name</th>
-                    <th class="py-2">Email / Role</th>
-                    <th class="py-2">Registered Device Token</th>
-                    <th class="py-2 text-right">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for user in users %}
-                <tr class="border-b hover:bg-gray-50">
-                    <td class="py-3 font-medium">{{ user.name }}</td>
-                    <td class="py-3">
-                        <span class="block text-gray-500">{{ user.email or 'N/A' }}</span>
-                        <span class="px-2 py-1 text-xs rounded-full {{ 'bg-blue-100 text-blue-800' if user.role == 'Admin' else 'bg-gray-100 text-gray-800' }}">{{ user.role }}</span>
-                    </td>
-                    <td class="py-3 font-mono text-xs text-gray-500">{{ user.device_token or 'None' }}</td>
-                    <td class="py-3 text-right">
-                        {% if user.id != g.user.id %}
-                        <div class="flex justify-end items-center gap-4">
-                            
-                            <!-- === THIS IS THE FIX: All url_for now point to 'admin.' === -->
-                            
-                            <!-- Clear Token Action -->
-                            <form action="{{ url_for('admin.admin_clear_user_token', user_id=user.id) }}" method="POST" onsubmit="return confirm('Clear token for {{ user.name }}?');">
-                                <button type="submit" class="text-blue-600 hover:text-blue-800 font-semibold">Clear Token</button>
-                            </form>
-                            
-                            <!-- Role Change Action -->
-                            <form action="{{ url_for('admin.admin_set_user_role', user_id=user.id) }}" method="POST">
-                                {% if user.role == 'User' %}
-                                    <input type="hidden" name="role" value="Admin">
-                                    <button type="submit" class="text-green-600 hover:text-green-800 font-semibold">Promote to Admin</button>
-                                {% else %}
-                                    <input type="hidden" name="role" value="User">
-                                    <button type="submit" class="text-yellow-600 hover:text-yellow-800 font-semibold">Demote to User</button>
-                                {% endif %}
-                            </form>
-
-                            <!-- Delete User Action -->
-                            <form action="{{ url_for('admin.admin_delete_user', user_id=user.id) }}" method="POST" onsubmit="return confirm('WARNING: This will permanently delete {{ user.name }} and all their time logs. Are you sure?');">
-                                <button type="submit" class="text-red-600 hover:text-red-800 font-semibold">Delete</button>
-                            </form>
-                        </div>
-                        {% else %}
-                        <span class="text-xs text-gray-400">(This is you)</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% else %}
-                <tr><td colspan="4" class="py-4 text-center text-gray-500">No users have joined your team yet.</td></tr>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>{% block title %}Admin Dashboard{% endblock %} - TimeClock</title>
+</head>
+<body class="bg-gray-100">
+    <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
+                <p class="text-gray-600">Managing Team: <strong>{{ g.user.team.name }}</strong></p>
+            </div>
+            <a href="{{ url_for('auth.logout') }}" class="mt-4 sm:mt-0 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">
+                Logout
+            </a>
+        </div>
+        <div class="mb-6">
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-6 overflow-x-auto">
+                    <a href="{{ url_for('admin.dashboard') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.dashboard' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Dashboard</a>
+                    <a href="{{ url_for('admin.users') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.users' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Users</a>
+                    <a href="{{ url_for('admin.profile') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.profile' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Profile</a>
+                    <a href="{{ url_for('admin.settings') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.settings' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Settings</a>
+                </nav>
+            </div>
+        </div>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="p-4 mb-4 rounded-md {{ 'bg-green-100 text-green-800' if category == 'success' else 'bg-red-100 text-red-800' }}">
+                        {{ message }}
+                    </div>
                 {% endfor %}
-            </tbody>
-        </table>
+            {% endif %}
+        {% endwith %}
+        <main>
+            {% block content %}{% endblock %}
+        </main>
     </div>
-</div>
-{% endblock %}
+</body>
+</html>
