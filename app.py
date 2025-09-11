@@ -12,6 +12,9 @@ import time
 from functools import wraps
 # === IMPORTS WERE MISSING - NOW ADDED BACK ===
 from math import radians, sin, cos, sqrt, atan2
+from flask import Flask, request, redirect, render_template, session, url_for, flash, g, jsonify, make_response
+import io
+import csv
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY")
@@ -370,3 +373,146 @@ def admin_api_dashboard_data():
     currently_in = TimeLog.query.filter(TimeLog.team_id == g.user.team_id, TimeLog.date == today_date, clock_out=None).all()
     data = [{'Name': log.user.name, 'Clock In': log.clock_in, 'id': log.id} for log in currently_in]
     return jsonify(data)
+# In app.py, add these three functions to the ADMIN SECTION
+
+@app.route("/admin/time_log")
+@admin_required
+def admin_time_log():
+    # This query now correctly joins the User table to get names
+    query = TimeLog.query.join(User).filter(TimeLog.team_id == g.user.team_id)
+    
+    # Get unique names for the filter dropdown
+    all_users_on_team = User.query.filter_by(team_id=g.user.team_id).order_by(User.name).all()
+    unique_names = [user.name for user in all_users_on_team]
+    
+    # Get filter and sort criteria from URL
+    filter_name = request.args.get('name', '')
+    filter_date = request.args.get('date', '')
+    sort_by = request.args.get('sort_by', 'id') # Default sort by log ID (newest first)
+    sort_order = request.args.get('sort_order', 'desc')
+
+    if filter_name:
+        query = query.filter(User.name == filter_name)
+    if filter_date:
+        try:
+            filter_dt = datetime.strptime(filter_date, "%Y-%m-%d")
+            date_str = f"%b. {get_day_with_suffix(filter_dt.day)}, %Y"
+            query = query.filter(TimeLog.date == filter_dt.strftime(date_str))
+        except ValueError:
+            pass # Ignore invalid date format
+
+    # Sorting logic
+    sort_column = getattr(TimeLog, sort_by, TimeLog.id)
+    if sort_order == 'desc':
+        query = query.order_by(sort_column.desc())
+    else:
+        query = query.order_by(sort_column.asc())
+
+    filtered_logs = query.all()
+
+    return render_template("admin/time_log.html", 
+                           logs=filtered_logs, 
+                           unique_names=unique_names,
+                           filter_name=filter_name,
+                           filter_date=filter_date,
+                           sort_by=sort_by,
+                           sort_order=sort_order)
+
+@app.route("/admin/export_csv")
+@admin_required
+def export_csv():
+    # This function uses the same query logic as the time_log page for consistency
+    query = TimeLog.query.join(User).filter(TimeLog.team_id == g.user.team_id)
+    filter_name = request.args.get('name', '')
+    filter_date = request.args.get('date', '')
+    if filter_name:
+        query = query.filter(User.name == filter_name)
+    if filter_date:
+        try:
+            filter_dt = datetime.strptime(filter_date, "%Y-%m-%d")
+            date_str = f"%b. {get_day_with_suffix(filter_dt.day)}, %Y"
+            query = query.filter(TimeLog.date == date_str)
+        except ValueError: pass
+    
+    filtered_logs = query.order_by(TimeLog.id.desc()).all()
+    
+    # Prepare data for CSV
+    logs_for_csv = [{'Name': log.user.name, 'Date': log.date, 'Clock In': log.clock_in, 'Clock Out': log.clock_out} for log in filtered_logs]
+    
+    output = io.StringIO()
+    if logs_for_csv:
+        writer = csv.DictWriter(output, fieldnames=['Name', 'Date', 'Clock In', 'Clock Out'])
+        writer.writeheader()
+        writer.writerows(logs_for_csv)
+
+    response = make_response(output.getvalue())
+    response.headers["Content-Disposition"] = f"attachment; filename=timesheet_export_{datetime.now().strftime('%Y-%m-%d')}.csv"
+    response.headers["Content-type"] = "text/csv"
+    return response
+
+@app.route("/admin/print_view")
+@admin_required
+def admin_print_view():
+    # This also uses the same query logic
+    query = TimeLog.query.join(User).filter(TimeLog.team_id == g.user.team_id)
+    filter_name = request.args.get('name', '')
+    filter_date = request.args.get('date', '')
+    if filter_name:
+        query = query.filter(User.name == filter_name)
+    if filter_date:
+        try:
+            filter_dt = datetime.strptime(filter_date, "%Y-%m-%d")
+            date_str = f"%b. {get_day_with_suffix(filter_dt.day)}, %Y"
+            query = query.filter(TimeLog.date == date_str)
+        except ValueError: pass
+        
+    filtered_logs = query.order_by(TimeLog.id.desc()).all()
+    
+    generation_time = datetime.now(CENTRAL_TIMEZONE).strftime("%Y-%m-%d %I:%M %p")
+    return render_template("admin/print_view.html",
+                           logs=filtered_logs,
+                           filter_name=filter_name,
+                           filter_date=filter_date,
+                           generation_time=generation_time)
+@app.route("/admin/users/delete/<int:user_id>", methods=["POST"])
+@admin_required
+def delete_user(user_id):
+    # Find the user, but only if they are on the admin's team
+    target_user = User.query.filter_by(id=user_id, team_id=g.user.team_id).first_or_404()
+
+    # Security check: an admin cannot delete themselves
+    if target_user.id == g.user.id:
+        flash("You cannot delete your own account.", "error")
+        return redirect(url_for('admin_users'))
+
+    # All associated time logs will be deleted automatically due to 'cascade'
+    db.session.delete(target_user)
+    db.session.commit()
+    flash(f"User {target_user.name} and all their data have been permanently deleted.", "success")
+    return redirect(url_for('admin_users'))
+
+@app.route("/admin/users/clear_token/<int:user_id>", methods=["POST"])
+@admin_required
+def clear_user_token(user_id):
+    # Find the user, but only if they are on the admin's team
+    target_user = User.query.filter_by(id=user_id, team_id=g.user.team_id).first_or_404()
+    
+    target_user.device_token = None
+    db.session.commit()
+    flash(f"Device token for {target_user.name} has been cleared. They can now re-register a new device.", "success")
+    return redirect(url_for('admin_users'))
+
+@app.route("/admin/users/set_role/<int:user_id>", methods=["POST"])
+@admin_required
+def set_user_role(user_id):
+    target_user = User.query.filter_by(id=user_id, team_id=g.user.team_id).first_or_404()
+    if target_user.id == g.user.id:
+        flash("You cannot change your own role.", "error")
+        return redirect(url_for('admin_users'))
+    
+    new_role = request.form.get('role')
+    if new_role in ['Admin', 'User']:
+        target_user.role = new_role
+        db.session.commit()
+        flash(f"{target_user.name}'s role has been updated to {new_role}.", "success")
+    return redirect(url_for('admin_users'))

@@ -1,0 +1,124 @@
+{% extends "admin/base_layout.html" %}
+
+{% block title %}Time Clock Log{% endblock %}
+
+{% block content %}
+<div class="bg-white p-6 rounded-lg shadow-md">
+    <!-- Filter Form -->
+    <form id="filterSortForm" method="GET" action="{{ url_for('admin_time_log') }}">
+        <!-- Hidden inputs to preserve sort state when filtering -->
+        <input type="hidden" name="sort_by" value="{{ sort_by or 'id' }}">
+        <input type="hidden" name="sort_order" value="{{ sort_order or 'desc' }}">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end mb-6 pb-6 border-b">
+            <div>
+                <label for="nameFilter" class="block text-sm font-medium text-gray-700">Filter by Name</label>
+                <select name="name" id="nameFilter" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+                    <option value="">All Names</option>
+                    {% for name in unique_names %}<option value="{{ name }}" {{ 'selected' if name == filter_name }}>{{ name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="dateFilter" class="block text-sm font-medium text-gray-700">Filter by Date</label>
+                <input type="date" name="date" id="dateFilter" value="{{ filter_date }}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">Filter</button>
+                <a href="{{ url_for('admin_time_log') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md">Clear</a>
+                <button type="button" id="exportBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Export
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Log Table with Sortable Headers -->
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm min-w-[600px]">
+            <thead>
+                <tr class="border-b">
+                    {% set columns = [('Name', 'user_name'), ('Date', 'date'), ('Clock In', 'clock_in'), ('Clock Out', 'clock_out')] %}
+                    {% for display, col_name in columns %}
+                        {% set new_order = 'asc' if sort_by == col_name and sort_order == 'desc' else 'desc' %}
+                        <th class="py-2">
+                            <a href="{{ url_for('admin_time_log', name=filter_name, date=filter_date, sort_by=col_name, sort_order=new_order) }}" class="flex items-center gap-2 hover:text-blue-600">
+                                {{ display }}
+                                {% if sort_by == col_name %}
+                                    {% if sort_order == 'asc' %}
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+                                    {% else %}
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    {% endif %}
+                                {% endif %}
+                            </a>
+                        </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="py-2">{{ log.user.name }}</td>
+                    <td class="py-2">{{ log.date }}</td>
+                    <td class="py-2">{{ log.clock_in }}</td>
+                    <td class="py-2">{{ log.clock_out or 'N/A' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="py-4 text-center text-gray-500">No records found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Export Modal Window -->
+<div id="exportModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full flex items-center justify-center hidden">
+    <div class="relative mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <h3 class="text-lg text-center font-medium text-gray-900">Choose Export Format</h3>
+        <div class="mt-4 px-7 py-3 space-y-3">
+            <button id="exportCsvBtn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Export as CSV</button>
+            <button id="exportPdfBtn" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">Save as PDF</button>
+            <button id="printBtn" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Print on Printer</button>
+        </div>
+        <div class="px-4 py-3"><button id="closeModalBtn" class="px-4 py-2 bg-gray-200 rounded-md w-full">Cancel</button></div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const exportBtn = document.getElementById('exportBtn');
+        const exportModal = document.getElementById('exportModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const exportCsvBtn = document.getElementById('exportCsvBtn');
+        const exportPdfBtn = document.getElementById('exportPdfBtn');
+        const printBtn = document.getElementById('printBtn');
+
+        function getFilterAndSortParams() {
+            const form = document.getElementById('filterSortForm');
+            const formData = new FormData(form);
+            return new URLSearchParams(formData).toString();
+        }
+
+        exportBtn.addEventListener('click', () => { exportModal.classList.remove('hidden'); });
+        closeModalBtn.addEventListener('click', () => { exportModal.classList.add('hidden'); });
+
+        exportCsvBtn.addEventListener('click', () => {
+            const params = getFilterAndSortParams();
+            window.location.href = `{{ url_for('export_csv') }}?${params}`;
+            exportModal.classList.add('hidden');
+        });
+
+        exportPdfBtn.addEventListener('click', () => {
+            const params = getFilterAndSortParams();
+            window.open(`{{ url_for('admin_print_view') }}?${params}`, '_blank');
+            exportModal.classList.add('hidden');
+        });
+
+        printBtn.addEventListener('click', () => {
+            const params = getFilterAndSortParams();
+            window.open(`{{ url_for('admin_print_view') }}?${params}`, '_blank');
+            exportModal.classList.add('hidden');
+        });
+    });
+</script>
+{% endblock %}
