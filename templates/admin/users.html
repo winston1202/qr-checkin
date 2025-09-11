@@ -1,7 +1,5 @@
 {% extends "admin/base_layout.html" %}
-
 {% block title %}User Management{% endblock %}
-
 {% block content %}
 <div class="bg-white p-6 rounded-lg shadow-md">
     <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Manage Users for {{ g.user.team.name }}</h2>
@@ -27,32 +25,23 @@
                     <td class="py-3 text-right">
                         {% if user.id != g.user.id %}
                         <div class="flex justify-end items-center gap-4">
-                            <!-- Clear Token Action -->
-                            <form action="{{ url_for('clear_user_token', user_id=user.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to clear the device token for {{ user.name }}?');">
-                                <button type="submit" class="text-blue-600 hover:text-blue-800 font-semibold">Clear Token</button>
+                            <!-- CORRECTED url_for link -->
+                            <form action="{{ url_for('admin_clear_user_token', user_id=user.id) }}" method="POST" onsubmit="return confirm('Clear token for {{ user.name }}?');">
+                                <button type="submit" class="text-blue-600 font-semibold">Clear Token</button>
                             </form>
-                            <!-- Role Change Action -->
-                            <form action="{{ url_for('set_user_role', user_id=user.id) }}" method="POST">
-                                {% if user.role == 'User' %}
-                                    <input type="hidden" name="role" value="Admin">
-                                    <button type="submit" class="text-green-600 hover:text-green-800 font-semibold">Promote</button>
-                                {% else %}
-                                    <input type="hidden" name="role" value="User">
-                                    <button type="submit" class="text-yellow-600 hover:text-yellow-800 font-semibold">Demote</button>
-                                {% endif %}
+                            <!-- CORRECTED url_for link -->
+                            <form action="{{ url_for('admin_set_user_role', user_id=user.id) }}" method="POST">
+                                {% if user.role == 'User' %}<input type="hidden" name="role" value="Admin"><button type="submit" class="text-green-600 font-semibold">Promote</button>
+                                {% else %}<input type="hidden" name="role" value="User"><button type="submit" class="text-yellow-600 font-semibold">Demote</button>{% endif %}
                             </form>
-                            <!-- Delete User Action -->
-                            <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" onsubmit="return confirm('WARNING: This will permanently delete {{ user.name }} and all their time logs. Are you sure?');">
-                                <button type="submit" class="text-red-600 hover:text-red-800 font-semibold">Delete</button>
+                            <!-- CORRECTED url_for link -->
+                            <form action="{{ url_for('admin_delete_user', user_id=user.id) }}" method="POST" onsubmit="return confirm('WARNING: Delete {{ user.name }} permanently?');">
+                                <button type="submit" class="text-red-600 font-semibold">Delete</button>
                             </form>
                         </div>
-                        {% else %}
-                        <span class="text-xs text-gray-400">(This is you)</span>
-                        {% endif %}
+                        {% else %}<span class="text-xs text-gray-400">(This is you)</span>{% endif %}
                     </td>
                 </tr>
-                {% else %}
-                <tr><td colspan="4" class="py-4 text-center text-gray-500">No users have joined your team yet.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
