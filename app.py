@@ -323,10 +323,30 @@ def quick_clock_out():
 @app.route("/location_failed")
 def location_failed():
     return render_template("location_failed.html", message=request.args.get('message'))
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        user = User.query.filter_by(email=email).first()
+        if user and user.password and bcrypt.check_password_hash(user.password, password):
+            session['user_id'] = user.id
+            return redirect(url_for('admin_dashboard')) if user.role == 'Admin' else redirect(url_for('employee_dashboard'))
+        else:
+            flash("Invalid email or password. Please try again.", "error")
+    return render_template("auth/login.html")
 
-# ===============================================================
-# == ADMIN SECTION (Corrected and Final Version) ================
-# ===============================================================
+@app.route("/logout")
+def logout():
+    session.clear()
+    flash("You have been successfully logged out.", "success")
+    return redirect(url_for('home'))
+
+@app.route("/admin")
+@admin_required
+def admin_redirect():
+    return redirect(url_for('admin_dashboard'))
+
 @app.route("/admin/dashboard")
 @admin_required
 def admin_dashboard():
@@ -373,74 +393,16 @@ def admin_settings():
     current_settings = get_team_settings(g.user.team_id)
     return render_template("admin/settings.html", settings=current_settings)
 
-@app.route("/admin/export_csv")
-@admin_required
-def export_csv():
-    # ... This function remains correct and does not need to change ...
-    pass # Omitted for brevity, use the full function from previous steps
-
-@app.route("/admin/print_view")
-@admin_required
-def admin_print_view():
-    # ... This function remains correct and does not need to change ...
-    pass # Omitted for brevity, use the full function from previous steps
-
-@app.route("/admin/users/delete/<int:user_id>", methods=["POST"])
-@admin_required
-def admin_delete_user(user_id): # RENAMED
-    target_user = User.query.filter_by(id=user_id, team_id=g.user.team_id).first_or_404()
-    if target_user.id == g.user.id:
-        flash("You cannot delete your own account.", "error")
-        return redirect(url_for('admin_users'))
-    db.session.delete(target_user)
-    db.session.commit()
-    flash(f"User {target_user.name} and all their data have been permanently deleted.", "success")
-    return redirect(url_for('admin_users'))
-
-@app.route("/admin/users/clear_token/<int:user_id>", methods=["POST"])
-@admin_required
-def admin_clear_user_token(user_id): # RENAMED
-    target_user = User.query.filter_by(id=user_id, team_id=g.user.team_id).first_or_404()
-    target_user.device_token = None
-    db.session.commit()
-    flash(f"Device token for {target_user.name} has been cleared.", "success")
-    return redirect(url_for('admin_users'))
-
-@app.route("/admin/users/set_role/<int:user_id>", methods=["POST"])
-@admin_required
-def admin_set_user_role(user_id): # RENAMED
-    target_user = User.query.filter_by(id=user_id, team_id=g.user.team_id).first_or_404()
-    if target_user.id == g.user.id:
-        flash("You cannot change your own role.", "error")
-        return redirect(url_for('admin_users'))
-    new_role = request.form.get('role')
-    if new_role in ['Admin', 'User']:
-        target_user.role = new_role
-        db.session.commit()
-        flash(f"{target_user.name}'s role has been updated to {new_role}.", "success")
-    return redirect(url_for('admin_users'))
-
-@app.route("/admin/api/dashboard_data")
-@admin_required
-def admin_api_dashboard_data():
-    now = datetime.now(CENTRAL_TIMEZONE)
-    today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
-    currently_in = TimeLog.query.filter(TimeLog.team_id == g.user.team_id, TimeLog.date == today_date, TimeLog.clock_out == None).all()
-    data = [{'Name': log.user.name, 'Clock In': log.clock_in, 'id': log.id} for log in currently_in]
-    return jsonify(data)
-
 @app.route("/admin/time_log")
 @admin_required
 def admin_time_log():
     query = TimeLog.query.join(User).filter(TimeLog.team_id == g.user.team_id)
     all_users_on_team = User.query.filter_by(team_id=g.user.team_id).order_by(User.name).all()
     unique_names = [user.name for user in all_users_on_team]
-    
     filter_name = request.args.get('name', '')
     filter_date = request.args.get('date', '')
     sort_by = request.args.get('sort_by', 'id')
     sort_order = request.args.get('sort_order', 'desc')
-
     if filter_name:
         query = query.filter(User.name == filter_name)
     if filter_date:
@@ -449,22 +411,13 @@ def admin_time_log():
             date_str = f"%b. {get_day_with_suffix(filter_dt.day)}, %Y"
             query = query.filter(TimeLog.date == date_str)
         except ValueError: pass
-
     sort_column = getattr(TimeLog, sort_by, TimeLog.id)
     if sort_order == 'desc':
         query = query.order_by(sort_column.desc())
     else:
         query = query.order_by(sort_column.asc())
-    
     filtered_logs = query.all()
-
-    return render_template("admin/time_log.html", 
-                           logs=filtered_logs, 
-                           unique_names=unique_names,
-                           filter_name=filter_name,
-                           filter_date=filter_date,
-                           sort_by=sort_by,
-                           sort_order=sort_order)
+    return render_template("admin/time_log.html", logs=filtered_logs, unique_names=unique_names, filter_name=filter_name, filter_date=filter_date, sort_by=sort_by, sort_order=sort_order)
 
 @app.route("/admin/export_csv")
 @admin_required
@@ -480,16 +433,13 @@ def export_csv():
             date_str = f"%b. {get_day_with_suffix(filter_dt.day)}, %Y"
             query = query.filter(TimeLog.date == date_str)
         except ValueError: pass
-    
     filtered_logs = query.order_by(TimeLog.id.desc()).all()
     logs_for_csv = [{'Name': log.user.name, 'Date': log.date, 'Clock In': log.clock_in, 'Clock Out': log.clock_out} for log in filtered_logs]
-    
     output = io.StringIO()
     if logs_for_csv:
         writer = csv.DictWriter(output, fieldnames=['Name', 'Date', 'Clock In', 'Clock Out'])
         writer.writeheader()
         writer.writerows(logs_for_csv)
-
     response = make_response(output.getvalue())
     response.headers["Content-Disposition"] = f"attachment; filename=timesheet_export_{datetime.now().strftime('%Y-%m-%d')}.csv"
     response.headers["Content-type"] = "text/csv"
@@ -509,12 +459,50 @@ def admin_print_view():
             date_str = f"%b. {get_day_with_suffix(filter_dt.day)}, %Y"
             query = query.filter(TimeLog.date == date_str)
         except ValueError: pass
-        
     filtered_logs = query.order_by(TimeLog.id.desc()).all()
-    
     generation_time = datetime.now(CENTRAL_TIMEZONE).strftime("%Y-%m-%d %I:%M %p")
-    return render_template("admin/print_view.html",
-                           logs=filtered_logs,
-                           filter_name=filter_name,
-                           filter_date=filter_date,
-                           generation_time=generation_time)
+    return render_template("admin/print_view.html", logs=filtered_logs, filter_name=filter_name, filter_date=filter_date, generation_time=generation_time)
+
+@app.route("/admin/users/delete/<int:user_id>", methods=["POST"])
+@admin_required
+def admin_delete_user(user_id):
+    target_user = User.query.filter_by(id=user_id, team_id=g.user.team_id).first_or_404()
+    if target_user.id == g.user.id:
+        flash("You cannot delete your own account.", "error")
+        return redirect(url_for('admin_users'))
+    db.session.delete(target_user)
+    db.session.commit()
+    flash(f"User {target_user.name} and all their data have been permanently deleted.", "success")
+    return redirect(url_for('admin_users'))
+
+@app.route("/admin/users/clear_token/<int:user_id>", methods=["POST"])
+@admin_required
+def admin_clear_user_token(user_id):
+    target_user = User.query.filter_by(id=user_id, team_id=g.user.team_id).first_or_404()
+    target_user.device_token = None
+    db.session.commit()
+    flash(f"Device token for {target_user.name} has been cleared.", "success")
+    return redirect(url_for('admin_users'))
+
+@app.route("/admin/users/set_role/<int:user_id>", methods=["POST"])
+@admin_required
+def admin_set_user_role(user_id):
+    target_user = User.query.filter_by(id=user_id, team_id=g.user.team_id).first_or_404()
+    if target_user.id == g.user.id:
+        flash("You cannot change your own role.", "error")
+        return redirect(url_for('admin_users'))
+    new_role = request.form.get('role')
+    if new_role in ['Admin', 'User']:
+        target_user.role = new_role
+        db.session.commit()
+        flash(f"{target_user.name}'s role has been updated to {new_role}.", "success")
+    return redirect(url_for('admin_users'))
+
+@app.route("/admin/api/dashboard_data")
+@admin_required
+def admin_api_dashboard_data():
+    now = datetime.now(CENTRAL_TIMEZONE)
+    today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
+    currently_in = TimeLog.query.filter(TimeLog.team_id == g.user.team_id, TimeLog.date == today_date, TimeLog.clock_out == None).all()
+    data = [{'Name': log.user.name, 'Clock In': log.clock_in, 'id': log.id} for log in currently_in]
+    return jsonify(data)
