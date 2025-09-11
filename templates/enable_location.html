@@ -9,18 +9,36 @@
 </head>
 <body class="gradient-bg min-h-screen flex items-center justify-center p-4">
     <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md">
-        <div class="mb-6"><h1 class="text-3xl font-bold text-gray-800">Location Required</h1></div>
-        <div class="mb-8"><p id="status-message" class="text-lg text-gray-600">Please click below to verify you are at the building.</p></div>
-        <button id="verifyButton" class="bg-blue-600 text-white font-bold px-8 py-4 rounded-xl text-xl">Verify My Location</button>
+        <div class="mb-6">
+            <div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Location Required</h1>
+            <p id="status-message" class="text-lg text-gray-600">Please click below to verify you are at the building.</p>
+        </div>
+        <div class="mt-8">
+            <button id="verifyButton" class="bg-blue-600 text-white font-bold px-8 py-4 rounded-xl shadow-lg inline-flex items-center text-xl disabled:opacity-70">
+                <span id="button-text" class="flex items-center">Verify My Location</span>
+            </button>
+        </div>
     </div>
     <script>
-        document.getElementById('verifyButton').addEventListener('click', () => {
-            document.getElementById('button-text').textContent = 'Getting Location...';
-            navigator.geolocation.getCurrentPosition(
-                (pos) => { window.location.href = `{{ url_for('confirm_entry') }}?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`; },
-                (err) => { window.location.href = `{{ url_for('location_failed') }}?message=${encodeURIComponent('Could not get location.')}`; },
-                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-            );
+        document.addEventListener('DOMContentLoaded', () => {
+            const verifyButton = document.getElementById('verifyButton');
+            verifyButton.addEventListener('click', () => {
+                verifyButton.disabled = true;
+                document.getElementById('button-text').textContent = 'Getting Location...';
+                document.getElementById('status-message').textContent = 'Please approve the location request in your browser.';
+                setTimeout(() => {
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                            (pos) => { window.location.href = `{{ url_for('confirm_entry') }}?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`; },
+                            (err) => { window.location.href = `{{ url_for('location_failed') }}?message=${encodeURIComponent('Could not get location. Please grant permission.')}`; },
+                            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                        );
+                    } else { window.location.href = `{{ url_for('location_failed') }}?message=${encodeURIComponent('Geolocation is not supported by this browser.')}`; }
+                }, 200);
+            });
         });
     </script>
 </body>

@@ -1,46 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <title>Success!</title>
-  <style>
-    .gradient-bg {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Success!</title>
+    <style>.gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }</style>
 </head>
 <body class="gradient-bg min-h-screen flex items-center justify-center p-4">
-  <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md">
-
-    <!-- Title -->
-    <div class="mb-6">
-      <h1 class="text-3xl font-bold text-gray-800">Success!</h1>
-    </div>
-
-    <!-- Message -->
-    <div class="mb-8">
-      <p class="text-lg text-gray-700">
+    <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md">
+        <div class="mb-6">
+             <div class="w-20 h-20 bg-gradient-to-r from-green-500 to-green-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Success!</h1>
+        </div>
+        <div class="mb-8">
+            <p class="text-lg text-gray-700">
+                {% if status_type == 'clock_in' %}
+                    Welcome back, <strong>{{ worker_name }}</strong>! You are now clocked in.
+                {% else %}
+                    Goodbye, <strong>{{ worker_name }}</strong>! You have been successfully clocked out.
+                {% endif %}
+            </p>
+        </div>
         {% if status_type == 'clock_in' %}
-          Welcome, <strong>{{ worker_name }}</strong>! You are now clocked in.
+            <form action="{{ url_for('execute_action') }}" method="POST">
+                <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl">Clock Out Now</button>
+            </form>
         {% else %}
-          Goodbye, <strong>{{ worker_name }}</strong>! You have been successfully clocked out.
+            <p class="text-gray-600 mt-2">You can now close this page.</p>
         {% endif %}
-      </p>
     </div>
-
-    <!-- Action / Follow-up -->
-    {% if status_type == 'clock_in' %}
-      <form action="{{ url_for('execute_action') }}" method="POST">
-        <button type="submit" class="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-xl">
-          Clock Out Now
-        </button>
-      </form>
-    {% else %}
-      <p class="text-gray-600 mt-2">You can now close this page.</p>
-    {% endif %}
-
-  </div>
 </body>
 </html>
