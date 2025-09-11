@@ -101,6 +101,8 @@ def pricing():
 def how_to_start():
     return render_template("marketing/how_to_start.html")
 
+# In app.py, replace the entire admin_signup function with this one.
+
 @app.route("/signup", methods=["GET", "POST"])
 def admin_signup():
     if request.method == 'POST':
@@ -113,17 +115,25 @@ def admin_signup():
             return redirect(url_for('login'))
 
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+        
+        # === THIS IS THE FIX: We create and save the team FIRST ===
+        # 1. Create the Team object.
         new_team = Team(name=team_name)
+        # 2. Add it to the session and commit it to the database.
         db.session.add(new_team)
         db.session.commit()
-        
+        # 3. Now, the 'new_team' object has a permanent ID (e.g., new_team.id)
+
+        # 4. NOW we can create the User and link it to the new team's ID.
         new_admin = User(name=name, email=email, password=hashed_password, role='Admin', team_id=new_team.id)
         db.session.add(new_admin)
         db.session.commit()
 
+        # Log the new admin in and proceed.
         session['user_id'] = new_admin.id
         flash("Your team and admin account have been created successfully!", "success")
         return redirect(url_for('admin_dashboard'))
+    
     return render_template("auth/admin_signup.html")
 
 @app.route("/login", methods=["GET", "POST"])
