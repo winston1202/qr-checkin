@@ -5,20 +5,27 @@
 {% block content %}
 <div class="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto">
     <h2 class="text-2xl font-semibold mb-6 border-b pb-3">Your Profile & Team Settings</h2>
+
     <form action="{{ url_for('admin_profile') }}" method="POST" class="space-y-6">
+        <!-- Team Name -->
         <div>
             <label for="team_name" class="block text-sm font-medium text-gray-700">Team Name</label>
             <input id="team_name" name="team_name" value="{{ g.user.team.name }}" required class="mt-1 w-full p-2 border border-gray-300 rounded-md">
             <p class="mt-1 text-xs text-gray-500">This name is shown to employees when they use your invitation link.</p>
         </div>
+        
+        <!-- Admin Name -->
         <div>
             <label for="name" class="block text-sm font-medium text-gray-700">Your Full Name</label>
             <input id="name" name="name" value="{{ g.user.name }}" required class="mt-1 w-full p-2 border border-gray-300 rounded-md">
         </div>
+
+        <!-- Admin Email -->
         <div>
             <label for="email" class="block text-sm font-medium text-gray-700">Your Email Address</label>
             <input id="email" name="email" type="email" value="{{ g.user.email }}" required class="mt-1 w-full p-2 border border-gray-300 rounded-md">
         </div>
+        
         <div class="pt-4 border-t">
             <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">
                 Save Changes

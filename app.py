@@ -220,7 +220,8 @@ def admin_dashboard():
     now = datetime.now(CENTRAL_TIMEZONE)
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
     
-    currently_in = TimeLog.query.filter(
+    # === THIS IS THE FIX: Added .join(User) to the query ===
+    currently_in = TimeLog.query.join(User).filter(
         TimeLog.team_id == g.user.team_id,
         TimeLog.date == today_date,
         TimeLog.clock_out == None
