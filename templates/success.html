@@ -1,81 +1,46 @@
 <!DOCTYPE html>
-<html lang='en'>
+<html lang="en">
 <head>
-    <meta charset='UTF-8'>
-    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-    <script src='https://cdn.tailwindcss.com'></script>
-    <title>Success</title>
-    <style>
-        @keyframes bounceIn { 0% { opacity: 0; transform: scale(0.3); } 50% { opacity: 1; transform: scale(1.05); } 70% { transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .card-enter { animation: bounceIn 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
-        .btn-clock-out { background: linear-gradient(135deg, #f59e0b, #d97706); transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-        .btn-clock-out:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 15px 35px rgba(245, 158, 11, 0.4); }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Success!</title>
+  <style>
+    .gradient-bg {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+  </style>
 </head>
-<body class='gradient-bg min-h-screen flex items-center justify-center p-4'>
-    <div class='bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md card-enter'>
-        
-        <!-- Header Section -->
-        <div class="mb-6">
-            {% if status_type == 'clock_in' %}
-                <!-- CLOCK IN: Green Icon & Title -->
-                <div class="w-20 h-20 bg-gradient-to-r from-green-500 to-green-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                    <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                </div>
-                <h1 class="text-3xl font-bold text-gray-800 mb-2">Welcome, {{ worker_name }}!</h1>
+<body class="gradient-bg min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md">
 
-            {% elif status_type == 'clock_out' %}
-                <!-- CLOCK OUT: Orange Icon & Title -->
-                <div class="w-20 h-20 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full mx-auto mb-4 flex items-center justify-center">
-                    <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                </div>
-                <h1 class="text-3xl font-bold text-gray-800 mb-2">Goodbye, {{ worker_name }}!</h1>
-
-            {% else %}
-                <!-- DEFAULT/ALREADY COMPLETE: Purple Icon & Title -->
-                <div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                    <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                </div>
-                <h1 class="text-3xl font-bold text-gray-800 mb-2">Status Update</h1>
-            {% endif %}
-            
-            <div class="w-16 h-1 bg-gradient-to-r from-blue-500 to-purple-600 mx-auto rounded-full"></div>
-        </div>
-        
-        <!-- Message Area -->
-        <div class='mb-8' style="animation: fadeInUp 0.6s ease-out; animation-delay: 0.3s; animation-fill-mode: both;">
-            <p class="text-lg text-gray-700 leading-relaxed">{{ message | safe }}</p>
-        </div>
-        
-        <!-- =============================================================== -->
-        <!-- == FINAL, CORRECTED CONDITIONAL ACTION SECTION =============== -->
-        <!-- =============================================================== -->
-        
-        {% if status_type == 'clock_in' %}
-            <!-- If user just clocked IN, show the Clock Out button -->
-            <div style="animation: fadeInUp 0.6s ease-out; animation-delay: 0.6s; animation-fill-mode: both;">
-                <form action="{{ url_for('quick_clock_out') }}" method="POST">
-                    <input type="hidden" name="worker_name" value="{{ worker_name }}">
-                    <button type="submit" class="btn-clock-out text-white font-bold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl inline-flex items-center">
-                        <!-- Normal State -->
-                        <span class="normal-state flex items-center">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                            Clock Out Now
-                        </span>
-                        <!-- Processing State (Initially Hidden) -->
-                        <span class="processing-state hidden">Processing...</span>
-                    </button>   
-                </form>
-            </div>
-        
-        {% else %}
-            <!-- This 'else' block catches 'clock_out' and 'already_complete' -->
-            <!-- For these final states, we show NOTHING. The page is a dead end as requested. -->
-            
-        {% endif %}
-        
+    <!-- Title -->
+    <div class="mb-6">
+      <h1 class="text-3xl font-bold text-gray-800">Success!</h1>
     </div>
+
+    <!-- Message -->
+    <div class="mb-8">
+      <p class="text-lg text-gray-700">
+        {% if status_type == 'clock_in' %}
+          Welcome, <strong>{{ worker_name }}</strong>! You are now clocked in.
+        {% else %}
+          Goodbye, <strong>{{ worker_name }}</strong>! You have been successfully clocked out.
+        {% endif %}
+      </p>
+    </div>
+
+    <!-- Action / Follow-up -->
+    {% if status_type == 'clock_in' %}
+      <form action="{{ url_for('execute_action') }}" method="POST">
+        <button type="submit" class="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-xl">
+          Clock Out Now
+        </button>
+      </form>
+    {% else %}
+      <p class="text-gray-600 mt-2">You can now close this page.</p>
+    {% endif %}
+
+  </div>
 </body>
 </html>

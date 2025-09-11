@@ -4,61 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
-    <title>Time Clock</title>
-    <style>
-        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .card-enter { animation: bounceIn 0.8s ease-out; }
-        @keyframes bounceIn { 0% { opacity: 0; transform: scale(0.3); } 50% { opacity: 1; transform: scale(1.05); } 70% { transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
-        .input-field:focus { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2); }
-        .submit-btn { background: linear-gradient(135deg, #3b82f6, #8b5cf6); transition: all 0.4s; }
-        .submit-btn:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 15px 35px rgba(59, 130, 246, 0.4); }
-        .flash-message { animation: slideInDown 0.5s ease-out; background-color: #fee2e2; border-left: 4px solid #ef4444; }
-        @keyframes slideInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-    </style>
+    <title>Employee Clock-In</title>
+    <style>.gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }</style>
 </head>
 <body class="gradient-bg min-h-screen flex items-center justify-center p-4">
-    <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md card-enter">
-        
-        <!-- Flash Messages for errors -->
+    <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md">
         {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="flash-message p-3 mb-4 rounded-lg text-sm text-red-700">
-                    {% for category, message in messages %}
-                        {{ message | safe }}
-                    {% endfor %}
-                </div>
-            {% endif %}
+            {% if messages %}<div class="p-3 mb-4 rounded-lg text-sm text-red-700 bg-red-100 border border-red-200">{% for c, m in messages %}{{ m|safe }}{% endfor %}</div>{% endif %}
         {% endwith %}
-
         <div class="mb-6">
-            <div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
-            </div>
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">Employee Clock-In</h1>
+            <h1 class="text-3xl font-bold text-gray-800">Employee Clock-In</h1>
         </div>
-        
         {% if team_name %}
-            <!-- This block shows if the user clicked a valid invitation link -->
             <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg mb-6 text-left">
                 <p class="font-semibold text-blue-800">You are joining team: {{ team_name }}</p>
                 <p class="text-sm text-blue-700">Managed by: {{ admin_name }}</p>
             </div>
             <form action="{{ url_for('scan') }}" method="POST" class="space-y-4">
-                <input name="first_name" placeholder="Your First Name" required class="input-field w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400">
-                <input name="last_name" placeholder="Your Last Name" required class="input-field w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400">
-                <button type="submit" class="submit-btn text-white px-6 py-3 rounded-xl w-full font-bold shadow-lg hover:shadow-xl">
-                    Clock In
-                </button>
+                <input name="first_name" placeholder="Your First Name" required class="w-full p-3 border rounded-xl">
+                <input name="last_name" placeholder="Your Last Name" required class="w-full p-3 border rounded-xl">
+                <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-xl">Submit</button>
             </form>
         {% else %}
-            <!-- This block shows if the user arrived here without an invitation link -->
-            <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg mb-6 text-left">
-                <h3 class="font-bold text-yellow-800">Invalid Invitation Link</h3>
-                <p class="text-yellow-700 mt-1">To clock in, you must use the unique invitation link provided by your team manager.</p>
+            <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg">
+                <h3 class="font-bold text-yellow-800">Invalid Link</h3>
+                <p class="text-yellow-700 mt-1">To clock in, please use the unique invitation link provided by your team manager.</p>
             </div>
-            <a href="{{ url_for('home') }}" class="text-blue-600 hover:text-blue-500 font-medium">
-                &larr; Back to Home Page
-            </a>
         {% endif %}
     </div>
 </body>

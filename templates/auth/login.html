@@ -9,11 +9,6 @@
         .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
         .card-enter { animation: bounceIn 0.8s ease-out; }
         @keyframes bounceIn { 0% { opacity: 0; transform: scale(0.3); } 50% { opacity: 1; transform: scale(1.05); } 70% { transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
-        .input-field:focus { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2); }
-        .submit-btn { background: linear-gradient(135deg, #3b82f6, #8b5cf6); transition: all 0.4s; }
-        .submit-btn:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 15px 35px rgba(59, 130, 246, 0.4); }
-        .flash-message { animation: slideInDown 0.5s ease-out; background-color: #fee2e2; border-left: 4px solid #ef4444; }
-        @keyframes slideInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="gradient-bg min-h-screen flex items-center justify-center p-4">
@@ -23,10 +18,9 @@
             <p class="text-gray-600">Log in to view your dashboard.</p>
         </div>
 
-        <!-- Flash Messages for errors -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                <div class="flash-message p-3 mb-4 rounded-lg text-sm text-red-700">
+                <div class="p-3 mb-4 rounded-lg text-sm text-red-700 bg-red-100 border border-red-200">
                     {% for category, message in messages %}
                         {{ message }}
                     {% endfor %}
@@ -36,15 +30,15 @@
 
         <form action="{{ url_for('login') }}" method="POST" class="space-y-4">
             <div>
-                <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
-                <input id="email" name="email" type="email" required class="input-field mt-1 w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <label for="email" class="block text-sm text-left font-medium text-gray-700">Email</label>
+                <input id="email" name="email" type="email" required class="mt-1 w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
             <div>
-                <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-                <input id="password" name="password" type="password" required class="input-field mt-1 w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <label for="password" class="block text-sm text-left font-medium text-gray-700">Password</label>
+                <input id="password" name="password" type="password" required class="mt-1 w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
             
-            <button type="submit" class="submit-btn text-white px-6 py-3 rounded-xl w-full font-bold shadow-lg hover:shadow-xl !mt-6">
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl !mt-6 transition">
                 Log In
             </button>
         </form>

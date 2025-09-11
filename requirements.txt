@@ -3,6 +3,7 @@ gunicorn
 pytz
 Flask-SQLAlchemy
 psycopg2-binary
+Flask-Bcrypt
 blinker
 click
 colorama
@@ -10,4 +11,3 @@ itsdangerous
 Jinja2
 MarkupSafe
 Werkzeug
-Flask-Bcrypt

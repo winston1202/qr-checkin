@@ -1,53 +1,69 @@
 {% extends "admin/base_layout.html" %}
-
 {% block title %}Dashboard{% endblock %}
-
 {% block content %}
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    <!-- Main Content -->
     <div class="lg:col-span-2 space-y-8">
-        <!-- Currently Clocked In -->
         <div class="bg-white p-6 rounded-lg shadow-md">
             <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Currently Clocked In</h2>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left min-w-[500px]">
-                    <thead>
-                        <tr><th class="py-2">Name</th><th class="py-2">Clock In Time</th></tr>
-                    </thead>
-                    <tbody>
-                        {% for log in currently_in %}
-                        <tr class="border-t">
-                            <td class="py-3 font-semibold">{{ log.user.name }}</td>
-                            <td class="py-3 text-gray-600">{{ log.clock_in }}</td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="2" class="py-4 text-center text-gray-500">No one is currently clocked in.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div id="currently-in-container">
+                <!-- Real-time data will be injected here by the script below -->
             </div>
         </div>
     </div>
-    <!-- Sidebar -->
-    <div class="lg:col-span-1">
+    <div class="lg:col-span-1 space-y-8">
         <div class="bg-white p-6 rounded-lg shadow-md">
             <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Team Invitation Link</h2>
-            <p class="text-gray-600 mb-4">Share this link with employees to let them join your team.</p>
+            <p class="text-gray-600 mb-4">Share this link with employees to join.</p>
             <input type="text" id="joinLinkInput" value="{{ join_link }}" readonly class="w-full p-2 border rounded-md bg-gray-100">
-            <button id="copyLinkBtn" class="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">
-                Copy Link
-            </button>
+            <button id="copyLinkBtn" class="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">Copy Link</button>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Team Stats</h2>
+            <p class="text-gray-600">Total Users on Team: <strong class="text-xl">{{ user_count }}</strong></p>
         </div>
     </div>
 </div>
 
 <script>
-    // Simple script to copy the invitation link to the clipboard
-    document.getElementById('copyLinkBtn').addEventListener('click', () => {
-        const input = document.getElementById('joinLinkInput');
-        input.select();
-        document.execCommand('copy');
-        alert('Invitation link copied to clipboard!');
+    // This script now works with the new database API
+    async function updateDashboard() {
+        try {
+            const response = await fetch("{{ url_for('admin_api_dashboard_data') }}");
+            if (!response.ok) { return; }
+            const people = await response.json();
+            const container = document.getElementById('currently-in-container');
+            
+            if (people.length > 0) {
+                let tableHTML = `<div class="overflow-x-auto"><table class="w-full text-left min-w-[500px]"><thead><tr><th class="py-2">Name</th><th class="py-2">Clock In Time</th><th class="py-2">Action</th></tr></thead><tbody>`;
+                people.forEach(person => {
+                    tableHTML += `
+                        <tr class="border-t">
+                            <td class="py-3 font-semibold">${person.Name}</td>
+                            <td class="py-3 text-gray-600">${person['Clock In']}</td>
+                            <td class="py-3">
+                                <form action="/admin/fix_clock_out/${person.id}" method="POST">
+                                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold py-2 px-3 rounded">Clock Out Now</button>
+                                </form>
+                            </td>
+                        </tr>`;
+                });
+                tableHTML += `</tbody></table></div>`;
+                container.innerHTML = tableHTML;
+            } else {
+                container.innerHTML = '<p class="text-gray-600">No one is currently clocked in.</p>';
+            }
+        } catch (error) { console.error("Error updating dashboard:", error); }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('copyLinkBtn').addEventListener('click', () => {
+            const input = document.getElementById('joinLinkInput');
+            input.select();
+            document.execCommand('copy');
+            alert('Invitation link copied to clipboard!');
+        });
+        updateDashboard(); // Run once on page load
+        setInterval(updateDashboard, 15000); // Then run every 15 seconds
     });
 </script>
 {% endblock %}
