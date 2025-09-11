@@ -158,11 +158,6 @@ def admin_signup():
         return redirect(url_for('admin_dashboard'))
     return render_template("auth/admin_signup.html")
 
-@app.route("/logout")
-def logout():
-    session.clear()
-    flash("You have been successfully logged out.", "success")
-    return redirect(url_for('home'))
 # ===============================================================
 # == EMPLOYEE WORKFLOW ROUTES ===================================
 # ===============================================================
