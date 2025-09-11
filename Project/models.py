@@ -1,4 +1,4 @@
-from . import db  # Import the db object from our __init__.py
+from . import db
 import uuid
 
 class Team(db.Model):
@@ -24,7 +24,9 @@ class TimeLog(db.Model):
     date = db.Column(db.String(50), nullable=False)
     clock_in = db.Column(db.String(50), nullable=False)
     clock_out = db.Column(db.String(50), nullable=True)
-    user = db.relationship('User', backref='time_logs')
+    
+    # === THIS IS THE FIX ===
+    user = db.relationship('User', backref=db.backref('time_logs', cascade="all, delete-orphan"))
 
 class TeamSetting(db.Model):
     id = db.Column(db.Integer, primary_key=True)
