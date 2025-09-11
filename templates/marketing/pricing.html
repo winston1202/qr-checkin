@@ -1,0 +1,47 @@
+{% extends "marketing/base_layout.html" %}
+
+{% block title %}Pricing{% endblock %}
+
+{% block content %}
+<div class="py-20 bg-white">
+    <div class="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+        <h2 class="text-3xl font-extrabold text-gray-900">Simple, Transparent Pricing</h2>
+        <p class="mt-4 text-lg text-gray-500">Start for free. No credit card required.</p>
+        
+        <div class="mt-12 flex justify-center">
+            <div class="border border-blue-600 rounded-lg p-8 w-full max-w-sm">
+                <h3 class="text-2xl font-bold text-gray-900">Free Tier</h3>
+                <p class="mt-4 text-gray-500">Perfect for small teams and getting started.</p>
+                <div class="mt-6">
+                    <span class="text-5xl font-extrabold text-gray-900">$0</span>
+                    <span class="text-lg font-medium text-gray-500">/ month</span>
+                </div>
+                <ul class="mt-6 space-y-4 text-left">
+                    <li class="flex items-start">
+                        <span class="text-green-500 mr-2">&#10003;</span>
+                        <span>1 Team</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-green-500 mr-2">&#10003;</span>
+                        <span>Up to 10 Users</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-green-500 mr-2">&#10003;</span>
+                        <span>Geolocation Verification</span>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-green-500 mr-2">&#10003;</span>
+                        <span>Admin Dashboard</span>
+                    </li>
+                </ul>
+                <div class="mt-8">
+                    <a href="{{ url_for('admin_signup') }}" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg">
+                        Get Started
+                    </a>
+                </div>
+            </div>
+        </div>
+        <p class="mt-8 text-gray-500">A "Pro" tier with unlimited teams and users is coming soon!</p>
+    </div>
+</div>
+{% endblock %}

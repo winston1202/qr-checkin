@@ -4,216 +4,62 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
-    <title>Check-In</title>
-    
-    <!-- Device Token Cookie Setup -->
-    <script>
-        function getCookie(name) {
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            if (parts.length === 2) return parts.pop().split(';').shift();
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const cookieName = "device_token";
-            let token = getCookie(cookieName);
-            if (!token) {
-                token = crypto.randomUUID();
-                document.cookie = `${cookieName}=${token}; path=/; max-age=31536000; SameSite=Lax`;
-            }
-        });
-    </script>
-    
+    <title>Time Clock</title>
     <style>
-        @keyframes slideInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-50px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        @keyframes slideInUp {
-            from {
-                opacity: 0;
-                transform: translateY(50px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        @keyframes fadeInScale {
-            from {
-                opacity: 0;
-                transform: scale(0.9);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-        
-        @keyframes glowPulse {
-            0%, 100% {
-                box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
-            }
-            50% {
-                box-shadow: 0 0 40px rgba(59, 130, 246, 0.6);
-            }
-        }
-        
-        .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .gradient-bg::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: 
-                radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
-                radial-gradient(circle at 40% 80%, rgba(120, 219, 255, 0.3) 0%, transparent 50%);
-            animation: float 6s ease-in-out infinite;
-        }
-        
-        @keyframes float {
-            0%, 100% { transform: translateY(0px) rotate(0deg); }
-            33% { transform: translateY(-10px) rotate(1deg); }
-            66% { transform: translateY(5px) rotate(-1deg); }
-        }
-        
-        .card-entrance {
-            animation: fadeInScale 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .title-entrance {
-            animation: slideInDown 0.6s ease-out;
-        }
-        
-        .subtitle-entrance {
-            animation: slideInDown 0.6s ease-out;
-            animation-delay: 0.2s;
-            animation-fill-mode: both;
-        }
-        
-        .form-entrance {
-            animation: slideInUp 0.6s ease-out;
-            animation-delay: 0.4s;
-            animation-fill-mode: both;
-        }
-        
-        .input-field {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-        }
-        
-        .input-field:focus {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2);
-            background: rgba(255, 255, 255, 1);
-        }
-        
-        .submit-btn {
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .submit-btn:hover {
-            transform: translateY(-3px) scale(1.02);
-            animation: glowPulse 2s infinite;
-        }
-        
-        .attendance-icon {
-            animation: float 3s ease-in-out infinite;
-        }
-        
-        /* In scan.html <style> section */
-        .flash-message {
-            animation: slideInDown 0.5s ease-out;
-            background-color: #fee2e2; /* Solid light red */
-            border-left: 4px solid #ef4444; /* Strong red border */
-        }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-enter { animation: bounceIn 0.8s ease-out; }
+        @keyframes bounceIn { 0% { opacity: 0; transform: scale(0.3); } 50% { opacity: 1; transform: scale(1.05); } 70% { transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
+        .input-field:focus { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2); }
+        .submit-btn { background: linear-gradient(135deg, #3b82f6, #8b5cf6); transition: all 0.4s; }
+        .submit-btn:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 15px 35px rgba(59, 130, 246, 0.4); }
+        .flash-message { animation: slideInDown 0.5s ease-out; background-color: #fee2e2; border-left: 4px solid #ef4444; }
+        @keyframes slideInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
-
 <body class="gradient-bg min-h-screen flex items-center justify-center p-4">
-    <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md card-entrance">
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages() %}
+    <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md card-enter">
+        
+        <!-- Flash Messages for errors -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                <div class="flash-message p-4 rounded-lg mb-6 text-left">
-                    {% for message in messages %}
-                        <p class="text-red-700">{{ message | safe }}</p>
+                <div class="flash-message p-3 mb-4 rounded-lg text-sm text-red-700">
+                    {% for category, message in messages %}
+                        {{ message | safe }}
                     {% endfor %}
                 </div>
             {% endif %}
         {% endwith %}
-        
+
         <div class="mb-6">
-            <div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center attendance-icon">
-                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-                </svg>
+            <div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
             </div>
-            <h1 class="text-3xl font-bold text-gray-800 mb-2 title-entrance">Time Clock</h1>
-            <div class="w-16 h-1 bg-gradient-to-r from-blue-500 to-purple-600 mx-auto rounded-full title-entrance"></div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Employee Clock-In</h1>
         </div>
         
-        <h2 class="text-lg text-gray-600 mb-6 subtitle-entrance">Please enter your name to begin.</h2>
-        
-        <form action="{{ url_for('process') }}" method="POST" class="space-y-4 form-entrance">
-            <input name="first_name" placeholder="First Name" required
-                class="input-field w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" />
-            <input name="last_name" placeholder="Last Name" required
-                class="input-field w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" />
+        {% if team_name %}
+            <!-- This block shows if the user clicked a valid invitation link -->
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg mb-6 text-left">
+                <p class="font-semibold text-blue-800">You are joining team: {{ team_name }}</p>
+                <p class="text-sm text-blue-700">Managed by: {{ admin_name }}</p>
+            </div>
+            <form action="{{ url_for('scan') }}" method="POST" class="space-y-4">
+                <input name="first_name" placeholder="Your First Name" required class="input-field w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <input name="last_name" placeholder="Your Last Name" required class="input-field w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <button type="submit" class="submit-btn text-white px-6 py-3 rounded-xl w-full font-bold shadow-lg hover:shadow-xl">
-                    <!-- Normal State -->
-                    <span class="normal-state flex items-center justify-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
-                        Submit
-                    </span>
-                    <!-- Processing State (Initially Hidden) -->
-                    <span class="processing-state hidden">Processing...</span>
+                    Clock In
                 </button>
-        </form>
+            </form>
+        {% else %}
+            <!-- This block shows if the user arrived here without an invitation link -->
+            <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg mb-6 text-left">
+                <h3 class="font-bold text-yellow-800">Invalid Invitation Link</h3>
+                <p class="text-yellow-700 mt-1">To clock in, you must use the unique invitation link provided by your team manager.</p>
+            </div>
+            <a href="{{ url_for('home') }}" class="text-blue-600 hover:text-blue-500 font-medium">
+                &larr; Back to Home Page
+            </a>
+        {% endif %}
     </div>
-<!-- Add/replace this script at the bottom of the relevant pages, before </body> -->
-<script>
-    function setupFormSubmissions() {
-        document.querySelectorAll('form').forEach(form => {
-            form.addEventListener('submit', function(event) {
-                const button = form.querySelector('button[type="submit"]');
-                if (button) {
-                    // Disable the button to prevent multiple clicks
-                    button.disabled = true;
-                    
-                    // Find the two states inside the button
-                    const normalState = button.querySelector('.normal-state');
-                    const processingState = button.querySelector('.processing-state');
-                    
-                    // Hide the normal state and show the processing state
-                    if (normalState && processingState) {
-                        normalState.classList.add('hidden');
-                        processingState.classList.remove('hidden');
-                    }
-                }
-            });
-        });
-    }
-    // Run the setup function when the page is loaded
-    document.addEventListener('DOMContentLoaded', setupFormSubmissions);
-</script>
 </body>
 </html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Log In</title>
+    <style>
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-enter { animation: bounceIn 0.8s ease-out; }
+        @keyframes bounceIn { 0% { opacity: 0; transform: scale(0.3); } 50% { opacity: 1; transform: scale(1.05); } 70% { transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
+        .input-field:focus { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2); }
+        .submit-btn { background: linear-gradient(135deg, #3b82f6, #8b5cf6); transition: all 0.4s; }
+        .submit-btn:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 15px 35px rgba(59, 130, 246, 0.4); }
+        .flash-message { animation: slideInDown 0.5s ease-out; background-color: #fee2e2; border-left: 4px solid #ef4444; }
+        @keyframes slideInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl w-full max-w-sm card-enter">
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Welcome Back</h1>
+            <p class="text-gray-600">Log in to view your dashboard.</p>
+        </div>
+
+        <!-- Flash Messages for errors -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-message p-3 mb-4 rounded-lg text-sm text-red-700">
+                    {% for category, message in messages %}
+                        {{ message }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form action="{{ url_for('login') }}" method="POST" class="space-y-4">
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                <input id="email" name="email" type="email" required class="input-field mt-1 w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400">
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                <input id="password" name="password" type="password" required class="input-field mt-1 w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400">
+            </div>
+            
+            <button type="submit" class="submit-btn text-white px-6 py-3 rounded-xl w-full font-bold shadow-lg hover:shadow-xl !mt-6">
+                Log In
+            </button>
+        </form>
+
+        <p class="text-center text-gray-600 mt-6">
+            Need to create a team? 
+            <a href="{{ url_for('admin_signup') }}" class="font-medium text-blue-600 hover:text-blue-500">Sign Up</a>
+        </p>
+    </div>
+</body>
+</html>

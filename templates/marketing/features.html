@@ -1,0 +1,46 @@
+{% extends "marketing/base_layout.html" %}
+
+{% block title %}Features{% endblock %}
+
+{% block content %}
+<div class="py-20 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center">
+            <h2 class="text-3xl font-extrabold text-gray-900">Powerful Features for Modern Teams</h2>
+            <p class="mt-4 text-lg text-gray-500">Everything you need for simple and secure time tracking.</p>
+        </div>
+        <div class="mt-16 grid gap-12 md:grid-cols-2 lg:grid-cols-3">
+            <!-- Feature 1 -->
+            <div class="p-6 bg-gray-50 rounded-lg">
+                <h3 class="text-xl font-bold text-gray-900">Geolocation Verification</h3>
+                <p class="mt-2 text-base text-gray-500">Ensure employees are on-site with a secure geofence. The system verifies their location before every clock-in and clock-out.</p>
+            </div>
+            <!-- Feature 2 -->
+            <div class="p-6 bg-gray-50 rounded-lg">
+                <h3 class="text-xl font-bold text-gray-900">Real-Time Admin Dashboard</h3>
+                <p class="mt-2 text-base text-gray-500">See who's currently clocked in, view historical logs, and manage your team, all from one simple dashboard.</p>
+            </div>
+            <!-- Feature 3 -->
+            <div class="p-6 bg-gray-50 rounded-lg">
+                <h3 class="text-xl font-bold text-gray-900">Frictionless for Employees</h3>
+                <p class="mt-2 text-base text-gray-500">No accounts or passwords needed for employees to clock in. They just click their invitation link once and are ready to go.</p>
+            </div>
+            <!-- Feature 4 -->
+            <div class="p-6 bg-gray-50 rounded-lg">
+                <h3 class="text-xl font-bold text-gray-900">Self-Serve Team Management</h3>
+                <p class="mt-2 text-base text-gray-500">Admins (bosses) can create their team, customize its profile, and manage their own users without developer intervention.</p>
+            </div>
+            <!-- Feature 5 -->
+            <div class="p-6 bg-gray-50 rounded-lg">
+                <h3 class="text-xl font-bold text-gray-900">Optional Employee Accounts</h3>
+                <p class="mt-2 text-base text-gray-500">Employees have the option to create a password to view their own time clock history, promoting transparency.</p>
+            </div>
+            <!-- Feature 6 -->
+            <div class="p-6 bg-gray-50 rounded-lg">
+                <h3 class="text-xl font-bold text-gray-900">Data Export</h3>
+                <p class="mt-2 text-base text-gray-500">Admins can filter and export time logs as a CSV file, perfect for payroll processing or archiving.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
