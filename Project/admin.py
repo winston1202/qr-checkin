@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, g, jsonify
 from .models import db, User, Team, TimeLog, TeamSetting
-from . import admin_required # Import the decorator
+from .decorators import admin_required # Import from the new decorators.py file
 from datetime import datetime
 import pytz
 
