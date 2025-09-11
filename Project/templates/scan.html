@@ -20,7 +20,8 @@
                 <p class="font-semibold text-blue-800">You are joining team: {{ team_name }}</p>
                 <p class="text-sm text-blue-700">Managed by: {{ admin_name }}</p>
             </div>
-            <form action="{{ url_for('auth.scan') }}" method="POST" class="space-y-4">
+            <!-- === THIS IS THE FIX === -->
+            <form action="{{ url_for('employee.scan') }}" method="POST" class="space-y-4">
                 <input name="first_name" placeholder="Your First Name" required class="w-full p-3 border rounded-xl">
                 <input name="last_name" placeholder="Your Last Name" required class="w-full p-3 border rounded-xl">
                 <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-xl">Submit</button>
@@ -30,6 +31,7 @@
                 <h3 class="font-bold text-yellow-800">Invalid Link</h3>
                 <p class="text-yellow-700 mt-1">To clock in, please use the unique invitation link provided by your team manager.</p>
             </div>
+            <a href="{{ url_for('auth.home') }}" class="text-blue-600 hover:text-blue-500 font-medium mt-4 inline-block">&larr; Back to Home Page</a>
         {% endif %}
     </div>
 </body>
