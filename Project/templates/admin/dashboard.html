@@ -2,7 +2,7 @@
 {% block title %}Dashboard{% endblock %}
 {% block content %}
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    <div class="lg:col-span-2 space-y-8">
+    <div class="lg:col-span-2">
         <div class="bg-white p-6 rounded-lg shadow-md">
             <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Currently Clocked In</h2>
             <div id="currently-in-container">
@@ -23,19 +23,18 @@
         </div>
     </div>
 </div>
-
 <script>
-    // This script now works with the new database API
     async function updateDashboard() {
         try {
-            const response = await fetch("{{ url_for('auth.admin_api_dashboard_data') }}");
+            // === THIS IS THE FIX ===
+            const response = await fetch("{{ url_for('admin.api_dashboard_data') }}");
             if (!response.ok) { return; }
             const people = await response.json();
             const container = document.getElementById('currently-in-container');
-            
             if (people.length > 0) {
                 let tableHTML = `<div class="overflow-x-auto"><table class="w-full text-left min-w-[500px]"><thead><tr><th class="py-2">Name</th><th class="py-2">Clock In Time</th><th class="py-2">Action</th></tr></thead><tbody>`;
                 people.forEach(person => {
+                    // Note: The form action now needs the /admin/ prefix for the URL
                     tableHTML += `
                         <tr class="border-t">
                             <td class="py-3 font-semibold">${person.Name}</td>
@@ -54,16 +53,15 @@
             }
         } catch (error) { console.error("Error updating dashboard:", error); }
     }
-
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('copyLinkBtn').addEventListener('click', () => {
             const input = document.getElementById('joinLinkInput');
             input.select();
             document.execCommand('copy');
-            alert('Invitation link copied to clipboard!');
+            alert('Invitation link copied!');
         });
-        updateDashboard(); // Run once on page load
-        setInterval(updateDashboard, 15000); // Then run every 15 seconds
+        updateDashboard();
+        setInterval(updateDashboard, 15000);
     });
 </script>
 {% endblock %}
