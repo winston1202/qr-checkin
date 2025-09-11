@@ -32,11 +32,11 @@
                 setTimeout(() => {
                     if (navigator.geolocation) {
                         navigator.geolocation.getCurrentPosition(
-                            (pos) => { window.location.href = `{{ url_for('confirm_entry') }}?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`; },
-                            (err) => { window.location.href = `{{ url_for('location_failed') }}?message=${encodeURIComponent('Could not get location. Please grant permission.')}`; },
+                            (pos) => { window.location.href = `{{ url_for('auth.confirm_entry') }}?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`; },
+                            (err) => { window.location.href = `{{ url_for('auth.location_failed') }}?message=${encodeURIComponent('Could not get location. Please grant permission.')}`; },
                             { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
                         );
-                    } else { window.location.href = `{{ url_for('location_failed') }}?message=${encodeURIComponent('Geolocation is not supported by this browser.')}`; }
+                    } else { window.location.href = `{{ url_for('auth.location_failed') }}?message=${encodeURIComponent('Geolocation is not supported by this browser.')}`; }
                 }, 200);
             });
         });

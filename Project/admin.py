@@ -6,7 +6,7 @@ import pytz
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
-# --- Helper Functions for this Blueprint ---
+# --- Helper Functions for This Blueprint ---
 def get_day_with_suffix(d):
     return f"{d}{'th' if 11<=d<=13 else {1:'st',2:'nd',3:'rd'}.get(d%10, 'th')}"
 
@@ -22,6 +22,7 @@ def dashboard():
     now = datetime.now(pytz.timezone("America/Chicago"))
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
     
+    # Securely filters by the logged-in admin's team
     currently_in = TimeLog.query.filter(
         TimeLog.team_id == g.user.team_id,
         TimeLog.date == today_date,
@@ -29,6 +30,7 @@ def dashboard():
     ).all()
     
     user_count = User.query.filter_by(team_id=g.user.team_id).count()
+    # Note: url_for must now use the blueprint name 'employee.join_team'
     join_link = url_for('employee.join_team', join_token=g.user.team.join_token, _external=True)
 
     return render_template("admin/dashboard.html", currently_in=currently_in, join_link=join_link, user_count=user_count)
@@ -54,6 +56,8 @@ def profile():
 @admin_bp.route("/settings", methods=["GET", "POST"])
 @admin_required
 def settings():
+    from .employee import get_team_settings # Import locally to avoid circular import issues
+    
     if request.method == 'POST':
         setting_name = request.form.get("setting_name")
         new_value = "TRUE" if request.form.get("setting_value") == "on" else "FALSE"
@@ -69,7 +73,6 @@ def settings():
         flash(f"Setting '{setting_name}' updated successfully.", "success")
         return redirect(url_for('admin.settings'))
 
-    from .employee import get_team_settings # Import locally to avoid circular import
     current_settings = get_team_settings(g.user.team_id)
     return render_template("admin/settings.html", settings=current_settings)
 

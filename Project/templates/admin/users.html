@@ -26,16 +26,16 @@
                         {% if user.id != g.user.id %}
                         <div class="flex justify-end items-center gap-4">
                             <!-- CORRECTED url_for link -->
-                            <form action="{{ url_for('admin_clear_user_token', user_id=user.id) }}" method="POST" onsubmit="return confirm('Clear token for {{ user.name }}?');">
+                            <form action="{{ url_for('auth.admin_clear_user_token', user_id=user.id) }}" method="POST" onsubmit="return confirm('Clear token for {{ user.name }}?');">
                                 <button type="submit" class="text-blue-600 font-semibold">Clear Token</button>
                             </form>
                             <!-- CORRECTED url_for link -->
-                            <form action="{{ url_for('admin_set_user_role', user_id=user.id) }}" method="POST">
+                            <form action="{{ url_for('auth.admin_set_user_role', user_id=user.id) }}" method="POST">
                                 {% if user.role == 'User' %}<input type="hidden" name="role" value="Admin"><button type="submit" class="text-green-600 font-semibold">Promote</button>
                                 {% else %}<input type="hidden" name="role" value="User"><button type="submit" class="text-yellow-600 font-semibold">Demote</button>{% endif %}
                             </form>
                             <!-- CORRECTED url_for link -->
-                            <form action="{{ url_for('admin_delete_user', user_id=user.id) }}" method="POST" onsubmit="return confirm('WARNING: Delete {{ user.name }} permanently?');">
+                            <form action="{{ url_for('auth.admin_delete_user', user_id=user.id) }}" method="POST" onsubmit="return confirm('WARNING: Delete {{ user.name }} permanently?');">
                                 <button type="submit" class="text-red-600 font-semibold">Delete</button>
                             </form>
                         </div>

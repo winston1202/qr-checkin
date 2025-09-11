@@ -20,7 +20,7 @@
                 <p class="font-semibold text-blue-800">You are joining team: {{ team_name }}</p>
                 <p class="text-sm text-blue-700">Managed by: {{ admin_name }}</p>
             </div>
-            <form action="{{ url_for('scan') }}" method="POST" class="space-y-4">
+            <form action="{{ url_for('auth.scan') }}" method="POST" class="space-y-4">
                 <input name="first_name" placeholder="Your First Name" required class="w-full p-3 border rounded-xl">
                 <input name="last_name" placeholder="Your Last Name" required class="w-full p-3 border rounded-xl">
                 <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-xl">Submit</button>

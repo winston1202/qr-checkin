@@ -28,12 +28,12 @@
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
-            <form action="{{ url_for('execute_action') }}" method="POST" class="w-full">
+            <form action="{{ url_for('auth.execute_action') }}" method="POST" class="w-full">
                 <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl transition">
                     Yes, Confirm
                 </button>
             </form>
-            <a href="{{ url_for('home') }}" class="w-full block bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition">
+            <a href="{{ url_for('auth.home') }}" class="w-full block bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition">
                 No, Cancel
             </a>
         </div>
