@@ -373,32 +373,6 @@ def admin_settings():
     current_settings = get_team_settings(g.user.team_id)
     return render_template("admin/settings.html", settings=current_settings)
 
-@app.route("/admin/time_log")
-@admin_required
-def admin_time_log():
-    query = TimeLog.query.join(User).filter(TimeLog.team_id == g.user.team_id)
-    all_users_on_team = User.query.filter_by(team_id=g.user.team_id).order_by(User.name).all()
-    unique_names = [user.name for user in all_users_on_team]
-    filter_name = request.args.get('name', '')
-    filter_date = request.args.get('date', '')
-    sort_by = request.args.get('sort_by', 'id')
-    sort_order = request.args.get('sort_order', 'desc')
-    if filter_name:
-        query = query.filter(User.name == filter_name)
-    if filter_date:
-        try:
-            filter_dt = datetime.strptime(filter_date, "%Y-%m-%d")
-            date_str = f"%b. {get_day_with_suffix(filter_dt.day)}, %Y"
-            query = query.filter(TimeLog.date == filter_dt.strftime(date_str))
-        except ValueError: pass
-    sort_column = getattr(TimeLog, sort_by, TimeLog.id)
-    if sort_order == 'desc':
-        query = query.order_by(sort_column.desc())
-    else:
-        query = query.order_by(sort_column.asc())
-    filtered_logs = query.all()
-    return render_template("admin/time_log.html", logs=filtered_logs, unique_names=unique_names, filter_name=filter_name, filter_date=filter_date, sort_by=sort_by, sort_order=sort_order)
-
 @app.route("/admin/export_csv")
 @admin_required
 def export_csv():
@@ -454,6 +428,7 @@ def admin_api_dashboard_data():
     currently_in = TimeLog.query.filter(TimeLog.team_id == g.user.team_id, TimeLog.date == today_date, TimeLog.clock_out == None).all()
     data = [{'Name': log.user.name, 'Clock In': log.clock_in, 'id': log.id} for log in currently_in]
     return jsonify(data)
+
 @app.route("/admin/time_log")
 @admin_required
 def admin_time_log():
