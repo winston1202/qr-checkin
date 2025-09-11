@@ -158,19 +158,6 @@ def admin_signup():
         return redirect(url_for('admin_dashboard'))
     return render_template("auth/admin_signup.html")
 
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        user = User.query.filter_by(email=email).first()
-        if user and user.password and bcrypt.check_password_hash(user.password, password):
-            session['user_id'] = user.id
-            return redirect(url_for('admin_dashboard')) if user.role == 'Admin' else redirect(url_for('home')) # Employees don't have a dashboard yet
-        else:
-            flash("Invalid email or password. Please try again.", "error")
-    return render_template("auth/login.html")
-
 @app.route("/logout")
 def logout():
     session.clear()
@@ -323,6 +310,7 @@ def quick_clock_out():
 @app.route("/location_failed")
 def location_failed():
     return render_template("location_failed.html", message=request.args.get('message'))
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == 'POST':
