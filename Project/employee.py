@@ -164,3 +164,16 @@ def success():
 @employee_bp.route("/location_failed")
 def location_failed():
     return render_template("location_failed.html", message=request.args.get('message'))
+
+@employee_bp.route("/quick_clock_out", methods=["POST"])
+def quick_clock_out():
+    user_id = request.form.get("user_id")
+    user = User.query.get(user_id) if user_id else None
+
+    if not user:
+        flash("Could not identify the user to clock out.", "error")
+        return redirect(url_for('employee.scan'))
+
+    # This re-uses your perfected workflow logic
+    prepare_and_store_action(user)
+    return redirect(url_for('employee.confirm_entry'))

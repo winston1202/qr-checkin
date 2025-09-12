@@ -80,7 +80,7 @@ def time_log():
 @admin_required
 def users():
     """Displays the user management page."""
-    team_users = User.query.filter_by(team_id=g.user.team_id).order_by(User.name).all()
+    team_users = User.query.filter_by(team_id=g.user.team_id).order_by(User.role.desc(), User.name).all()
     return render_template("admin/users.html", users=team_users)
 
 @admin_bp.route("/profile", methods=["GET", "POST"])
