@@ -1,7 +1,5 @@
 {% extends "admin/base_layout.html" %}
-
 {% block title %}User Management{% endblock %}
-
 {% block content %}
 <div class="bg-white p-6 rounded-lg shadow-md">
     <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Manage Users for {{ g.user.team.name }}</h2>
@@ -18,12 +16,12 @@
             <tbody>
                 {% for user in users %}
                 <tr class="border-b hover:bg-gray-50">
-                    <!-- === THIS IS THE FIX: The variables are now 'user.' not 'log.' === -->
                     <td class="py-3 font-medium">{{ user.name }}</td>
                     <td class="py-3">
                         <span class="block text-gray-500">{{ user.email or 'N/A' }}</span>
                         <span class="px-2 py-1 text-xs rounded-full {{ 'bg-blue-100 text-blue-800' if user.role == 'Admin' else 'bg-gray-100 text-gray-800' }}">{{ user.role }}</span>
                     </td>
+                    <!-- === THIS IS THE FIX: Displays the user's device token === -->
                     <td class="py-3 font-mono text-xs text-gray-500">{{ user.device_token or 'None' }}</td>
                     <td class="py-3 text-right">
                         {% if user.id != g.user.id %}
@@ -32,25 +30,16 @@
                                 <button type="submit" class="text-blue-600 font-semibold">Clear Token</button>
                             </form>
                             <form action="{{ url_for('admin.set_user_role', user_id=user.id) }}" method="POST">
-                                {% if user.role == 'User' %}
-                                    <input type="hidden" name="role" value="Admin">
-                                    <button type="submit" class="text-green-600 font-semibold">Promote</button>
-                                {% else %}
-                                    <input type="hidden" name="role" value="User">
-                                    <button type="submit" class="text-yellow-600 font-semibold">Demote</button>
-                                {% endif %}
+                                {% if user.role == 'User' %}<input type="hidden" name="role" value="Admin"><button type="submit" class="text-green-600 font-semibold">Promote</button>
+                                {% else %}<input type="hidden" name="role" value="User"><button type="submit" class="text-yellow-600 font-semibold">Demote</button>{% endif %}
                             </form>
                             <form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="POST" onsubmit="return confirm('WARNING: Delete {{ user.name }} permanently?');">
                                 <button type="submit" class="text-red-600 font-semibold">Delete</button>
                             </form>
                         </div>
-                        {% else %}
-                        <span class="text-xs text-gray-400">(This is you)</span>
-                        {% endif %}
+                        {% else %}<span class="text-xs text-gray-400">(This is you)</span>{% endif %}
                     </td>
                 </tr>
-                {% else %}
-                <tr><td colspan="4" class="py-4 text-center text-gray-500">No users have joined your team yet.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

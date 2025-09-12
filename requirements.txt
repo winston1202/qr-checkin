@@ -11,3 +11,4 @@ itsdangerous
 Jinja2
 MarkupSafe
 Werkzeug
+Flask-Mail

@@ -1,0 +1,94 @@
+{% extends "marketing/base_layout.html" %}
+{% block title %}Help & Support{% endblock %}
+{% block content %}
+<div class="py-20 bg-white">
+    <div class="max-w-4xl mx-auto px-4">
+        <div class="text-center">
+            <h2 class="text-3xl font-extrabold text-gray-900">Help & Support</h2>
+            <p class="mt-4 text-lg text-gray-500">Find answers to common questions and learn how to use the time clock system.</p>
+        </div>
+
+        <!-- Issue Reporting Section -->
+        <div class="mt-12 p-6 bg-blue-50 border border-blue-200 rounded-lg text-center">
+            <h3 class="text-xl font-bold text-gray-900">Having an Issue?</h3>
+            <p class="mt-2 text-gray-600">If you've found a bug or have a problem not answered below, please let us know! Provide as much detail as possible, including screenshots and the steps you took.</p>
+            <div class="mt-4">
+                <!-- IMPORTANT: Change the email address in the line below! -->
+                <a href="mailto:winstonbusiness69@gmail.com?subject=[TimeClock App] Issue Report" 
+                   class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg">
+                    Report an Issue
+                </a>
+            </div>
+        </div>
+
+        <!-- FAQ Accordion Section -->
+        <div class="mt-12 space-y-4">
+            
+            <!-- Admin Questions -->
+            <div>
+                <h3 class="text-2xl font-bold text-gray-800 border-b pb-2 mb-4">For Admins (Team Managers)</h3>
+                <details class="group p-4 rounded-lg bg-gray-50">
+                    <summary class="font-medium cursor-pointer list-none flex justify-between items-center">
+                        How do I invite an employee to my team?
+                        <span class="text-gray-400 group-open:rotate-90 transition-transform">&#9654;</span>
+                    </summary>
+                    <div class="mt-4 text-gray-600">
+                        Log in to your Admin Dashboard. On the main page, you will see a "Team Invitation Link". Click the "Copy Link" button and send this URL to your employees via email, text, or another messaging service.
+                    </div>
+                </details>
+                <details class="group p-4 rounded-lg bg-gray-50 mt-2">
+                    <summary class="font-medium cursor-pointer list-none flex justify-between items-center">
+                        An employee got a new phone. How do they clock in?
+                        <span class="text-gray-400 group-open:rotate-90 transition-transform">&#9654;</span>
+                    </summary>
+                    <div class="mt-4 text-gray-600">
+                        Go to the "Users" tab on your dashboard. Find the employee in the list and click the "Clear Token" button. This will free up their name. They can then click the original invitation link on their new device to register it to their name. All their past time logs will be preserved.
+                    </div>
+                </details>
+                <details class="group p-4 rounded-lg bg-gray-50 mt-2">
+                    <summary class="font-medium cursor-pointer list-none flex justify-between items-center">
+                        How do I make another user an Admin?
+                        <span class="text-gray-400 group-open:rotate-90 transition-transform">&#9654;</span>
+                    </summary>
+                    <div class="mt-4 text-gray-600">
+                        Go to the "Users" tab. Find the user you want to promote and click the "Promote to Admin" button. They will now have access to the admin dashboard. Note: They will need to create an account with a password first if they haven't already.
+                    </div>
+                </details>
+                 <details class="group p-4 rounded-lg bg-gray-50 mt-2">
+                    <summary class="font-medium cursor-pointer list-none flex justify-between items-center">
+                        What does the "Location Verification" setting do?
+                        <span class="text-gray-400 group-open:rotate-90 transition-transform">&#9654;</span>
+                    </summary>
+                    <div class="mt-4 text-gray-600">
+                        When this setting is ON, employees must be within the 500-foot geofence of your building to clock in or out. When it is OFF, they can clock in from anywhere. You can toggle this for your team at any time from the "Settings" tab.
+                    </div>
+                </details>
+            </div>
+
+            <!-- Employee Questions -->
+            <div class="mt-10">
+                <h3 class="text-2xl font-bold text-gray-800 border-b pb-2 mb-4">For Employees</h3>
+                <details class="group p-4 rounded-lg bg-gray-50">
+                    <summary class="font-medium cursor-pointer list-none flex justify-between items-center">
+                        How do I clock in for the first time?
+                        <span class="text-gray-400 group-open:rotate-90 transition-transform">&#9654;</span>
+                    </summary>
+                    <div class="mt-4 text-gray-600">
+                        You must use the unique invitation link sent to you by your manager. Click the link, enter your full name, and follow the on-screen instructions.
+                    </div>
+                </details>
+                <details class="group p-4 rounded-lg bg-gray-50 mt-2">
+                    <summary class="font-medium cursor-pointer list-none flex justify-between items-center">
+                        How do I clock in on other days?
+                        <span class="text-gray-400 group-open:rotate-90 transition-transform">&#9654;</span>
+                    </summary>
+                    <div class="mt-4 text-gray-600">
+                        After you join a team, your device is "remembered". You can simply go to the main website URL. The system will recognize your device and automatically start the clock-in or clock-out process for you.
+                    </div>
+                </details>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Create Your Account</title>
+  <style>
+    .gradient-bg {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+  </style>
+</head>
+<body class="gradient-bg min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl w-full max-w-md">
+
+    <!-- Header -->
+    <div class="text-center mb-6">
+      <h1 class="text-3xl font-bold text-gray-800">Create Your Account</h1>
+      <p class="text-gray-600 mt-2">
+        Add an email and password to your record for 
+        <strong>{{ user.name }}</strong> to view your time log history.
+      </p>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="p-3 mb-4 rounded-lg text-sm text-red-700 bg-red-100 border border-red-200">
+          {% for category, message in messages %}
+            {{ message }}
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Form -->
+    <form 
+      action="{{ url_for('employee.create_employee_account', user_id=user.id) }}" 
+      method="POST" 
+      class="space-y-4"
+    >
+      <div>
+        <label for="email" class="block text-sm text-left font-medium text-gray-700">Your Email</label>
+        <input 
+          id="email" 
+          name="email" 
+          type="email" 
+          required 
+          class="mt-1 w-full p-3 border border-gray-300 rounded-xl"
+        />
+      </div>
+
+      <div>
+        <label for="password" class="block text-sm text-left font-medium text-gray-700">Choose a Password</label>
+        <input 
+          id="password" 
+          name="password" 
+          type="password" 
+          required 
+          class="mt-1 w-full p-3 border border-gray-300 rounded-xl"
+        />
+      </div>
+
+      <button 
+        type="submit" 
+        class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-xl !mt-6"
+      >
+        Create Account
+      </button>
+    </form>
+
+  </div>
+</body>
+</html>

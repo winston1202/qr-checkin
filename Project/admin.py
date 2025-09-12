@@ -80,6 +80,7 @@ def time_log():
 @admin_required
 def users():
     """Displays the user management page."""
+    # This new query sorts by Role descending (Admins first), then by Name ascending.
     team_users = User.query.filter_by(team_id=g.user.team_id).order_by(User.role.desc(), User.name).all()
     return render_template("admin/users.html", users=team_users)
 
@@ -99,22 +100,33 @@ def profile():
 @admin_bp.route("/settings", methods=["GET", "POST"])
 @admin_required
 def settings():
-    """Handles team-specific feature settings."""
     from .employee import get_team_settings
     
     if request.method == 'POST':
-        setting_name = request.form.get("setting_name")
-        new_value = "TRUE" if request.form.get("setting_value") == "on" else "FALSE"
+        # --- NEW: Get lat/lon from the form ---
+        lat = request.form.get("latitude")
+        lon = request.form.get("longitude")
+        enabled = "TRUE" if request.form.get("location_enabled") == "on" else "FALSE"
+        radius = request.form.get("radius_feet")
+
+        # --- NEW: Update or create all three settings for the team ---
+        settings_map = {
+            'LocationVerificationEnabled': enabled,
+            'BuildingLatitude': lat,
+            'BuildingLongitude': lon,
+            'GeofenceRadiusFeet': radius
+        }
+
+        for name, value in settings_map.items():
+            setting = TeamSetting.query.filter_by(team_id=g.user.team_id, name=name).first()
+            if setting:
+                setting.value = value
+            else:
+                setting = TeamSetting(team_id=g.user.team_id, name=name, value=value)
+                db.session.add(setting)
         
-        setting = TeamSetting.query.filter_by(team_id=g.user.team_id, name=setting_name).first()
-        if setting:
-            setting.value = new_value
-        else:
-            setting = TeamSetting(team_id=g.user.team_id, name=setting_name, value=new_value)
-            db.session.add(setting)
         db.session.commit()
-        
-        flash(f"Setting '{setting_name}' updated successfully.", "success")
+        flash("Settings updated successfully.", "success")
         return redirect(url_for('admin.settings'))
 
     current_settings = get_team_settings(g.user.team_id)

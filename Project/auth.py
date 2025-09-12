@@ -1,7 +1,8 @@
-
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, g
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from .models import db, User, Team, TeamSetting
-from . import bcrypt
+from . import bcrypt, mail # Import mail object
+from flask_mail import Message # Import Message object
+import random
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -12,47 +13,93 @@ def home():
     if device_token:
         user = User.query.filter_by(device_token=device_token).first()
         if user:
-            # Found a returning user, start their workflow
-            from .employee import prepare_and_store_action # Import locally to avoid circular import
+            from .employee import prepare_and_store_action
             prepare_and_store_action(user)
             return redirect(url_for('employee.confirm_entry'))
-    # New user or cleared cookies, show the storefront
     return render_template("marketing/index.html")
 
 @auth_bp.route("/features")
 def features(): return render_template("marketing/features.html")
+
 @auth_bp.route("/pricing")
 def pricing(): return render_template("marketing/pricing.html")
+
 @auth_bp.route("/how-to-start")
 def how_to_start(): return render_template("marketing/how_to_start.html")
+
+@auth_bp.route("/help")
+def help_page():
+    return render_template("marketing/help.html")
 
 @auth_bp.route("/signup", methods=["GET", "POST"])
 def admin_signup():
     if request.method == 'POST':
-        name = request.form.get('name')
         email = request.form.get('email')
-        password = request.form.get('password')
-        team_name = request.form.get('team_name')
         if User.query.filter_by(email=email).first():
             flash("An account with that email already exists. Please log in.", "error")
             return redirect(url_for('auth.login'))
         
+        password = request.form.get('password')
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-        new_team = Team(name=team_name)
-        db.session.add(new_team)
-        db.session.commit()
+        verification_code = f"{random.randint(100000, 999999)}"
         
-        new_admin = User(name=name, email=email, password=hashed_password, role='Admin', team_id=new_team.id)
-        db.session.add(new_admin)
-        
-        default_setting = TeamSetting(team_id=new_team.id, name='LocationVerificationEnabled', value='TRUE')
-        db.session.add(default_setting)
-        db.session.commit()
-        
-        session['user_id'] = new_admin.id
-        flash("Your team and admin account created successfully!", "success")
-        return redirect(url_for('admin.dashboard'))
+        session['temp_signup_data'] = {
+            'name': request.form.get('name'),
+            'email': email,
+            'hashed_password': hashed_password,
+            'team_name': request.form.get('team_name'),
+            'code': verification_code
+        }
+
+        try:
+            msg = Message("Your TimeClock Verification Code", recipients=[email])
+            msg.body = f"Your verification code is: {verification_code}"
+            mail.send(msg)
+            flash("A verification code has been sent to your email.", "success")
+            return redirect(url_for('auth.verify_email'))
+        except Exception as e:
+            flash(f"Could not send email. Check server configuration. Error: {e}", "error")
+            return redirect(url_for('auth.admin_signup'))
+
     return render_template("auth/admin_signup.html")
+
+@auth_bp.route("/verify", methods=["GET", "POST"])
+def verify_email():
+    if 'temp_signup_data' not in session:
+        flash("Your session has expired. Please sign up again.", "error")
+        return redirect(url_for('auth.admin_signup'))
+
+    if request.method == 'POST':
+        submitted_code = request.form.get('code')
+        signup_data = session.get('temp_signup_data')
+
+        if submitted_code == signup_data['code']:
+            new_team = Team(name=signup_data['team_name'])
+            db.session.add(new_team)
+            db.session.commit()
+            
+            new_admin = User(
+                name=signup_data['name'], 
+                email=signup_data['email'], 
+                password=signup_data['hashed_password'], 
+                role='Admin', 
+                team_id=new_team.id
+            )
+            db.session.add(new_admin)
+            
+            default_setting = TeamSetting(team_id=new_team.id, name='LocationVerificationEnabled', value='TRUE')
+            db.session.add(default_setting)
+            db.session.commit()
+
+            session.clear()
+            session['user_id'] = new_admin.id
+            flash("Email verified! Your team and account are now active.", "success")
+            return redirect(url_for('admin.dashboard'))
+        else:
+            flash("Incorrect verification code. Please try again.", "error")
+            return redirect(url_for('auth.verify_email'))
+            
+    return render_template("auth/verify_email.html", email=session['temp_signup_data']['email'])
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
@@ -65,8 +112,7 @@ def login():
             if user.role == 'Admin':
                 return redirect(url_for('admin.dashboard'))
             else:
-                # FUTURE: redirect to an employee dashboard
-                return redirect(url_for('auth.home'))
+                return redirect(url_for('employee.dashboard')) # Updated employee dashboard link
         else:
             flash("Invalid email or password. Please try again.", "error")
     return render_template("auth/login.html")

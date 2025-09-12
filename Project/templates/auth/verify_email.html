@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Verify Your Email</title>
+    <style>.gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }</style>
+</head>
+<body class="gradient-bg min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl w-full max-w-sm">
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Check Your Email</h1>
+            <p class="text-gray-600 mt-2">We sent a 6-digit verification code to <strong>{{ email }}</strong>.</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="p-3 mb-4 rounded-lg text-sm {{ 'bg-green-100 text-green-800' if 'success' in categories else 'bg-red-100 text-red-700' }}">
+                    {% for category, message in messages %}{{ message }}{% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form action="{{ url_for('auth.verify_email') }}" method="POST" class="space-y-4">
+            <div>
+                <label for="code" class="block text-sm text-left font-medium text-gray-700">Verification Code</label>
+                <input id="code" name="code" type="text" inputmode="numeric" maxlength="6" required class="mt-1 w-full p-3 text-center text-2xl tracking-[.5em] border border-gray-300 rounded-xl">
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-xl !mt-6">Verify</button>
+        </form>
+        <p class="text-center text-gray-600 mt-6 text-sm">
+            Didn't get a code? 
+            <a href="{{ url_for('auth.admin_signup') }}" class="font-medium text-blue-600 hover:text-blue-500">Go back and try again</a>
+        </p>
+    </div>
+</body>
+</html>

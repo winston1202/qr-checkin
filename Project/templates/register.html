@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Confirm Your Name</title>
+</head>
+<body style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);" class="min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md">
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Confirm Your Name</h1>
+            <p class="mt-4 text-lg text-gray-700">You are about to register this device to the name:</p>
+            <p class="text-2xl font-bold my-2" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">{{ new_name }}</p>
+            <p class="text-gray-600">Is this correct?</p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <form action="{{ url_for('employee.register') }}" method="POST">
+                <input type="hidden" name="choice" value="yes">
+                <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-6 rounded-xl">Yes, Continue</button>
+            </form>
+            <form action="{{ url_for('employee.register') }}" method="POST">
+                <input type="hidden" name="choice" value="no">
+                <button type="submit" class="w-full bg-red-600 text-white font-bold py-3 px-6 rounded-xl">No, Go Back</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
