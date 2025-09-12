@@ -216,3 +216,21 @@ def api_dashboard_data():
     currently_in = TimeLog.query.filter(TimeLog.team_id == g.user.team_id, TimeLog.date == today_date, TimeLog.clock_out == None).all()
     data = [{'Name': log.user.name, 'Clock In': log.clock_in, 'id': log.id} for log in currently_in]
     return jsonify(data)
+
+@admin_bp.route("/fix_clock_out/<int:log_id>", methods=["POST"])
+@admin_required
+def fix_clock_out(log_id):
+    """
+    Allows an admin to manually clock out a user from the dashboard.
+    This is called by the real-time update script.
+    """
+    # Find the log entry, but only if it belongs to the admin's team (for security)
+    log_entry = TimeLog.query.filter_by(id=log_id, team_id=g.user.team_id).first()
+    
+    if log_entry:
+        log_entry.clock_out = datetime.now(pytz.timezone("America/Chicago")).strftime("%I:%M:%S %p")
+        db.session.commit()
+        # No flash message needed, as the dashboard will update automatically
+    
+    # Redirect back to the dashboard, which will refresh with the new data
+    return redirect(url_for('admin.dashboard'))
