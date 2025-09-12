@@ -5,23 +5,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <title>Location Failed</title>
-    <style>.gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }</style>
+    <style>
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-enter { animation: bounceIn 0.8s ease-out; }
+        @keyframes bounceIn { 0% { opacity: 0; transform: scale(0.3); } 50% { opacity: 1; transform: scale(1.05); } 70% { transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
+        
+        .btn-try-again {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            transition: all 0.4s;
+            animation: pulse-orange 2s infinite;
+        }
+        .btn-try-again:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 15px 35px rgba(245, 158, 11, 0.4);
+        }
+        @keyframes pulse-orange {
+            0%, 100% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.4); }
+            50% { box-shadow: 0 0 30px rgba(245, 158, 11, 0.7); }
+        }
+    </style>
 </head>
 <body class="gradient-bg min-h-screen flex items-center justify-center p-4">
-    <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md">
+    <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center w-full max-w-md card-enter">
         <div class="mb-6">
             <div class="w-20 h-20 bg-gradient-to-r from-red-500 to-red-600 rounded-full mx-auto mb-4 flex items-center justify-center">
                 <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             </div>
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Location Verification Failed</h1>
         </div>
+        
         <div class="mb-8">
-            <p class="text-lg text-gray-700 leading-relaxed">{{ message | safe }}</p>
-            <p class="text-gray-600 mt-4">Please return to the home page to try again.</p>
+            <p class="text-lg text-gray-700 leading-relaxed">
+                {{ message | safe }}
+            </p>
+            <p class="text-gray-600 mt-4">
+                Please move closer to the building, ensure location services are enabled, and try again.
+            </p>
         </div>
+
         <div class="mt-8">
-            <a href="{{ url_for('auth.home') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-xl shadow-lg inline-flex items-center text-xl">
-                Try Again
+            <!-- === THIS IS THE FIX: The link now points to the start of the confirmation workflow === -->
+            <a href="{{ url_for('employee.confirm_entry') }}" 
+               class="btn-try-again text-white font-bold px-8 py-4 rounded-xl shadow-lg hover:shadow-xl inline-flex items-center text-xl">
+                <span class="flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 12a8 8 0 018-8v0a8 8 0 018 8v0a8 8 0 01-8 8v0a8 8 0 01-8-8v0z"></path></svg>
+                    Try Again
+                </span>
             </a>
         </div>
     </div>
