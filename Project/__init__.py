@@ -43,9 +43,11 @@ def create_app():
         from . import auth
         from . import employee
         from . import admin
+        from . import super_admin
         app.register_blueprint(auth.auth_bp)
         app.register_blueprint(employee.employee_bp)
         app.register_blueprint(admin.admin_bp)
+        app.register_blueprint(super_admin.super_admin_bp)
         
         db.create_all()
 

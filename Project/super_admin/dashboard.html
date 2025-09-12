@@ -1,0 +1,68 @@
+{% extends "admin/base_layout.html" %}
+
+{% block title %}Super Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- System Stats -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold mb-4 border-b pb-2">System Overview</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div>
+                <p class="text-3xl font-bold text-blue-600">{{ stats.total_teams }}</p>
+                <p class="text-sm text-gray-500">Total Teams</p>
+            </div>
+            <div>
+                <p class="text-3xl font-bold text-blue-600">{{ stats.total_users }}</p>
+                <p class="text-sm text-gray-500">Total Users</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Team Management Table -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold mb-4 border-b pb-2">All Teams</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm min-w-[800px]">
+                <thead>
+                    <tr class="border-b">
+                        <th class="py-2">Team Name</th>
+                        <th class="py-2">Admin</th>
+                        <th class="py-2">User Count</th>
+                        <th class="py-2">Geofence Settings</th>
+                        <th class="py-2 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for data in teams_data %}
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="py-3 font-medium">{{ data.team.name }}</td>
+                        <td class="py-3 text-gray-500">
+                            {% if data.admin %}
+                                {{ data.admin.name }} <br> <span class="text-xs">{{ data.admin.email }}</span>
+                            {% else %}
+                                <span class="text-red-500">No Admin</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 text-center">{{ data.user_count }}</td>
+                        <td class="py-3 text-gray-500 text-xs">
+                            <strong>Enabled:</strong> {{ data.settings.get('LocationVerificationEnabled', 'N/A') }} <br>
+                            <strong>Lat:</strong> {{ data.settings.get('BuildingLatitude', 'Default') }} <br>
+                            <strong>Lon:</strong> {{ data.settings.get('BuildingLongitude', 'Default') }} <br>
+                            <strong>Radius:</strong> {{ data.settings.get('GeofenceRadiusFeet', '500') }} ft
+                        </td>
+                        <td class="py-3 text-right">
+                            <form action="{{ url_for('super_admin.delete_team', team_id=data.team.id) }}" method="POST" onsubmit="return confirm('WARNING: This will permanently delete the team \'{{ data.team.name }}\' and all of its users and time logs. Are you sure?');">
+                                <button type="submit" class="text-red-600 hover:text-red-800 font-semibold">Delete Team</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="py-4 text-center text-gray-500">No teams have been created yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
