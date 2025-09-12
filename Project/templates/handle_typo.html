@@ -21,14 +21,19 @@
             <p class="text-gray-600">Are you this person?</p>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <form action="{{ url_for('auth.handle_typo') }}" method="POST">
+            
+            <!-- === THIS IS THE FIX: url_for now points to 'employee.handle_typo' === -->
+            <form action="{{ url_for('employee.handle_typo') }}" method="POST">
                 <input type="hidden" name="choice" value="yes">
                 <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-6 rounded-xl">Yes, that's me</button>
             </form>
-            <form action="{{ url_for('auth.handle_typo') }}" method="POST">
+            
+            <!-- === THIS IS THE FIX: url_for now points to 'employee.handle_typo' === -->
+            <form action="{{ url_for('employee.handle_typo') }}" method="POST">
                 <input type="hidden" name="choice" value="no">
                 <button type="submit" class="w-full bg-red-600 text-white font-bold py-3 px-6 rounded-xl">No, that's not me</button>
             </form>
+
         </div>
     </div>
 </body>
