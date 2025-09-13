@@ -63,22 +63,41 @@ def scan():
             flash("You must use a valid invitation link to join a team.", "error")
             return redirect(url_for('auth.home'))
 
+        # Scenario 1: Is this a returning user on a recognized device?
         user_by_token = User.query.filter_by(device_token=device_token).first()
         if user_by_token:
+            # If the name they entered is different, it might be a typo.
             if user_by_token.name.lower() != name.lower():
                 session['typo_conflict'] = {'correct_name': user_by_token.name}
                 return redirect(url_for('employee.handle_typo'))
+            # Otherwise, proceed directly.
             prepare_and_store_action(user_by_token)
             return redirect(url_for('employee.confirm_entry'))
-        else:
-            user_by_name = User.query.filter_by(name=name, team_id=team_id).first()
-            if user_by_name and user_by_name.device_token:
+
+        # --- THIS IS THE NEW, CRITICAL LOGIC ---
+        # Scenario 2: The device is not recognized. Let's check the name.
+        user_by_name = User.query.filter_by(name=name, team_id=team_id).first()
+        
+        # Case 2a: The user exists by name.
+        if user_by_name:
+            # Security Check: If that name is already tied to a *different* device, block it.
+            if user_by_name.device_token:
                 flash(f"<strong>Security Alert:</strong> The name <strong>{name}</strong> is already registered to a different device. An admin must clear their token before you can use this name on a new device.", "error")
                 return redirect(url_for('employee.scan'))
-            
+            # Success Case: The name exists and is free. Register this new device to them.
+            else:
+                user_by_name.device_token = device_token
+                db.session.commit()
+                prepare_and_store_action(user_by_name)
+                return redirect(url_for('employee.confirm_entry'))
+        
+        # Case 2b: The user does not exist by name. They are brand new.
+        else:
             session['new_user_registration'] = {'name': name}
             return redirect(url_for('employee.register'))
+        # --- END OF NEW LOGIC ---
 
+    # For the GET request
     return render_template("scan.html", team_name=session.get('join_team_name'), admin_name=session.get('join_admin_name'))
 
 @employee_bp.route("/register", methods=["GET", "POST"])
