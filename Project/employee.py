@@ -42,9 +42,25 @@ def prepare_and_store_action(user):
         action_type = 'Already Clocked Out'
     session['pending_action'] = {'user_id': user.id, 'action_type': action_type}
 
-# --- Employee Routes ---
 @employee_bp.route("/join/<join_token>")
 def join_team(join_token):
+    """
+    Handles the team invitation link.
+    If the user's device is already recognized, it redirects them to their
+    clock-in/out workflow. Otherwise, it sets them up to join the new team.
+    """
+    # --- THIS IS THE NEW LOGIC ---
+    # First, check if this is a returning employee on a recognized device.
+    device_token = request.cookies.get('device_token')
+    if device_token:
+        user = User.query.filter_by(device_token=device_token).first()
+        if user:
+            # The device is known, so start the clock-in/out flow immediately.
+            prepare_and_store_action(user)
+            return redirect(url_for('employee.confirm_entry'))
+    # --- END OF NEW LOGIC ---
+
+    # If the device is not recognized, proceed with the original new-user flow.
     team = Team.query.filter_by(join_token=join_token).first_or_404()
     session['join_team_id'] = team.id
     session['join_team_name'] = team.name
@@ -127,20 +143,22 @@ def register():
             return redirect(url_for('employee.scan'))
     return render_template("register.html", new_name=reg_data['name'])
 
-@employee_bp.route("/handle_typo", methods=["GET", "POST"])
+@employee_bp.route("/handle_typo")
 def handle_typo():
+    """
+    Displays a security alert page when a device is already registered
+    to a different user name than the one provided.
+    """
+    # Get the conflicting name from the session. If it's not there, just redirect.
     conflict = session.get('typo_conflict')
-    if not conflict: return redirect(url_for('employee.scan'))
-    if request.method == 'POST':
-        choice = request.form.get('choice')
-        session.pop('typo_conflict', None)
-        if choice == 'yes':
-            user = User.query.filter_by(name=conflict['correct_name']).first()
-            if user:
-                prepare_and_store_action(user)
-                return redirect(url_for('employee.confirm_entry'))
+    if not conflict:
         return redirect(url_for('employee.scan'))
-    return render_template("handle_typo.html", correct_name=conflict['correct_name'])
+    
+    # We've shown the message, so we can clear the session data now.
+    correct_name = session.pop('typo_conflict', {}).get('correct_name', 'another user')
+    
+    # Render the informational alert page.
+    return render_template("handle_typo.html", correct_name=correct_name)
 
 @employee_bp.route("/enable_location")
 def enable_location():
