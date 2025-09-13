@@ -23,13 +23,16 @@
             <p class="text-lg text-gray-700 mt-2">You are about to <strong>{{ action_type }}</strong> for <strong>{{ worker_name }}</strong>.</p>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <!-- === THIS IS THE FIX: The link now correctly points to the 'employee' blueprint === -->
-            <form action="{{ url_for('employee.execute_action') }}" method="POST" class="w-full">
-                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl transition">Yes, Confirm</button>
+        <!-- === THIS IS THE MODIFIED SECTION === -->
+        <div class="mt-8 flex justify-center">
+            <form action="{{ url_for('employee.execute_action') }}" method="POST" class="w-full max-w-xs">
+                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl transition">
+                    Yes, Confirm
+                </button>
             </form>
-            <a href="{{ url_for('employee.scan') }}" class="w-full block bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition">No, Cancel</a>
         </div>
+        <!-- === END OF MODIFIED SECTION === -->
+
     </div>
 </body>
 </html>
