@@ -28,30 +28,14 @@ def get_team_settings(team_id):
     settings.setdefault('LocationVerificationEnabled', 'TRUE')
     return settings
 
-# In project/employee.py
-
 def prepare_and_store_action(user):
     now = datetime.now(pytz.timezone("America/Chicago"))
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
-    
-    # === THIS IS THE NEW, SMARTER LOGIC ===
-    # 1. Find the single most recent log entry for this user today.
-    last_log_today = TimeLog.query.filter_by(user_id=user.id, date=today_date).order_by(TimeLog.id.desc()).first()
-    
-    action_type = 'Clock In' # Default action is always to clock in.
-
-    if last_log_today:
-        # If a log for today exists, check its status.
-        if last_log_today.clock_out is None:
-            # The last entry is still open, so the user needs to clock out.
-            action_type = 'Clock Out'
-        else:
-            # The last entry is closed, so the user is starting a new shift.
-            # The action remains 'Clock In'.
-            pass
-            
-    # If no log exists for today, the default 'Clock In' is correct.
-    
+    log_entry = TimeLog.query.filter_by(user_id=user.id, date=today_date, clock_out=None).first()
+    already_clocked_out = TimeLog.query.filter(TimeLog.user_id == user.id, TimeLog.date == today_date, TimeLog.clock_out != None).first()
+    action_type = 'Clock Out' if log_entry else 'Clock In'
+    if already_clocked_out:
+        action_type = 'Already Clocked Out'
     session['pending_action'] = {'user_id': user.id, 'action_type': action_type}
 
 # --- Employee Routes ---
