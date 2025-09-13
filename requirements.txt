@@ -12,3 +12,4 @@ Jinja2
 MarkupSafe
 Werkzeug
 Flask-Mail
+python-dotenv
