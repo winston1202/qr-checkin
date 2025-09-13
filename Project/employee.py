@@ -172,7 +172,23 @@ def execute_action():
 def success():
     user_id = request.args.get('user_id')
     user = User.query.get(user_id) if user_id else None
-    return render_template("success.html", status_type=request.args.get('status'), worker_name=request.args.get('name'), user=user)
+
+    if not user:
+        # If we can't identify the user, we can't show a status.
+        return redirect(url_for('auth.home'))
+
+    # === THIS IS THE FIX: Re-check the user's real-time status ===
+    # We run the prepare action again to get the absolute latest status from the database.
+    prepare_and_store_action(user)
+    action_data = session.pop('pending_action') # Get the fresh data
+    
+    # The 'status_type' is now the REAL, current status, not the old one from the URL.
+    status_type = action_data['action_type'].lower().replace(' ', '_')
+
+    return render_template("success.html", 
+                           status_type=status_type, 
+                           worker_name=user.name, 
+                           user=user)
 
 @employee_bp.route("/quick_clock_out", methods=["POST"])
 def quick_clock_out():
