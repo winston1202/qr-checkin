@@ -259,3 +259,21 @@ def fix_clock_out(log_id):
     
     # Redirect back to the dashboard, which will refresh with the new data
     return redirect(url_for('admin.dashboard'))
+
+@admin_bp.route("/time_log/delete/<int:log_id>", methods=["POST"])
+@admin_required
+def delete_time_log(log_id):
+    """Deletes a specific time log entry."""
+    
+    # Find the log entry. Crucially, we also check that it belongs to the admin's team.
+    # This prevents an admin from one team from deleting another team's data.
+    log_entry = TimeLog.query.filter_by(id=log_id, team_id=g.user.team_id).first_or_404()
+    
+    # If the log is found and belongs to the team, delete it.
+    db.session.delete(log_entry)
+    db.session.commit()
+    
+    flash("Time log entry has been successfully deleted.", "success")
+    
+    # Redirect back to the time log page.
+    return redirect(url_for('admin.time_log'))

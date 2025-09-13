@@ -35,40 +35,56 @@
         </div>
     </form>
 
-    <!-- Log Table with Sortable Headers -->
-    <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm min-w-[600px]">
-            <thead>
-                <tr class="border-b">
-                    {% set columns = [('Name', 'user_name'), ('Date', 'date'), ('Clock In', 'clock_in'), ('Clock Out', 'clock_out')] %}
-                    {% for display, col_name in columns %}
-                        {% set new_order = 'asc' if sort_by == col_name and sort_order == 'desc' else 'desc' %}
-                        <th class="py-2">
-                            <a href="{{ url_for('admin.time_log', name=filter_name, date=filter_date, sort_by=col_name, sort_order=new_order) }}" class="flex items-center gap-2 hover:text-blue-600">
-                                {{ display }}
-                                {% if sort_by == col_name %}
-                                    {% if sort_order == 'asc' %}<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
-                                    {% else %}<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>{% endif %}
-                                {% endif %}
-                            </a>
-                        </th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for log in logs %}
-                <tr class="border-b hover:bg-gray-50">
-                    <td class="py-2">{{ log.user.name }}</td>
-                    <td class="py-2">{{ log.date }}</td>
-                    <td class="py-2">{{ log.clock_in }}</td>
-                    <td class="py-2">{{ log.clock_out or 'N/A' }}</td>
-                </tr>
-                {% else %}
-                <tr><td colspan="4" class="py-4 text-center text-gray-500">No records found.</td></tr>
+<!-- In app/Project/templates/admin/time_log.html -->
+
+<div class="overflow-x-auto">
+    <table class="w-full text-left text-sm min-w-[600px]">
+        <thead>
+            <tr class="border-b">
+                {% set columns = [('Name', 'user_name'), ('Date', 'date'), ('Clock In', 'clock_in'), ('Clock Out', 'clock_out')] %}
+                {% for display, col_name in columns %}
+                    {% set new_order = 'asc' if sort_by == col_name and sort_order == 'desc' else 'desc' %}
+                    <th class="py-2">
+                        <a href="{{ url_for('admin.time_log', name=filter_name, date=filter_date, sort_by=col_name, sort_order=new_order) }}" class="flex items-center gap-2 hover:text-blue-600">
+                            {{ display }}
+                            {% if sort_by == col_name %}
+                                {% if sort_order == 'asc' %}<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+                                {% else %}<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>{% endif %}
+                            {% endif %}
+                        </a>
+                    </th>
                 {% endfor %}
-            </tbody>
-        </table>
-    </div>
+                
+                <!-- NEW: Add a header for the Actions column -->
+                <th class="py-2 text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr class="border-b hover:bg-gray-50">
+                <td class="py-2">{{ log.user.name }}</td>
+                <td class="py-2">{{ log.date }}</td>
+                <td class="py-2">{{ log.clock_in }}</td>
+                <td class="py-2">{{ log.clock_out or 'N/A' }}</td>
+
+                <!-- NEW: Add the cell with the Delete button form -->
+                <td class="py-2 text-right">
+                    <form 
+                        action="{{ url_for('admin.delete_time_log', log_id=log.id) }}" 
+                        method="POST" 
+                        onsubmit="return confirm('Are you sure you want to permanently delete this entry?');"
+                    >
+                        <button type="submit" class="font-semibold text-red-600 hover:text-red-800">
+                            Delete
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="py-4 text-center text-gray-500">No records found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 
 <!-- Export Modal Window -->
