@@ -38,6 +38,14 @@ def create_app():
         def load_logged_in_user():
             user_id = session.get('user_id')
             g.user = models.User.query.get(user_id) if user_id else None
+            
+            # --- THIS IS THE FIX ---
+            # Now, we check for Super Admin status every time a user is loaded.
+            if g.user and g.user.email:
+                super_admin_email = os.environ.get('SUPER_ADMIN_USERNAME')
+                g.is_super_admin = (g.user.email == super_admin_email)
+            else:
+                g.is_super_admin = False
 
         # Import and register blueprints
         from . import auth
