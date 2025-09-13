@@ -21,24 +21,50 @@
                         <span class="block text-gray-500">{{ user.email or 'N/A' }}</span>
                         <span class="px-2 py-1 text-xs rounded-full {{ 'bg-blue-100 text-blue-800' if user.role == 'Admin' else 'bg-gray-100 text-gray-800' }}">{{ user.role }}</span>
                     </td>
-                    <!-- === THIS IS THE FIX: Displays the user's device token === -->
                     <td class="py-3 font-mono text-xs text-gray-500">{{ user.device_token or 'None' }}</td>
+                    
+                    <!-- === THIS IS THE MODIFIED SECTION === -->
                     <td class="py-3 text-right">
                         {% if user.id != g.user.id %}
                         <div class="flex justify-end items-center gap-4">
+                            
+                            <!-- Clear Token Form -->
                             <form action="{{ url_for('admin.clear_user_token', user_id=user.id) }}" method="POST" onsubmit="return confirm('Clear token for {{ user.name }}?');">
-                                <button type="submit" class="text-blue-600 font-semibold">Clear Token</button>
+                                <button type="submit" class="text-blue-600 font-semibold hover:text-blue-800">Clear Token</button>
                             </form>
+
+                            <!-- Promote/Demote Form with new logic -->
                             <form action="{{ url_for('admin.set_user_role', user_id=user.id) }}" method="POST">
-                                {% if user.role == 'User' %}<input type="hidden" name="role" value="Admin"><button type="submit" class="text-green-600 font-semibold">Promote</button>
-                                {% else %}<input type="hidden" name="role" value="User"><button type="submit" class="text-yellow-600 font-semibold">Demote</button>{% endif %}
+                                {% if user.role == 'User' %}
+                                    
+                                    <!-- Check if user has an email before allowing promotion -->
+                                    {% if user.email %}
+                                        <input type="hidden" name="role" value="Admin">
+                                        <button type="submit" class="text-green-600 font-semibold hover:text-green-800">Promote</button>
+                                    {% else %}
+                                        <!-- If no email, show a disabled button with a helpful tip -->
+                                        <button type="button" class="text-gray-400 font-semibold cursor-not-allowed" title="User must create an account first">Promote</button>
+                                    {% endif %}
+
+                                {% else %}
+                                    <!-- Demote button remains the same -->
+                                    <input type="hidden" name="role" value="User">
+                                    <button type="submit" class="text-yellow-600 font-semibold hover:text-yellow-800">Demote</button>
+                                {% endif %}
                             </form>
+
+                            <!-- Delete Form -->
                             <form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="POST" onsubmit="return confirm('WARNING: Delete {{ user.name }} permanently?');">
-                                <button type="submit" class="text-red-600 font-semibold">Delete</button>
+                                <button type="submit" class="text-red-600 font-semibold hover:text-red-800">Delete</button>
                             </form>
+
                         </div>
-                        {% else %}<span class="text-xs text-gray-400">(This is you)</span>{% endif %}
+                        {% else %}
+                            <span class="text-xs text-gray-400">(This is you)</span>
+                        {% endif %}
                     </td>
+                    <!-- === END OF MODIFIED SECTION === -->
+
                 </tr>
                 {% endfor %}
             </tbody>

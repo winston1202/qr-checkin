@@ -202,14 +202,27 @@ def print_view():
 @admin_required
 def set_user_role(user_id):
     target_user = User.query.filter_by(id=user_id, team_id=g.user.team_id).first_or_404()
+    
     if target_user.id == g.user.id:
         flash("You cannot change your own role.", "error")
-    else:
-        new_role = request.form.get('role')
-        if new_role in ['Admin', 'User']:
-            target_user.role = new_role
-            db.session.commit()
-            flash(f"{target_user.name}'s role has been updated to {new_role}.", "success")
+        return redirect(url_for('admin.users'))
+
+    new_role = request.form.get('role')
+    
+    # --- NEW LOGIC BLOCK ---
+    # If we are trying to promote the user to 'Admin'...
+    if new_role == 'Admin':
+        # ...but they don't have an email, block the action.
+        if not target_user.email:
+            flash(f"Cannot promote {target_user.name}. They must create an account with an email and password first.", "error")
+            return redirect(url_for('admin.users'))
+    # --- END NEW LOGIC BLOCK ---
+
+    if new_role in ['Admin', 'User']:
+        target_user.role = new_role
+        db.session.commit()
+        flash(f"{target_user.name}'s role has been updated to {new_role}.", "success")
+        
     return redirect(url_for('admin.users'))
 
 @admin_bp.route("/users/delete/<int:user_id>", methods=["POST"])
