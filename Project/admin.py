@@ -5,6 +5,7 @@ from datetime import datetime
 import pytz
 import csv
 import io
+import os
 
 # A SINGLE blueprint for ALL admin routes, prefixed with /admin
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -32,7 +33,12 @@ def dashboard():
         TimeLog.clock_out == None
     ).all()
     
-    user_count = User.query.filter_by(team_id=g.user.team_id).count()
+    # --- MODIFIED LINE ---
+    # Exclude the Super Admin from the team's user count
+    super_admin_email = os.environ.get('SUPER_ADMIN_USERNAME')
+    user_count = User.query.filter(User.team_id == g.user.team_id, User.email != super_admin_email).count()
+    # --- END MODIFIED ---
+
     join_link = url_for('employee.join_team', join_token=g.user.team.join_token, _external=True)
 
     return render_template("admin/dashboard.html", currently_in=currently_in, join_link=join_link, user_count=user_count)
@@ -80,8 +86,15 @@ def time_log():
 @admin_required
 def users():
     """Displays the user management page."""
-    # This new query sorts by Role descending (Admins first), then by Name ascending.
-    team_users = User.query.filter_by(team_id=g.user.team_id).order_by(User.role.desc(), User.name).all()
+    # --- MODIFIED QUERY ---
+    # This query now filters out the Super Admin's email address
+    super_admin_email = os.environ.get('SUPER_ADMIN_USERNAME')
+    team_users = User.query.filter(
+        User.team_id == g.user.team_id, 
+        User.email != super_admin_email
+    ).order_by(User.role.desc(), User.name).all()
+    # --- END MODIFIED ---
+    
     return render_template("admin/users.html", users=team_users)
 
 @admin_bp.route("/profile", methods=["GET", "POST"])

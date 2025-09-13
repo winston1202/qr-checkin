@@ -3,6 +3,7 @@ from .models import db, User, Team, TeamSetting
 from . import bcrypt, mail # Import mail object
 from flask_mail import Message # Import Message object
 import random
+import os
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -107,16 +108,28 @@ def login():
         email = request.form.get('email')
         password = request.form.get('password')
         user = User.query.filter_by(email=email).first()
+
         if user and user.password and bcrypt.check_password_hash(user.password, password):
             session['user_id'] = user.id
+
+            # --- NEW: Super Admin Check ---
+            # Get the Super Admin email from environment variables
+            super_admin_email = os.environ.get('SUPER_ADMIN_USERNAME')
+
+            # If the logged-in user is the Super Admin, redirect them immediately
+            if user.email == super_admin_email:
+                return redirect(url_for('super_admin.dashboard'))
+            # --- END NEW ---
+
+            # Otherwise, proceed with the normal redirect logic
             if user.role == 'Admin':
                 return redirect(url_for('admin.dashboard'))
             else:
-                return redirect(url_for('employee.dashboard')) # Updated employee dashboard link
+                return redirect(url_for('employee.dashboard'))
         else:
             flash("Invalid email or password. Please try again.", "error")
+            
     return render_template("auth/login.html")
-
 @auth_bp.route("/logout")
 def logout():
     session.clear()
