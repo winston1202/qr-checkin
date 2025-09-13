@@ -29,7 +29,6 @@
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Identity Check</h1>
             <div class="w-16 h-1 bg-gradient-to-r from-blue-500 to-purple-600 mx-auto rounded-full"></div>
         </div>
-        
         <div class="mb-8">
             <p class="text-lg text-gray-700 leading-relaxed mb-4">This device is registered to</p>
             <div class="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-xl mb-4">
@@ -38,7 +37,7 @@
             <p class="text-gray-600 text-lg font-medium">Are you this person?</p>
         </div>
         
-        <!-- === THIS IS THE FIX: The buttons are now in a CSS Grid and have the processing state === -->
+        <!-- === THIS IS THE FIX: Using CSS Grid and the two-state button === -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <form action="{{ url_for('employee.handle_typo') }}" method="POST">
                 <input type="hidden" name="choice" value="yes">

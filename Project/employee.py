@@ -1,10 +1,10 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from .models import db, User, Team, TimeLog, TeamSetting
+from . import bcrypt
 from datetime import datetime
 import pytz
 from math import radians, sin, cos, sqrt, atan2
 import os
-import bcrypt
 
 employee_bp = Blueprint('employee', __name__)
 
@@ -53,21 +53,27 @@ def scan():
     if request.method == 'POST':
         name = f"{request.form.get('first_name', '').strip()} {request.form.get('last_name', '').strip()}"
         device_token = request.cookies.get('device_token')
+        team_id = session.get('join_team_id')
+
+        if not team_id:
+            flash("You must use a valid invitation link to join a team.", "error")
+            return redirect(url_for('auth.home'))
 
         user_by_token = User.query.filter_by(device_token=device_token).first()
-        if user_by_token and user_by_token.name.lower() != name.lower():
-            session['typo_conflict'] = {'correct_name': user_by_token.name}
-            return redirect(url_for('employee.handle_typo'))
-
-        team_id = session.get('join_team_id')
-        user_by_name_and_team = User.query.filter_by(name=name, team_id=team_id).first() if team_id else None
-        
-        if user_by_name_and_team and user_by_name_and_team.device_token and user_by_name_and_team.device_token != device_token:
-            flash(f"The name <strong>{name}</strong> is already registered to another device.", "error")
-            return redirect(url_for('employee.scan'))
-        
-        session['new_user_registration'] = {'name': name}
-        return redirect(url_for('employee.register'))
+        if user_by_token:
+            if user_by_token.name.lower() != name.lower():
+                session['typo_conflict'] = {'correct_name': user_by_token.name}
+                return redirect(url_for('employee.handle_typo'))
+            prepare_and_store_action(user_by_token)
+            return redirect(url_for('employee.confirm_entry'))
+        else:
+            user_by_name = User.query.filter_by(name=name, team_id=team_id).first()
+            if user_by_name and user_by_name.device_token:
+                flash(f"<strong>Security Alert:</strong> The name <strong>{name}</strong> is already registered to a different device. An admin must clear their token before you can use this name on a new device.", "error")
+                return redirect(url_for('employee.scan'))
+            
+            session['new_user_registration'] = {'name': name}
+            return redirect(url_for('employee.register'))
 
     return render_template("scan.html", team_name=session.get('join_team_name'), admin_name=session.get('join_admin_name'))
 
@@ -132,13 +138,14 @@ def confirm_entry():
         return redirect(url_for('employee.enable_location'))
     if location_check_required:
         try:
-            building_lat = float(os.environ.get("BUILDING_LATITUDE"))
-            building_lon = float(os.environ.get("BUILDING_LONGITUDE"))
+            building_lat = float(settings.get('BuildingLatitude') or os.environ.get("BUILDING_LATITUDE"))
+            building_lon = float(settings.get('BuildingLongitude') or os.environ.get("BUILDING_LONGITUDE"))
+            allowed_radius_feet = int(settings.get('GeofenceRadiusFeet') or 500)
             distance = calculate_distance(building_lat, building_lon, float(user_lat_str), float(request.args.get('lon')))
-            if (distance * 3.28084) > 500:
-                return redirect(url_for('employee.location_failed', message="You are too far away."))
-        except (TypeError, ValueError):
-            return redirect(url_for('employee.location_failed', message="Configuration error."))
+            if (distance * 3.28084) > allowed_radius_feet:
+                return redirect(url_for('employee.location_failed', message=f"You are too far away. You must be within {allowed_radius_feet} feet."))
+        except (TypeError, ValueError, AttributeError):
+            return redirect(url_for('employee.location_failed', message="Could not verify location due to a configuration error."))
     return render_template("confirm.html", action_type=action_data['action_type'], worker_name=user.name, location_verified=location_check_required)
 
 @employee_bp.route("/execute_action", methods=["POST"])
@@ -149,26 +156,23 @@ def execute_action():
     now = datetime.now(pytz.timezone("America/Chicago"))
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
     current_time = now.strftime("%I:%M:%S %p")
+    status_type = ''
     if action_data['action_type'] == 'Clock Out':
         log_entry = TimeLog.query.filter_by(user_id=user.id, date=today_date, clock_out=None).first()
         if log_entry: log_entry.clock_out = current_time
-        db.session.commit()
-        return redirect(url_for('employee.success', status='clock_out', name=user.name, user_id=user.id))
+        status_type = 'clock_out'
     else:
         new_log = TimeLog(user_id=user.id, team_id=user.team_id, date=today_date, clock_in=current_time)
         db.session.add(new_log)
-        db.session.commit()
-        return redirect(url_for('employee.clocked_in', name=user.name, user_id=user.id))
-
-@employee_bp.route("/clocked_in")
-def clocked_in():
-    user_id = request.args.get('user_id')
-    user = User.query.get(user_id) if user_id else None
-    return render_template("employee/clocked_in.html", worker_name=request.args.get('name'), user=user)
+        status_type = 'clock_in'
+    db.session.commit()
+    return redirect(url_for('employee.success', status=status_type, name=user.name, user_id=user.id))
 
 @employee_bp.route("/success")
 def success():
-    return render_template("success.html", status_type=request.args.get('status'), worker_name=request.args.get('name'))
+    user_id = request.args.get('user_id')
+    user = User.query.get(user_id) if user_id else None
+    return render_template("success.html", status_type=request.args.get('status'), worker_name=request.args.get('name'), user=user)
 
 @employee_bp.route("/quick_clock_out", methods=["POST"])
 def quick_clock_out():
@@ -201,3 +205,15 @@ def create_employee_account(user_id):
         flash("Your account has been created successfully! You are now logged in.", "success")
         return redirect(url_for('employee.dashboard'))
     return render_template("employee/create_account.html", user=user)
+
+@employee_bp.route("/dashboard")
+def dashboard():
+    # A simple employee dashboard - check if they are logged in
+    user_id = session.get('user_id')
+    if not user_id:
+        flash("You must be logged in to view your dashboard.", "error")
+        return redirect(url_for('auth.login'))
+    
+    user = User.query.get(user_id)
+    my_logs = TimeLog.query.filter_by(user_id=user.id).order_by(TimeLog.id.desc()).all()
+    return render_template("employee/dashboard.html", logs=my_logs, user=user)
