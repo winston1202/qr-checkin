@@ -6,6 +6,7 @@ import pytz
 import csv
 import io
 import os
+from sqlalchemy import or_
 
 # A SINGLE blueprint for ALL admin routes, prefixed with /admin
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -33,11 +34,13 @@ def dashboard():
         TimeLog.clock_out == None
     ).all()
     
-    # --- MODIFIED LINE ---
-    # Exclude the Super Admin from the team's user count
+    # --- THIS IS THE CORRECTED QUERY ---
     super_admin_email = os.environ.get('SUPER_ADMIN_USERNAME')
-    user_count = User.query.filter(User.team_id == g.user.team_id, User.email != super_admin_email).count()
-    # --- END MODIFIED ---
+    user_count = User.query.filter(
+        User.team_id == g.user.team_id,
+        or_(User.email != super_admin_email, User.email == None)
+    ).count()
+    # --- END CORRECTION ---
 
     join_link = url_for('employee.join_team', join_token=g.user.team.join_token, _external=True)
 
@@ -86,14 +89,13 @@ def time_log():
 @admin_required
 def users():
     """Displays the user management page."""
-    # --- MODIFIED QUERY ---
-    # This query now filters out the Super Admin's email address
+    # --- THIS IS THE CORRECTED QUERY ---
     super_admin_email = os.environ.get('SUPER_ADMIN_USERNAME')
     team_users = User.query.filter(
-        User.team_id == g.user.team_id, 
-        User.email != super_admin_email
+        User.team_id == g.user.team_id,
+        or_(User.email != super_admin_email, User.email == None)
     ).order_by(User.role.desc(), User.name).all()
-    # --- END MODIFIED ---
+    # --- END CORRECTION ---
     
     return render_template("admin/users.html", users=team_users)
 
