@@ -70,11 +70,16 @@ def verify_email():
         flash("Your session has expired. Please sign up again.", "error")
         return redirect(url_for('auth.admin_signup'))
 
+    # Define these once for both GET and POST
+    email = session['temp_signup_data']['email']
+    form_action_url = url_for('auth.verify_email')
+
     if request.method == 'POST':
         submitted_code = request.form.get('code')
         signup_data = session.get('temp_signup_data')
 
         if submitted_code == signup_data['code']:
+            # ... (all the user creation logic is the same) ...
             new_team = Team(name=signup_data['team_name'])
             db.session.add(new_team)
             db.session.commit()
@@ -98,9 +103,11 @@ def verify_email():
             return redirect(url_for('admin.dashboard'))
         else:
             flash("Incorrect verification code. Please try again.", "error")
-            return redirect(url_for('auth.verify_email'))
+            # Re-render the page on failure instead of redirecting
+            return render_template("auth/verify_email.html", email=email, form_action=form_action_url)
             
-    return render_template("auth/verify_email.html", email=session['temp_signup_data']['email'])
+    # For the GET request
+    return render_template("auth/verify_email.html", email=email, form_action=form_action_url)
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():

@@ -5,6 +5,10 @@ from datetime import datetime
 import pytz
 from math import radians, sin, cos, sqrt, atan2
 import os
+# At the top of app/Project/employee.py
+from . import mail  # Add mail
+from flask_mail import Message  # Add Message
+import random  # Add random
 
 employee_bp = Blueprint('employee', __name__)
 
@@ -208,18 +212,37 @@ def create_employee_account(user_id):
     if user.email:
         flash("This user already has a registered account.", "error")
         return redirect(url_for('auth.home'))
+
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
+
         if User.query.filter_by(email=email).first():
             flash("That email is already in use. Please choose another.", "error")
             return redirect(url_for('employee.create_employee_account', user_id=user.id))
-        user.email = email
-        user.password = bcrypt.generate_password_hash(password).decode('utf-8')
-        db.session.commit()
-        session['user_id'] = user.id
-        flash("Your account has been created successfully! You are now logged in.", "success")
-        return redirect(url_for('employee.dashboard'))
+
+        # Generate verification code and store data in session
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+        verification_code = f"{random.randint(100000, 999999)}"
+        
+        session['temp_employee_account_data'] = {
+            'user_id': user.id,
+            'email': email,
+            'hashed_password': hashed_password,
+            'code': verification_code
+        }
+
+        # Send verification email
+        try:
+            msg = Message("Your TimeClock Verification Code", recipients=[email])
+            msg.body = f"Your verification code is: {verification_code}"
+            mail.send(msg)
+            flash("A verification code has been sent to your email.", "success")
+            return redirect(url_for('employee.verify_employee_email'))
+        except Exception as e:
+            flash(f"Could not send email. Check server configuration. Error: {e}", "error")
+            return redirect(url_for('employee.create_employee_account', user_id=user.id))
+
     return render_template("employee/create_account.html", user=user)
 
 @employee_bp.route("/dashboard")
@@ -233,3 +256,37 @@ def dashboard():
     user = User.query.get(user_id)
     my_logs = TimeLog.query.filter_by(user_id=user.id).order_by(TimeLog.id.desc()).all()
     return render_template("employee/dashboard.html", logs=my_logs, user=user)
+
+@employee_bp.route("/verify_email", methods=["GET", "POST"])
+def verify_employee_email():
+    if 'temp_employee_account_data' not in session:
+        flash("Your session has expired. Please try creating your account again.", "error")
+        return redirect(url_for('auth.home'))
+
+    if request.method == 'POST':
+        submitted_code = request.form.get('code')
+        account_data = session.get('temp_employee_account_data')
+
+        if submitted_code == account_data['code']:
+            # Find the user and update their record
+            user_to_update = User.query.get(account_data['user_id'])
+            if user_to_update:
+                user_to_update.email = account_data['email']
+                user_to_update.password = account_data['hashed_password']
+                db.session.commit()
+
+                session.pop('temp_employee_account_data', None)
+                session['user_id'] = user_to_update.id
+                flash("Email verified! Your account is now active and you are logged in.", "success")
+                return redirect(url_for('employee.dashboard'))
+            else:
+                flash("Could not find user record. Please contact support.", "error")
+                return redirect(url_for('auth.home'))
+        else:
+            flash("Incorrect verification code. Please try again.", "error")
+            return redirect(url_for('employee.verify_employee_email'))
+
+    # For the GET request, prepare to render the template
+    email = session['temp_employee_account_data']['email']
+    form_action_url = url_for('employee.verify_employee_email')
+    return render_template("auth/verify_email.html", email=email, form_action=form_action_url)
