@@ -170,24 +170,24 @@ def execute_action():
 
 @employee_bp.route("/success")
 def success():
+    # Get all the necessary info directly from the URL query parameters
     user_id = request.args.get('user_id')
+    status_type = request.args.get('status')
+    worker_name = request.args.get('name')
+
+    # Find the user object so we can check if they have an email for the "Create Account" button
     user = User.query.get(user_id) if user_id else None
 
-    if not user:
-        # If we can't identify the user, we can't show a status.
+    # A simple check to ensure we have all the data we need from the URL
+    if not all([user, status_type, worker_name]):
+        flash("An unexpected error occurred. Please try again.", "error")
         return redirect(url_for('auth.home'))
 
-    # === THIS IS THE FIX: Re-check the user's real-time status ===
-    # We run the prepare action again to get the absolute latest status from the database.
-    prepare_and_store_action(user)
-    action_data = session.pop('pending_action') # Get the fresh data
-    
-    # The 'status_type' is now the REAL, current status, not the old one from the URL.
-    status_type = action_data['action_type'].lower().replace(' ', '_')
-
+    # Pass the TRUSTED status from the URL directly to the template.
+    # We no longer recalculate the action here.
     return render_template("success.html", 
                            status_type=status_type, 
-                           worker_name=user.name, 
+                           worker_name=worker_name, 
                            user=user)
 
 @employee_bp.route("/quick_clock_out", methods=["POST"])
