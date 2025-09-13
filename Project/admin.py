@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, g, make_response, redirect, url_for, flash, jsonify
-from .models import db, User, Team, TimeLog, TeamSetting
+from .models import db, User, Team, TimeLog, TeamSetting, AuditLog
 from .decorators import admin_required
 from datetime import datetime
 import pytz
@@ -292,3 +292,10 @@ def delete_time_log(log_id):
     
     # Redirect back to the time log page.
     return redirect(url_for('admin.time_log'))
+
+@admin_bp.route("/audit_log")
+@admin_required
+def audit_log():
+    """Displays a log of security-related events for the team."""
+    logs = AuditLog.query.filter_by(team_id=g.user.team_id).order_by(AuditLog.timestamp.desc()).all()
+    return render_template("admin/audit_log.html", logs=logs)

@@ -43,6 +43,10 @@
                         <!-- Navigation for Regular Admin -->
                         <a href="{{ url_for('admin.dashboard') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.dashboard' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Dashboard</a>
                         <a href="{{ url_for('admin.time_log') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.time_log' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Time Log</a>
+                        
+                        <!-- === THIS IS THE NEWLY ADDED LINK === -->
+                        <a href="{{ url_for('admin.audit_log') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.audit_log' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Audit Log</a>
+                        
                         <a href="{{ url_for('admin.users') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.users' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Users</a>
                         <a href="{{ url_for('admin.profile') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.profile' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Profile</a>
                         <a href="{{ url_for('admin.settings') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.settings' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Settings</a>

@@ -1,0 +1,39 @@
+{% extends "admin/base_layout.html" %}
+{% block title %}Security Audit Log{% endblock %}
+{% block content %}
+<div class="bg-white p-6 rounded-lg shadow-md">
+    <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Security Audit Log</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm min-w-[700px]">
+            <thead>
+                <tr class="border-b">
+                    <th class="py-2">Time</th>
+                    <th class="py-2">User</th>
+                    <th class="py-2">Event Type</th>
+                    <th class="py-2">Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="py-3 text-gray-500 whitespace-nowrap">{{ log.timestamp.strftime('%Y-%m-%d %I:%M:%S %p') }}</td>
+                    <td class="py-3 font-medium">{{ log.user.name }}</td>
+                    <td class="py-3">
+                        {% if log.event_type == 'Geofence Failure' %}
+                            <span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">{{ log.event_type }}</span>
+                        {% elif log.event_type == 'Identity Mismatch' %}
+                            <span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">{{ log.event_type }}</span>
+                        {% else %}
+                            <span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">{{ log.event_type }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-3 text-gray-600">{{ log.details }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="py-4 text-center text-gray-500">No security events have been logged for this team.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,5 +1,7 @@
 from . import db
 import uuid
+from datetime import datetime
+import pytz
 
 class Team(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -33,3 +35,13 @@ class TeamSetting(db.Model):
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False)
     name = db.Column(db.String(50), nullable=False)
     value = db.Column(db.String(50), nullable=False)
+
+class AuditLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('team.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    event_type = db.Column(db.String(100), nullable=False)
+    details = db.Column(db.String(255), nullable=True)
+    timestamp = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(pytz.timezone("America/Chicago")))
+
+    user = db.relationship('User')

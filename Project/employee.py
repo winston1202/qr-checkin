@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from .models import db, User, Team, TimeLog, TeamSetting
+from .models import db, User, Team, TimeLog, TeamSetting, AuditLog
 from . import bcrypt
 from datetime import datetime
 import pytz
@@ -84,13 +84,23 @@ def scan():
         if user_by_token:
             # If the name they entered is different, it might be a typo.
             if user_by_token.name.lower() != name.lower():
+                # --- THIS IS THE NEW LOGIC ---
+                # Log the identity mismatch event before redirecting.
+                log_entry = AuditLog(
+                    team_id=user_by_token.team_id, 
+                    user_id=user_by_token.id, 
+                    event_type="Identity Mismatch", 
+                    details=f"Attempted to use name '{name}'."
+                )
+                db.session.add(log_entry)
+                db.session.commit()
+                # --- END OF NEW LOGIC ---
                 session['typo_conflict'] = {'correct_name': user_by_token.name}
                 return redirect(url_for('employee.handle_typo'))
             # Otherwise, proceed directly.
             prepare_and_store_action(user_by_token)
             return redirect(url_for('employee.confirm_entry'))
 
-        # --- THIS IS THE NEW, CRITICAL LOGIC ---
         # Scenario 2: The device is not recognized. Let's check the name.
         user_by_name = User.query.filter_by(name=name, team_id=team_id).first()
         
@@ -111,7 +121,6 @@ def scan():
         else:
             session['new_user_registration'] = {'name': name}
             return redirect(url_for('employee.register'))
-        # --- END OF NEW LOGIC ---
 
     # For the GET request
     return render_template("scan.html", team_name=session.get('join_team_name'), admin_name=session.get('join_admin_name'))
@@ -172,21 +181,38 @@ def confirm_entry():
     user = User.query.get(action_data['user_id'])
     if action_data['action_type'] == 'Already Clocked Out':
         return redirect(url_for('employee.success', status='already_complete', name=user.name, user_id=user.id))
+    
     settings = get_team_settings(user.team_id)
     location_check_required = settings.get('LocationVerificationEnabled') == 'TRUE'
     user_lat_str = request.args.get('lat')
+    
     if location_check_required and not user_lat_str:
         return redirect(url_for('employee.enable_location'))
+        
     if location_check_required:
         try:
             building_lat = float(settings.get('BuildingLatitude') or os.environ.get("BUILDING_LATITUDE"))
             building_lon = float(settings.get('BuildingLongitude') or os.environ.get("BUILDING_LONGITUDE"))
             allowed_radius_feet = int(settings.get('GeofenceRadiusFeet') or 500)
             distance = calculate_distance(building_lat, building_lon, float(user_lat_str), float(request.args.get('lon')))
+            
             if (distance * 3.28084) > allowed_radius_feet:
+                # --- THIS IS THE NEW LOGIC ---
+                # Log the geofence failure before redirecting.
+                log_detail = f"Clock-in failed. User was {int(distance * 3.28084)} feet from the geofence center."
+                log_entry = AuditLog(
+                    team_id=user.team_id,
+                    user_id=user.id,
+                    event_type="Geofence Failure",
+                    details=log_detail
+                )
+                db.session.add(log_entry)
+                db.session.commit()
+                # --- END OF NEW LOGIC ---
                 return redirect(url_for('employee.location_failed', message=f"You are too far away. You must be within {allowed_radius_feet} feet."))
         except (TypeError, ValueError, AttributeError):
             return redirect(url_for('employee.location_failed', message="Could not verify location due to a configuration error."))
+            
     return render_template("confirm.html", action_type=action_data['action_type'], worker_name=user.name, location_verified=location_check_required)
 
 @employee_bp.route("/execute_action", methods=["POST"])
