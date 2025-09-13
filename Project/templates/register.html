@@ -35,16 +35,15 @@
             <p class="text-gray-600 text-lg font-medium">Is this correct?</p>
         </div>
         
-        <!-- === THIS IS THE FIX: Using CSS Grid and the two-state button === -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <form action="{{ url_for('employee.register') }}" method="POST">
                 <input type="hidden" name="choice" value="yes">
                 <button type="submit" class="btn-yes text-white font-bold px-8 py-4 rounded-xl w-full shadow-lg hover:shadow-xl">
-                    <span class="normal-state flex items-center justify-center">
+                    <span class="flex items-center justify-center">
                         <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                         Yes, Continue
                     </span>
-                    <span class="processing-state hidden">Processing...</span>
+                    <!-- The "Processing..." span has been removed -->
                 </button>
             </form>
             <form action="{{ url_for('employee.register') }}" method="POST">
@@ -59,24 +58,19 @@
         </div>
     </div>
     
+    <!-- The JavaScript has been simplified -->
     <script>
-        function setupFormSubmissions() {
+        document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('form').forEach(form => {
                 form.addEventListener('submit', function(event) {
+                    // Disable any submit button in the form to prevent double clicks
                     const button = form.querySelector('button[type="submit"]');
                     if (button) {
                         button.disabled = true;
-                        const normalState = button.querySelector('.normal-state');
-                        const processingState = button.querySelector('.processing-state');
-                        if (normalState && processingState) {
-                            normalState.classList.add('hidden');
-                            processingState.classList.remove('hidden');
-                        }
                     }
                 });
             });
-        }
-        document.addEventListener('DOMContentLoaded', setupFormSubmissions);
+        });
     </script>
 </body>
 </html>

@@ -217,22 +217,36 @@ def confirm_entry():
 
 @employee_bp.route("/execute_action", methods=["POST"])
 def execute_action():
-    if 'pending_action' not in session: return redirect(url_for('employee.scan'))
+    if 'pending_action' not in session: 
+        return redirect(url_for('employee.scan'))
+        
     action_data = session.pop('pending_action')
     user = User.query.get(action_data['user_id'])
+
+    # --- NEW: Add a check to ensure the user still exists ---
+    # This handles the case where an admin deleted the user mid-workflow.
+    if not user:
+        flash("This user no longer exists in the system. The action was cancelled.", "error")
+        return redirect(url_for('auth.home'))
+    # --- END OF NEW LOGIC ---
+
     now = datetime.now(pytz.timezone("America/Chicago"))
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
     current_time = now.strftime("%I:%M:%S %p")
     status_type = ''
+
     if action_data['action_type'] == 'Clock Out':
         log_entry = TimeLog.query.filter_by(user_id=user.id, date=today_date, clock_out=None).first()
-        if log_entry: log_entry.clock_out = current_time
+        if log_entry: 
+            log_entry.clock_out = current_time
         status_type = 'clock_out'
     else:
         new_log = TimeLog(user_id=user.id, team_id=user.team_id, date=today_date, clock_in=current_time)
         db.session.add(new_log)
         status_type = 'clock_in'
+        
     db.session.commit()
+    
     return redirect(url_for('employee.success', status=status_type, name=user.name, user_id=user.id))
 
 @employee_bp.route("/success")
