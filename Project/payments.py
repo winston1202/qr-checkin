@@ -70,7 +70,7 @@ def create_portal_session():
 def stripe_webhook():
     """
     Listens for events from Stripe to update the database reliably.
-    This is critical for production.
+    Handles new subscriptions and cancellations.
     """
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get('Stripe-Signature')
@@ -81,7 +81,9 @@ def stripe_webhook():
     except (ValueError, stripe.error.SignatureVerificationError) as e:
         return 'Invalid payload or signature', 400
 
-    # Handle the checkout.session.completed event
+    # --- THIS IS THE UPDATED LOGIC ---
+
+    # Handle a new subscription
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         team_id = session.get('client_reference_id')
@@ -93,14 +95,27 @@ def stripe_webhook():
             team.stripe_customer_id = customer_id
             db.session.commit()
 
-    # Handle other events like subscription cancellations
+    # Handle a subscription being scheduled for cancellation
+    if event['type'] == 'customer.subscription.updated':
+        subscription = event['data']['object']
+        # Check if the 'cancel_at_period_end' flag is now true
+        if subscription.get('cancel_at_period_end'):
+            customer_id = subscription.get('customer')
+            team = Team.query.filter_by(stripe_customer_id=customer_id).first()
+            if team:
+                team.plan = 'Free' # Downgrade them immediately in our system
+                db.session.commit()
+
+    # Handle the final deletion (good to have as a fallback)
     if event['type'] == 'customer.subscription.deleted':
-        session = event['data']['object']
-        customer_id = session.get('customer')
+        subscription = event['data']['object']
+        customer_id = subscription.get('customer')
         
         team = Team.query.filter_by(stripe_customer_id=customer_id).first()
-        if team:
+        if team and team.plan == 'Pro': # Only downgrade if they haven't been already
             team.plan = 'Free'
             db.session.commit()
+
+    # --- END OF UPDATED LOGIC ---
 
     return 'OK', 200
