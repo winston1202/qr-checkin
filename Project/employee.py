@@ -158,14 +158,17 @@ def register():
                 flash("Your session has expired. Please use the invitation link again.", "error")
                 return redirect(url_for('auth.home'))
 
-            # --- NEW: ENFORCE USER LIMITS ---
             team = Team.query.get(team_id)
-            current_user_count = User.query.filter_by(team_id=team_id).count()
             
-            if team.plan == 'Free' and current_user_count >= FREE_TIER_USER_LIMIT:
-                flash(f"The user limit of {FREE_TIER_USER_LIMIT} for the Free plan has been reached. Please upgrade to the Pro plan to add more users.", "error")
+            # --- THIS IS THE CORRECTED LOGIC ---
+            # This query now ONLY counts users with the role 'User', ignoring Admins.
+            current_employee_count = User.query.filter_by(team_id=team_id, role='User').count()
+            
+            if team.plan == 'Free' and current_employee_count >= FREE_TIER_USER_LIMIT:
+                # I also improved the error message to be more specific.
+                flash(f"The employee limit of {FREE_TIER_USER_LIMIT} for the Free plan has been reached. Please upgrade to the Pro plan to add more users.", "error")
                 return redirect(url_for('employee.scan'))
-            # --- END OF NEW LOGIC ---
+            # --- END OF CORRECTED LOGIC ---
 
             device_token = request.cookies.get('device_token')
             user = User.query.filter_by(name=name, team_id=team_id).first()
