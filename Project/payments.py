@@ -6,10 +6,6 @@ import os
 
 payments_bp = Blueprint('payments', __name__)
 
-# Configure Stripe on blueprint load
-@payments_bp.before_app_first_request
-def configure_stripe():
-    stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
 
 @payments_bp.route("/create-checkout-session", methods=["POST"])
 @admin_required

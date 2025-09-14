@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_mail import Mail # Added import
 import os
-
+import stripe
 # Initialize plugins
 db = SQLAlchemy()
 bcrypt = Bcrypt()
@@ -25,7 +25,8 @@ def create_app():
     app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
     app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
     app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME')
-
+    stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
+    
     # Initialize plugins with the app
     db.init_app(app)
     bcrypt.init_app(app)
