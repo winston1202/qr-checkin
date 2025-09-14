@@ -7,6 +7,8 @@ import os
 payments_bp = Blueprint('payments', __name__)
 
 
+# In app/Project/payments.py
+
 @payments_bp.route("/create-checkout-session", methods=["POST"])
 @admin_required
 def create_checkout_session():
@@ -16,9 +18,13 @@ def create_checkout_session():
         checkout_session = stripe.checkout.Session.create(
             line_items=[{'price': price_id, 'quantity': 1}],
             mode='subscription',
+            
+            # --- THIS IS THE ONLY NEW LINE YOU NEED TO ADD ---
+            allow_promotion_codes=True,
+            # --- END OF NEW LINE ---
+
             success_url=url_for('payments.success', _external=True),
             cancel_url=url_for('payments.cancel', _external=True),
-            # Pass the team_id through so we know who subscribed in the webhook
             client_reference_id=g.user.team_id 
         )
         return redirect(checkout_session.url, code=303)
