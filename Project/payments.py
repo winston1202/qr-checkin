@@ -1,5 +1,5 @@
 from flask import Blueprint, request, redirect, url_for, g, flash, render_template, current_app
-from .models import db, Team, User  # <-- ENSURE USER IS IMPORTED
+from .models import db, Team, User  # <-- Make sure User is imported
 from .decorators import admin_required
 import stripe
 import os
@@ -16,6 +16,7 @@ def create_checkout_session():
             line_items=[{'price': price_id, 'quantity': 1}],
             mode='subscription',
             allow_promotion_codes=True,
+            # This token is the key to our reliable success route
             success_url=url_for('payments.success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
             cancel_url=url_for('payments.cancel', _external=True),
             client_reference_id=g.user.team_id 
@@ -23,18 +24,51 @@ def create_checkout_session():
         return redirect(checkout_session.url, code=303)
     except Exception as e:
         current_app.logger.error(f"Error creating checkout session: {e}")
-        flash(f"Error communicating with Stripe. Please try again.", "error")
+        flash("Error communicating with Stripe. Please try again.", "error")
         return redirect(url_for('auth.pricing'))
-
-# In app/Project/payments.py
-
-# In app/Project/payments.py
 
 @payments_bp.route("/success")
 def success():
-    # This is a simple test to confirm if the new code is actually deployed.
-    # It does not do any logic. It just returns a message.
-    return "<h1>The new success function is live.</h1>"
+    """
+    Handles the user's return from a successful Stripe payment.
+    This route is robust against session loss and logs errors gracefully.
+    """
+    # Best Case: The user is still logged in.
+    if g.user and g.user.role == 'Admin':
+        flash("Payment successful! Your team is now on the Pro plan.", "success")
+        return redirect(url_for('admin.dashboard'))
+
+    # Fallback Case: The user's session was lost. Use the session_id from the URL.
+    stripe_session_id = request.args.get('session_id')
+    if not stripe_session_id:
+        flash("Could not verify payment session. Please log in to see your plan status.", "error")
+        return redirect(url_for('auth.login'))
+
+    try:
+        session_data = stripe.checkout.Session.retrieve(stripe_session_id)
+        team_id_str = session_data.get('client_reference_id')
+        
+        if not team_id_str:
+            flash("Could not identify the team for this payment. Please log in to confirm status.", "error")
+            return redirect(url_for('auth.login'))
+
+        # Safely convert team_id from string to integer
+        team_id = int(team_id_str)
+        team_admin = User.query.filter_by(team_id=team_id, role='Admin').first()
+        
+        flash("Payment successful! Your team is now on the Pro plan. Please log in to continue.", "success")
+        
+        # Pre-fill the admin's email for a smooth login experience
+        if team_admin:
+            return redirect(url_for('auth.login', email=team_admin.email))
+        else:
+            return redirect(url_for('auth.login'))
+
+    except Exception as e:
+        # Log the real error for debugging and show a helpful message
+        current_app.logger.error(f"Error in Stripe success route: {e}")
+        flash("We couldn’t confirm your payment details automatically, but your subscription is likely active. Please log in to check your status.", "warning")
+        return redirect(url_for('auth.login'))
 
 @payments_bp.route("/cancel")
 def cancel():
@@ -83,7 +117,6 @@ def stripe_webhook():
                     team.plan = "Pro"
                     team.stripe_customer_id = customer_id
                     db.session.commit()
-                    current_app.logger.info(f"Team {team.id} upgraded to Pro")
         
         elif event_type == "customer.subscription.deleted":
             customer_id = obj.get("customer")
@@ -91,7 +124,6 @@ def stripe_webhook():
             if team:
                 team.plan = "Free"
                 db.session.commit()
-                current_app.logger.info(f"Team {team.id} downgraded to Free")
 
     except Exception as e:
         current_app.logger.error(f"Error handling Stripe webhook ({event_type}): {e}")

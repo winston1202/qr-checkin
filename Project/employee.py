@@ -1,14 +1,12 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response
 from .models import db, User, Team, TimeLog, TeamSetting, AuditLog
-from . import bcrypt
+from . import bcrypt, mail
 from datetime import datetime
 import pytz
 from math import radians, sin, cos, sqrt, atan2
 import os
-# At the top of app/Project/employee.py
-from . import mail  # Add mail
-from flask_mail import Message  # Add Message
-import random  # Add random
+from flask_mail import Message
+import random
 import uuid
 
 
@@ -256,12 +254,9 @@ def execute_action():
     action_data = session.pop('pending_action')
     user = User.query.get(action_data['user_id'])
 
-    # --- NEW: Add a check to ensure the user still exists ---
-    # This handles the case where an admin deleted the user mid-workflow.
     if not user:
         flash("This user no longer exists in the system. The action was cancelled.", "error")
         return redirect(url_for('auth.home'))
-    # --- END OF NEW LOGIC ---
 
     now = datetime.now(pytz.timezone("America/Chicago"))
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
@@ -280,30 +275,15 @@ def execute_action():
         
     db.session.commit()
     
-    return redirect(url_for('employee.success', status=status_type, name=user.name, user_id=user.id))
-
-@employee_bp.route("/success")
-def success():
-    # Get all the necessary info directly from the URL query parameters
-    user_id = request.args.get('user_id')
-    status_type = request.args.get('status')
-    worker_name = request.args.get('name')
-
-    # Find the user object so we can check if they have an email for the "Create Account" button
-    user = User.query.get(user_id) if user_id else None
-
-    # A simple check to ensure we have all the data we need from the URL
-    if not all([user, status_type, worker_name]):
-        flash("An unexpected error occurred. Please try again.", "error")
-        return redirect(url_for('auth.home'))
-
-    # Pass the TRUSTED status from the URL directly to the template.
-    # We no longer recalculate the action here.
-    return render_template("success.html", 
-                           status_type=status_type, 
-                           worker_name=worker_name, 
-                           user=user)
-
+    # --- THIS IS THE CORRECTED AND MORE ROBUST REDIRECT ---
+    # We are explicitly passing all the required parameters to the redirect.
+    return redirect(url_for(
+        'employee.success', 
+        status=status_type, 
+        name=user.name, 
+        user_id=user.id
+    ))
+    # --- END OF CORRECTION ---
 @employee_bp.route("/quick_clock_out", methods=["POST"])
 def quick_clock_out():
     user_id = request.form.get("user_id")
