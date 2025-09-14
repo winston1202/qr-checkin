@@ -34,8 +34,18 @@ def create_checkout_session():
 
 @payments_bp.route("/success")
 def success():
-    flash("Payment successful! Your team has been upgraded to the Pro plan.", "success")
-    return redirect(url_for('admin.dashboard'))
+    # We will flash a generic success message that makes sense for anyone.
+    flash("Payment successful! Your subscription is now active.", "success")
+
+    # Check if a user is still logged in.
+    if g.user:
+        # If they are, and they are an admin, send them to their dashboard.
+        if g.user.role == 'Admin':
+            return redirect(url_for('admin.dashboard'))
+    
+    # If the user is not logged in for any reason, send them to the login page.
+    # This is a safe fallback. They can now log in and see their new Pro status.
+    return redirect(url_for('auth.login'))
 
 @payments_bp.route("/cancel")
 def cancel():
