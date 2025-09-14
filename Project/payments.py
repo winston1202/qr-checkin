@@ -37,36 +37,50 @@ def create_checkout_session():
 def success():
     """
     Handles the user's return from a successful Stripe payment.
-    It uses the session_id from the URL to verify the purchase and
-    provide a clear next step, regardless of the user's login status.
+    This route is robust against session loss and logs errors gracefully.
     """
+    # Fix 1: Handle if the user is ALREADY logged in (best case scenario)
+    if g.user and g.user.role == 'Admin':
+        flash("Payment successful! Your team is now on the Pro plan.", "success")
+        return redirect(url_for('admin.dashboard'))
+
     stripe_session_id = request.args.get('session_id')
     if not stripe_session_id:
         flash("Could not verify payment session. Please log in to see your plan status.", "error")
         return redirect(url_for('auth.login'))
 
     try:
-        # Use the session_id to get the purchase details from Stripe
         session_data = stripe.checkout.Session.retrieve(stripe_session_id)
-        # Get the team_id we stored when the process started
-        team_id = session_data.get('client_reference_id')
+        team_id_str = session_data.get('client_reference_id')
         
-        if not team_id:
+        if not team_id_str:
             flash("Could not identify the team for this payment. Please log in to confirm your status.", "error")
             return redirect(url_for('auth.login'))
 
-        # Find the admin for that team
+        # Fix 2: Safely convert the team_id from a string to an integer
+        try:
+            team_id = int(team_id_str)
+        except (ValueError, TypeError):
+            current_app.logger.error(f"Stripe success route: Could not convert team_id '{team_id_str}' to int.")
+            flash("Could not verify team ID from payment. Please log in to confirm your status.", "error")
+            return redirect(url_for('auth.login'))
+
         team_admin = User.query.filter_by(team_id=team_id, role='Admin').first()
         
-        # We now know who the customer is, even if they were logged out.
         flash("Payment successful! Your team is now on the Pro plan. Please log in to continue.", "success")
         
+        # Fix 3: Handle the case where an admin might not be found
         if team_admin:
-            # For a great user experience, we can pre-fill their email on the login page.
             return redirect(url_for('auth.login', email=team_admin.email))
         else:
-            # Fallback if we can't find the admin for some reason
             return redirect(url_for('auth.login'))
+
+    except Exception as e:
+        # Fix 4: Log the real error instead of hiding it
+        current_app.logger.error(f"Error in Stripe success route: {e}")
+        # Provide a helpful message to the user
+        flash("We couldn’t confirm your payment details automatically, but your subscription may be active. Please log in to check your status.", "warning")
+        return redirect(url_for('auth.login'))
 
     except Exception as e:
         # This will catch errors if someone tries to use a fake session_id
