@@ -28,42 +28,13 @@ def create_checkout_session():
 
 # In app/Project/payments.py
 
+# In app/Project/payments.py
+
 @payments_bp.route("/success")
 def success():
-    """
-    DEBUG VERSION: This function has the try/except block temporarily removed
-    to expose the real error message in the browser.
-    """
-    # If the user is already logged in, this is the best-case scenario.
-    if g.user and g.user.role == 'Admin':
-        flash("Payment successful! Your team is now on the Pro plan.", "success")
-        return redirect(url_for('admin.dashboard'))
-
-    stripe_session_id = request.args.get('session_id')
-    if not stripe_session_id:
-        flash("Could not verify payment session. Please log in to see your plan status.", "error")
-        return redirect(url_for('auth.login'))
-
-    # The try...except block has been removed for debugging.
-    # The code will now crash on the line that is failing.
-
-    session_data = stripe.checkout.Session.retrieve(stripe_session_id)
-    team_id_str = session_data.get('client_reference_id')
-    
-    if not team_id_str:
-        flash("Could not identify the team for this payment. Please log in to confirm status.", "error")
-        return redirect(url_for('auth.login'))
-
-    team_id = int(team_id_str)
-
-    team_admin = User.query.filter_by(team_id=team_id, role='Admin').first()
-    
-    flash("Payment successful! Your team is now on the Pro plan. Please log in to continue.", "success")
-    
-    if team_admin:
-        return redirect(url_for('auth.login', email=team_admin.email))
-    else:
-        return redirect(url_for('auth.login'))
+    # This is a simple test to confirm if the new code is actually deployed.
+    # It does not do any logic. It just returns a message.
+    return "<h1>The new success function is live.</h1>"
 
 @payments_bp.route("/cancel")
 def cancel():
