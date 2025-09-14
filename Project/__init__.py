@@ -21,12 +21,16 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    # --- NEW: CONFIGURE SERVER-SIDE SESSIONS ---
-    app.config['SESSION_TYPE'] = 'sqlalchemy'  # Use your database to store sessions
-    app.config['SESSION_PERMANENT'] = True      # Make sessions permanent
-    app.config['SESSION_USE_SIGNER'] = True     # Sign the session cookie for security
-    app.config['SESSION_SQLALCHEMY'] = db       # Use the existing db connection
-    # --- END OF NEW CONFIGURATION ---
+    # --- NEW, MORE ROBUST SESSION CONFIGURATION ---
+    app.config['SESSION_TYPE'] = 'sqlalchemy'
+    app.config['SESSION_PERMANENT'] = True
+    app.config['SESSION_USE_SIGNER'] = True
+    app.config['SESSION_SQLALCHEMY'] = db
+    
+    # These settings are crucial for cookies to persist across external redirects in production.
+    app.config['SESSION_COOKIE_SECURE'] = True  # Ensures the cookie is only sent over HTTPS
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None' # Allows the cookie to be sent on cross-site requests
+    app.config['SESSION_COOKIE_HTTPONLY'] = True # Prevents client-side JS from accessing the cookie
 
     # Add Mail configuration
     app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER')
@@ -43,7 +47,7 @@ def create_app():
     db.init_app(app)
     bcrypt.init_app(app)
     mail.init_app(app)
-    sess.init_app(app)  # <-- INITIALIZE THE NEW SESSION MANAGER
+    sess.init_app(app)
 
     with app.app_context():
         from . import models
