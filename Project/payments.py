@@ -1,5 +1,5 @@
 from flask import Blueprint, request, redirect, url_for, g, flash, render_template, current_app
-from .models import db, Team
+from .models import db, Team, User
 from .decorators import admin_required
 import stripe
 import os
@@ -18,12 +18,13 @@ def create_checkout_session():
         checkout_session = stripe.checkout.Session.create(
             line_items=[{'price': price_id, 'quantity': 1}],
             mode='subscription',
-            
-            # --- THIS IS THE ONLY NEW LINE YOU NEED TO ADD ---
             allow_promotion_codes=True,
-            # --- END OF NEW LINE ---
+            
+            # --- THIS IS THE CRITICAL CHANGE ---
+            # We tell Stripe to include its own session ID in the return URL.
+            success_url=url_for('payments.success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
+            # --- END OF CHANGE ---
 
-            success_url=url_for('payments.success', _external=True),
             cancel_url=url_for('payments.cancel', _external=True),
             client_reference_id=g.user.team_id 
         )
@@ -34,18 +35,43 @@ def create_checkout_session():
 
 @payments_bp.route("/success")
 def success():
-    # We will flash a generic success message that makes sense for anyone.
-    flash("Payment successful! Your subscription is now active.", "success")
+    """
+    Handles the user's return from a successful Stripe payment.
+    It uses the session_id from the URL to verify the purchase and
+    provide a clear next step, regardless of the user's login status.
+    """
+    stripe_session_id = request.args.get('session_id')
+    if not stripe_session_id:
+        flash("Could not verify payment session. Please log in to see your plan status.", "error")
+        return redirect(url_for('auth.login'))
 
-    # Check if a user is still logged in.
-    if g.user:
-        # If they are, and they are an admin, send them to their dashboard.
-        if g.user.role == 'Admin':
-            return redirect(url_for('admin.dashboard'))
-    
-    # If the user is not logged in for any reason, send them to the login page.
-    # This is a safe fallback. They can now log in and see their new Pro status.
-    return redirect(url_for('auth.login'))
+    try:
+        # Use the session_id to get the purchase details from Stripe
+        session_data = stripe.checkout.Session.retrieve(stripe_session_id)
+        # Get the team_id we stored when the process started
+        team_id = session_data.get('client_reference_id')
+        
+        if not team_id:
+            flash("Could not identify the team for this payment. Please log in to confirm your status.", "error")
+            return redirect(url_for('auth.login'))
+
+        # Find the admin for that team
+        team_admin = User.query.filter_by(team_id=team_id, role='Admin').first()
+        
+        # We now know who the customer is, even if they were logged out.
+        flash("Payment successful! Your team is now on the Pro plan. Please log in to continue.", "success")
+        
+        if team_admin:
+            # For a great user experience, we can pre-fill their email on the login page.
+            return redirect(url_for('auth.login', email=team_admin.email))
+        else:
+            # Fallback if we can't find the admin for some reason
+            return redirect(url_for('auth.login'))
+
+    except Exception as e:
+        # This will catch errors if someone tries to use a fake session_id
+        flash(f"An error occurred while verifying your payment.", "error")
+        return redirect(url_for('auth.home'))
 
 @payments_bp.route("/cancel")
 def cancel():
@@ -73,49 +99,48 @@ def stripe_webhook():
     Handles new subscriptions and cancellations.
     """
     payload = request.get_data(as_text=True)
-    sig_header = request.headers.get('Stripe-Signature')
-    webhook_secret = os.environ.get('STRIPE_WEBHOOK_SECRET')
-    
+    sig_header = request.headers.get("Stripe-Signature")
+    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
+
+    if not sig_header:
+        current_app.logger.warning("Stripe webhook: missing signature header")
+        return "Missing Stripe signature header", 400
+
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
     except (ValueError, stripe.error.SignatureVerificationError) as e:
-        return 'Invalid payload or signature', 400
+        current_app.logger.error(f"Stripe webhook error: {e}")
+        return "Invalid payload or signature", 400
 
-    # --- THIS IS THE UPDATED LOGIC ---
+    event_type = event.get("type")
+    obj = event["data"]["object"]
 
-    # Handle a new subscription
-    if event['type'] == 'checkout.session.completed':
-        session = event['data']['object']
-        team_id = session.get('client_reference_id')
-        customer_id = session.get('customer')
-        
-        team = Team.query.get(team_id)
-        if team:
-            team.plan = 'Pro'
-            team.stripe_customer_id = customer_id
-            db.session.commit()
+    try:
+        # --- New subscription created ---
+        if event_type == "checkout.session.completed":
+            team_id = obj.get("client_reference_id")
+            customer_id = obj.get("customer")
 
-    # Handle a subscription being scheduled for cancellation
-    if event['type'] == 'customer.subscription.updated':
-        subscription = event['data']['object']
-        # Check if the 'cancel_at_period_end' flag is now true
-        if subscription.get('cancel_at_period_end'):
-            customer_id = subscription.get('customer')
+            if team_id and customer_id:
+                team = Team.query.get(int(team_id))
+                if team:
+                    team.plan = "Pro"
+                    team.stripe_customer_id = customer_id
+                    db.session.commit()
+                    current_app.logger.info(f"Team {team.id} upgraded to Pro")
+
+        # --- Subscription fully cancelled ---
+        elif event_type == "customer.subscription.deleted":
+            customer_id = obj.get("customer")
+
             team = Team.query.filter_by(stripe_customer_id=customer_id).first()
-            if team:
-                team.plan = 'Free' # Downgrade them immediately in our system
+            if team and team.plan == "Pro":
+                team.plan = "Free"
                 db.session.commit()
+                current_app.logger.info(f"Team {team.id} downgraded to Free")
 
-    # Handle the final deletion (good to have as a fallback)
-    if event['type'] == 'customer.subscription.deleted':
-        subscription = event['data']['object']
-        customer_id = subscription.get('customer')
-        
-        team = Team.query.filter_by(stripe_customer_id=customer_id).first()
-        if team and team.plan == 'Pro': # Only downgrade if they haven't been already
-            team.plan = 'Free'
-            db.session.commit()
+    except Exception as e:
+        current_app.logger.error(f"Error handling Stripe webhook ({event_type}): {e}")
+        return "Webhook processing error", 500
 
-    # --- END OF UPDATED LOGIC ---
-
-    return 'OK', 200
+    return "OK", 200

@@ -2,14 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <title>{% block title %}Admin Dashboard{% endblock %} - TimeClock</title>
 </head>
 <body class="bg-gray-100">
     <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         
-        <!-- This entire header section will now change based on user type -->
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6">
             {% if g.is_super_admin %}
                 <!-- Header for Super Admin -->
@@ -18,11 +17,30 @@
                     <p class="text-gray-600">Super Administrator View</p>
                 </div>
             {% else %}
-                <!-- Header for Regular Admin -->
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
-                    <p class="text-gray-600">Managing Team: <strong>{{ g.user.team.name }}</strong></p>
+                <!-- === THIS IS THE NEWLY MODIFIED HEADER FOR REGULAR ADMINS === -->
+                <div class="flex items-center gap-x-4">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
+                        <p class="text-gray-600">Managing Team: <strong>{{ g.user.team.name }}</strong></p>
+                    </div>
+                    
+                    <!-- New Subscription Status Badge/Button -->
+                    {% if g.user.team.plan == 'Free' %}
+                        <form action="{{ url_for('payments.create_checkout_session') }}" method="POST">
+                            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold py-1 px-4 rounded-full shadow-sm">
+                                Upgrade to Pro
+                            </button>
+                        </form>
+                    {% else %}
+                        <div class="flex items-center gap-3">
+                            <span class="bg-green-100 text-green-800 text-xs font-semibold px-3 py-1 rounded-full">Pro Plan</span>
+                            <form action="{{ url_for('payments.create_portal_session') }}" method="POST">
+                                <button type="submit" class="text-sm font-medium text-gray-500 hover:text-gray-800">Manage</button>
+                            </form>
+                        </div>
+                    {% endif %}
                 </div>
+                <!-- === END OF MODIFIED SECTION === -->
             {% endif %}
             
             <a href="{{ url_for('auth.logout') }}" class="mt-4 sm:mt-0 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">
@@ -35,7 +53,7 @@
                 <nav class="-mb-px flex space-x-6 overflow-x-auto">
                     
                     {% if g.is_super_admin %}
-                        <!-- Navigation for Super Admin (Only one link) -->
+                        <!-- Navigation for Super Admin -->
                         <a href="{{ url_for('super_admin.dashboard') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-red-600 hover:text-red-800 border-red-500">
                             Super Admin Dashboard
                         </a>
@@ -43,10 +61,7 @@
                         <!-- Navigation for Regular Admin -->
                         <a href="{{ url_for('admin.dashboard') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.dashboard' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Dashboard</a>
                         <a href="{{ url_for('admin.time_log') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.time_log' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Time Log</a>
-                        
-                        <!-- === THIS IS THE NEWLY ADDED LINK === -->
                         <a href="{{ url_for('admin.audit_log') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.audit_log' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Audit Log</a>
-                        
                         <a href="{{ url_for('admin.users') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.users' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Users</a>
                         <a href="{{ url_for('admin.profile') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.profile' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Profile</a>
                         <a href="{{ url_for('admin.settings') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.settings' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Settings</a>
