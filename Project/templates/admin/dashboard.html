@@ -1,6 +1,26 @@
 {% extends "admin/base_layout.html" %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
+
+<!-- === THIS IS THE NEWLY ADDED SECTION === -->
+{% if g.user.team.plan == 'Free' %}
+<div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-6" role="alert">
+  <p class="font-bold">You are on the Free plan.</p>
+  <p>Upgrade to the Pro plan to add more users and unlock advanced features.</p>
+  <form action="{{ url_for('payments.create_checkout_session') }}" method="POST" class="mt-2">
+      <button type="submit" class="font-bold text-white bg-blue-500 hover:bg-blue-600 py-2 px-3 rounded">Upgrade to Pro</button>
+  </form>
+</div>
+{% else %}
+<div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 flex justify-between items-center">
+  <p><span class="font-bold">You are on the Pro plan.</span> Thank you for your support!</p>
+  <form action="{{ url_for('payments.create_portal_session') }}" method="POST">
+      <button type="submit" class="font-bold text-gray-800 bg-gray-200 hover:bg-gray-300 py-2 px-3 rounded">Manage Subscription</button>
+  </form>
+</div>
+{% endif %}
+<!-- === END OF NEWLY ADDED SECTION === -->
+
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     <div class="lg:col-span-2">
         <div class="bg-white p-6 rounded-lg shadow-md">
@@ -26,7 +46,6 @@
 <script>
     async function updateDashboard() {
         try {
-            // === THIS IS THE FIX ===
             const response = await fetch("{{ url_for('admin.api_dashboard_data') }}");
             if (!response.ok) { return; }
             const people = await response.json();
@@ -34,7 +53,6 @@
             if (people.length > 0) {
                 let tableHTML = `<div class="overflow-x-auto"><table class="w-full text-left min-w-[500px]"><thead><tr><th class="py-2">Name</th><th class="py-2">Clock In Time</th><th class="py-2">Action</th></tr></thead><tbody>`;
                 people.forEach(person => {
-                    // Note: The form action now needs the /admin/ prefix for the URL
                     tableHTML += `
                         <tr class="border-t">
                             <td class="py-3 font-semibold">${person.Name}</td>

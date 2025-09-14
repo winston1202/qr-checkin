@@ -52,11 +52,13 @@ def create_app():
         from . import employee
         from . import admin
         from . import super_admin
+        from . import payments # <-- ADD THIS
         app.register_blueprint(auth.auth_bp)
         app.register_blueprint(employee.employee_bp)
         app.register_blueprint(admin.admin_bp)
         app.register_blueprint(super_admin.super_admin_bp)
-        
+        app.register_blueprint(payments.payments_bp) # <-- AND ADD THIS
+
         db.create_all()
 
         return app

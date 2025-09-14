@@ -2,20 +2,52 @@
 {% block title %}Pricing{% endblock %}
 {% block content %}
 <div class="py-20 bg-white">
-    <div class="max-w-4xl mx-auto text-center px-4">
+    <div class="max-w-7xl mx-auto text-center px-4">
         <h2 class="text-3xl font-extrabold text-gray-900">Simple, Transparent Pricing</h2>
-        <div class="mt-12 flex justify-center">
-            <div class="border border-blue-600 rounded-lg p-8 w-full max-w-sm">
-                <h3 class="text-2xl font-bold">Free Tier</h3>
-                <p class="mt-4 text-gray-500">Perfect for small teams and getting started.</p>
+        <p class="mt-4 text-lg text-gray-500">Choose the plan that's right for your team.</p>
+        
+        <div class="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            
+            <!-- Free Tier Card -->
+            <div class="border border-gray-300 rounded-lg p-8">
+                <h3 class="text-2xl font-bold">Free</h3>
+                <p class="mt-4 text-gray-500">Perfect for small teams to get started.</p>
                 <div class="mt-6"><span class="text-5xl font-extrabold">$0</span><span class="text-lg font-medium text-gray-500">/ month</span></div>
                 <ul class="mt-6 space-y-4 text-left">
-                    <li class="flex items-start"><span class="text-green-500 mr-2">&#10003;</span><span>1 Team per Admin</span></li>
-                    <li class="flex items-start"><span class="text-green-500 mr-2">&#10003;</span><span>Up to 10 Users per Team</span></li>
-                    <li class="flex items-start"><span class="text-green-500 mr-2">&#10003;</span><span>Admin Dashboard & User Roles</span></li>
+                    <li class="flex items-start"><span class="text-green-500 mr-2">&#10003;</span><span>1 Admin per Team</span></li>
+                    <li class="flex items-start"><span class="text-green-500 mr-2">&#10003;</span><span>Up to 5 Users per Team</span></li>
+                    <li class="flex items-start"><span class="text-green-500 mr-2">&#10003;</span><span>Admin Dashboard</span></li>
+                    <li class="flex items-start"><span class="text-green-500 mr-2">&#10003;</span><span>Basic Time Log Export</span></li>
                 </ul>
-                <div class="mt-8"><a href="{{ url_for('auth.admin_signup') }}" class="w-full block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg">Get Started</a></div>
+                <div class="mt-8">
+                    <a href="{{ url_for('auth.admin_signup') }}" class="w-full block bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-8 rounded-lg text-lg">
+                        Get Started
+                    </a>
+                </div>
             </div>
+
+            <!-- Pro Tier Card -->
+            <div class="border border-blue-600 rounded-lg p-8 ring-2 ring-blue-600">
+                <h3 class="text-2xl font-bold text-blue-600">Pro</h3>
+                <p class="mt-4 text-gray-500">For growing teams that need more power and features.</p>
+                <div class="mt-6"><span class="text-5xl font-extrabold">$10</span><span class="text-lg font-medium text-gray-500">/ month</span></div>
+                <ul class="mt-6 space-y-4 text-left">
+                    <li class="flex items-start"><span class="text-blue-500 mr-2">&#10003;</span><span>Unlimited Admins per Team</span></li>
+                    <li class="flex items-start"><span class="text-blue-500 mr-2">&#10003;</span><span>Up to 50 Users per Team</span></li>
+                    <li class="flex items-start"><span class="text-blue-500 mr-2">&#10003;</span><span>Admin Dashboard & Audit Logs</span></li>
+                    <li class="flex items-start"><span class="text-blue-500 mr-2">&#10003;</span><span>Advanced Reporting</span></li>
+                    <li class="flex items-start"><span class="text-blue-500 mr-2">&#10003;</span><span>Priority Support</span></li>
+                </ul>
+                <div class="mt-8">
+                    <!-- This form will only work for logged-in admins -->
+                    <form action="{{ url_for('payments.create_checkout_session') }}" method="POST">
+                         <button type="submit" class="w-full block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg">
+                            Upgrade to Pro
+                         </button>
+                    </form>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>

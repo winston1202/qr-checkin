@@ -12,6 +12,8 @@ import random  # Add random
 
 employee_bp = Blueprint('employee', __name__)
 
+FREE_TIER_USER_LIMIT = 5
+
 # --- Helper Functions ---
 def get_day_with_suffix(d):
     return f"{d}{'th' if 11<=d<=13 else {1:'st',2:'nd',3:'rd'}.get(d%10, 'th')}"
@@ -129,16 +131,28 @@ def scan():
 def register():
     reg_data = session.get('new_user_registration')
     if not reg_data: return redirect(url_for('employee.scan'))
+    
     if request.method == 'POST':
         choice = request.form.get('choice')
         name = reg_data['name']
         session.pop('new_user_registration', None)
+        
         if choice == 'yes':
             team_id = session.get('join_team_id')
-            device_token = request.cookies.get('device_token')
             if not team_id:
                 flash("Your session has expired. Please use the invitation link again.", "error")
                 return redirect(url_for('auth.home'))
+
+            # --- NEW: ENFORCE USER LIMITS ---
+            team = Team.query.get(team_id)
+            current_user_count = User.query.filter_by(team_id=team_id).count()
+            
+            if team.plan == 'Free' and current_user_count >= FREE_TIER_USER_LIMIT:
+                flash(f"The user limit of {FREE_TIER_USER_LIMIT} for the Free plan has been reached. Please upgrade to the Pro plan to add more users.", "error")
+                return redirect(url_for('employee.scan'))
+            # --- END OF NEW LOGIC ---
+
+            device_token = request.cookies.get('device_token')
             user = User.query.filter_by(name=name, team_id=team_id).first()
             if not user:
                 user = User(name=name, team_id=team_id, device_token=device_token)
@@ -150,6 +164,7 @@ def register():
             return redirect(url_for('employee.confirm_entry'))
         else:
             return redirect(url_for('employee.scan'))
+            
     return render_template("register.html", new_name=reg_data['name'])
 
 @employee_bp.route("/handle_typo")

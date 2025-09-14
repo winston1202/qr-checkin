@@ -7,6 +7,12 @@ class Team(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     join_token = db.Column(db.String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
+    
+    # --- NEW FIELDS ---
+    plan = db.Column(db.String(50), nullable=False, default='Free') # Can be 'Free' or 'Pro'
+    stripe_customer_id = db.Column(db.String(100), nullable=True, unique=True)
+    # --- END NEW FIELDS ---
+
     users = db.relationship('User', backref='team', lazy=True, cascade="all, delete-orphan")
     settings = db.relationship('TeamSetting', backref='team', lazy=True, cascade="all, delete-orphan")
 
