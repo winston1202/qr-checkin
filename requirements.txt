@@ -18,7 +18,8 @@ Flask-Mail==0.10.0
 # Payments
 stripe==12.5.1
 
+# Sessions
+Flask-Session==0.6.0  # <-- THE ONLY CHANGE IS HERE
+
 # Helpers
 pytz==2025.2
-
-Flask-Session==0.5.0
