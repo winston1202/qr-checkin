@@ -6,29 +6,30 @@
 <div class="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto">
     <h2 class="text-2xl font-semibold mb-6 border-b pb-3">Team Settings</h2>
 
-    <form action="{{ url_for('admin.settings') }}" method="POST" class="space-y-8">
-        
-        <!-- Location Verification Toggle -->
-        <div class="flex items-center justify-between p-4 rounded-lg bg-gray-50">
-            <div>
-                <h3 class="font-medium text-gray-800">Location Verification</h3>
-                <p class="text-sm text-gray-500">If enabled, employees must be within the geofence to clock in.</p>
+    <!-- Check the team's plan -->
+    {% if g.user.team.plan == 'Pro' %}
+        <!-- If Pro, show the fully functional form -->
+        <form action="{{ url_for('admin.settings') }}" method="POST" class="space-y-8">
+            <!-- Location Verification Toggle -->
+            <div class="flex items-center justify-between p-4 rounded-lg bg-gray-50">
+                <div>
+                    <h3 class="font-medium text-gray-800">Location Verification</h3>
+                    <p class="text-sm text-gray-500">If enabled, employees must be within the geofence to clock in.</p>
+                </div>
+                <label class="flex items-center cursor-pointer"><div class="relative">
+                    {% set is_checked = 'checked' if settings.get('LocationVerificationEnabled') == 'TRUE' else '' %}
+                    <input type="checkbox" name="location_enabled" class="sr-only" {{ is_checked }}>
+                    <div class="block bg-gray-600 w-14 h-8 rounded-full"></div>
+                    <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
+                </div></label>
             </div>
-            <label class="flex items-center cursor-pointer"><div class="relative">
-                {% set is_checked = 'checked' if settings.get('LocationVerificationEnabled') == 'TRUE' else '' %}
-                <input type="checkbox" name="location_enabled" class="sr-only" {{ is_checked }}>
-                <div class="block bg-gray-600 w-14 h-8 rounded-full"></div>
-                <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
-            </div></label>
-        </div>
 
-        <!-- NEW: Geolocation Coordinate Inputs -->
-        <div>
-            <h3 class="text-lg font-medium text-gray-900">Geofence Center</h3>
-            <p class="mt-1 text-sm text-gray-500">
-                Enter the GPS coordinates for your building. Leave blank to use the system default.
-                You can get these by right-clicking on a location in Google Maps.
-            </p>
+            <!-- Geolocation Coordinate Inputs -->
+            <div>
+                <h3 class="text-lg font-medium text-gray-900">Geofence Center</h3>
+                <p class="mt-1 text-sm text-gray-500">
+                    Enter the GPS coordinates for your building. You can get these by right-clicking on a location in Google Maps.
+                </p>
                 <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div class="sm:col-span-1">
                         <label for="latitude" class="block text-sm font-medium text-gray-700">Building Latitude</label>
@@ -43,14 +44,35 @@
                         <input id="radius_feet" name="radius_feet" type="number" value="{{ settings.get('GeofenceRadiusFeet', '500') }}" placeholder="e.g., 500" class="mt-1 w-full p-2 border border-gray-300 rounded-md">
                     </div>
                 </div>
+            </div>
+            
+            <div class="pt-4 border-t">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">
+                    Save All Settings
+                </button>
+            </div>
+        </form>
+    {% else %}
+        <!-- If Free, show a disabled state and an upgrade prompt -->
+        <div class="space-y-8 opacity-50 cursor-not-allowed">
+            <div class="flex items-center justify-between p-4 rounded-lg bg-gray-50">
+                <div>
+                    <h3 class="font-medium text-gray-800">Location Verification</h3>
+                    <p class="text-sm text-gray-500">If enabled, employees must be within the geofence to clock in.</p>
+                </div>
+                <div class="relative"><div class="block bg-gray-400 w-14 h-8 rounded-full"></div><div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div></div>
+            </div>
         </div>
-        
-        <div class="pt-4 border-t">
-            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">
-                Save All Settings
-            </button>
+        <div class="mt-8 p-6 bg-indigo-50 border border-indigo-200 rounded-lg text-center">
+            <h3 class="text-lg font-bold text-indigo-900">This is a Pro Feature</h3>
+            <p class="mt-2 text-indigo-700">Upgrade your plan to enable geofence settings and enhance your team's security.</p>
+            <form action="{{ url_for('payments.create_checkout_session') }}" method="POST" class="mt-4">
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg">
+                    Upgrade to Pro
+                </button>
+            </form>
         </div>
-    </form>
+    {% endif %}
 </div>
 
 <style>

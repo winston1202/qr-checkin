@@ -79,21 +79,21 @@ def verify_email():
         signup_data = session.get('temp_signup_data')
 
         if submitted_code == signup_data['code']:
-            # ... (all the user creation logic is the same) ...
             new_team = Team(name=signup_data['team_name'])
             db.session.add(new_team)
             db.session.commit()
             
             new_admin = User(
                 name=signup_data['name'], 
-                email=signup_data['email'], 
-                password=signup_data['hashed_password'], 
-                role='Admin', 
+                # ... (other user details) ...
                 team_id=new_team.id
             )
             db.session.add(new_admin)
             
-            default_setting = TeamSetting(team_id=new_team.id, name='LocationVerificationEnabled', value='TRUE')
+            # --- THIS IS THE LINE TO CHANGE ---
+            default_setting = TeamSetting(team_id=new_team.id, name='LocationVerificationEnabled', value='FALSE')
+            # --- END OF CHANGE ---
+
             db.session.add(default_setting)
             db.session.commit()
 

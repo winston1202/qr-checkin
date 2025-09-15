@@ -211,14 +211,17 @@ def set_user_role(user_id):
 
     new_role = request.form.get('role')
     
-    # --- NEW LOGIC BLOCK ---
-    # If we are trying to promote the user to 'Admin'...
-    if new_role == 'Admin':
-        # ...but they don't have an email, block the action.
-        if not target_user.email:
-            flash(f"Cannot promote {target_user.name}. They must create an account with an email and password first.", "error")
-            return redirect(url_for('admin.users'))
-    # --- END NEW LOGIC BLOCK ---
+    # --- THIS IS THE NEW LOGIC BLOCK ---
+    # If trying to promote to Admin on a Free plan, block it.
+    if new_role == 'Admin' and g.user.team.plan == 'Free':
+        flash("The Free plan is limited to 1 Admin per team. Please upgrade to Pro to add more admins.", "error")
+        return redirect(url_for('admin.users'))
+    # --- END OF NEW LOGIC BLOCK ---
+
+    # This check now also implicitly handles the original check for a user's email
+    if not target_user.email:
+        flash(f"Cannot promote {target_user.name}. They must create an account with an email and password first.", "error")
+        return redirect(url_for('admin.users'))
 
     if new_role in ['Admin', 'User']:
         target_user.role = new_role
