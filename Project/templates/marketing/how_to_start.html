@@ -3,11 +3,23 @@
 {% block content %}
 <div class="py-20 bg-white">
     <div class="max-w-4xl mx-auto px-4">
-        <div class="text-center"><h2 class="text-3xl font-extrabold text-gray-900">Getting Your Team Set Up is Easy</h2></div>
+        <div class="text-center">
+            <h2 class="text-3xl font-extrabold text-gray-900">Getting Your Team Set Up is Easy</h2>
+            <p class="mt-4 text-lg text-gray-500">Start tracking time in just a few minutes.</p>
+        </div>
         <div class="mt-12 space-y-10">
-            <div><h3 class="text-xl font-bold text-blue-600">Step 1: Create Your Admin Account & Team</h3><p class="mt-2 text-lg text-gray-500">Click "Sign Up". You'll enter your name, email, password, and a name for your team. This makes you the first administrator for that team.</p></div>
-            <div><h3 class="text-xl font-bold text-blue-600">Step 2: Copy Your Team's Invitation Link</h3><p class="mt-2 text-lg text-gray-500">From your new dashboard, you'll find your team's unique and secure invitation link. Click the "Copy Link" button.</p></div>
-            <div><h3 class="text-xl font-bold text-blue-600">Step 3: Send the Link to Your Employees</h3><p class="mt-2 text-lg text-gray-500">Paste the link into an email, text, or chat and send it to your employees. They can now clock in, and you'll see their activity on your dashboard.</p></div>
+            <div>
+                <h3 class="text-xl font-bold text-blue-600">Step 1: Choose Your Plan & Create an Account</h3>
+                <p class="mt-2 text-lg text-gray-500">Click "Sign Up" on our <a href="{{ url_for('auth.pricing') }}" class="text-blue-500 underline">pricing page</a>. The Free plan is perfect for getting started. You'll enter your name, email, password, and a name for your team. This makes you the first administrator.</p>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-blue-600">Step 2: Copy Your Team's Invitation Link</h3>
+                <p class="mt-2 text-lg text-gray-500">From your new admin dashboard, you'll find your team's unique and secure invitation link. Click the "Copy Link" button.</p>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-blue-600">Step 3: Send the Link to Your Employees</h3>
+                <p class="mt-2 text-lg text-gray-500">Paste the link into an email, text, or chat and send it to your employees. As soon as they click the link and enter their name, they can clock in, and you'll see their activity on your dashboard in real-time.</p>
+            </div>
         </div>
     </div>
 </div>

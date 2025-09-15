@@ -1,0 +1,86 @@
+{% extends "marketing/base_layout.html" %}
+{% block title %}About QrCheckin{% endblock %}
+{% block content %}
+<div class="py-20 bg-white">
+    <div class="max-w-4xl mx-auto px-4">
+        <div class="text-center">
+            <h1 class="text-4xl font-extrabold text-gray-900">An honest tool for an honest day's work.</h1>
+            <p class="mt-4 text-lg text-gray-500">
+                QrCheckin was built to solve a real-world problem with a simple, secure, and straightforward solution.
+            </p>
+        </div>
+
+        <div class="mt-16 space-y-12 text-lg text-gray-600">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800 border-b pb-3 mb-4">Our Story</h2>
+                <p>
+                    This project began with a simple request. A local business manager, a friend of my mother's, was facing a common but frustrating challenge: managing employee time logs accurately. The existing system was cumbersome, and there were growing concerns about the integrity of clock-in and clock-out times. It was clear they needed a tool that was not only easy for employees to use but also provided accountability for management.
+                </p>
+            </div>
+
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800 border-b pb-3 mb-4">The Problem We Solve</h2>
+                <p>
+                    For many businesses, trust is the foundation of their team. But manual time tracking or honor-based systems can lead to inaccuracies, disputes, and what the manager politely called "deceitfulness." These small discrepancies add up, impacting payroll, project costs, and overall team morale. They needed a system that was fair, transparent, and removed the guesswork.
+                </p>
+            </div>
+            
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800 border-b pb-3 mb-4">A One-Person Mission</h2>
+                <p>
+                    As a single developer, I took on this challenge personally. I believe that powerful tools don't need to be complicated. Every feature in QrCheckin, from the simple employee check-in to the secure geofence verification, was designed with one goal in mind: to be the simplest, most reliable time tracking tool a small business can use. 
+                </p>
+                <p class="mt-4">
+                    Being a solo developer means I'm directly connected to the needs of my users. There's no big corporation—just a commitment to solving this one problem really, really well. Thank you for being a part of this journey.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}```
+
+#### 2. The Updated `features.html` Page
+
+This page now clearly separates the Free and Pro features. Replace the content of `app/Project/templates/marketing/features.html`.
+
+```html
+{% extends "marketing/base_layout.html" %}
+{% block title %}Features{% endblock %}
+{% block content %}
+<div class="py-20 bg-white">
+    <div class="max-w-7xl mx-auto px-4 text-center">
+        <h2 class="text-3xl font-extrabold text-gray-900">Features for Every Team</h2>
+        <p class="mt-4 text-lg text-gray-500">From small crews to growing businesses, we have a plan that fits.</p>
+
+        <div class="mt-16 grid gap-12 md:grid-cols-2 text-left">
+            <!-- Free Plan Features -->
+            <div class="p-8 bg-gray-50 rounded-lg border">
+                <h3 class="text-2xl font-bold text-gray-800">Free Plan</h3>
+                <p class="mt-2 text-gray-500">All the essentials for getting started.</p>
+                <ul class="mt-6 space-y-4">
+                    <li class="flex items-start"><span class="text-green-500 mr-3 mt-1">&#10003;</span><span><strong>1 Admin per Team:</strong> Simple, centralized management.</span></li>
+                    <li class="flex items-start"><span class="text-green-500 mr-3 mt-1">&#10003;</span><span><strong>Up to 5 Users:</strong> Perfect for small teams.</span></li>
+                    <li class="flex items-start"><span class="text-green-500 mr-3 mt-1">&#10003;</span><span><strong>Live Dashboard:</strong> See who is currently clocked in.</span></li>
+                    <li class="flex items-start"><span class="text-green-500 mr-3 mt-1">&#10003;</span><span><strong>Full Time Log:</strong> View and export clock-in/out history.</span></li>
+                </ul>
+            </div>
+            <!-- Pro Plan Features -->
+            <div class="p-8 bg-blue-50 rounded-lg border border-blue-300">
+                <h3 class="text-2xl font-bold text-blue-800">Pro Plan</h3>
+                <p class="mt-2 text-gray-500">Everything in Free, plus powerful tools for growth.</p>
+                <ul class="mt-6 space-y-4">
+                    <li class="flex items-start"><span class="text-blue-500 mr-3 mt-1">&#10003;</span><span><strong>Unlimited Admins:</strong> Share management duties with your team.</span></li>
+                    <li class="flex items-start"><span class="text-blue-500 mr-3 mt-1">&#10003;</span><span><strong>Expanded User Limit:</strong> Grow your team with confidence.</span></li>
+                    <li class="flex items-start"><span class="text-blue-500 mr-3 mt-1">&#10003;</span><span><strong>Geofence Security:</strong> Ensure employees are on-site when they clock in.</span></li>
+                    <li class="flex items-start"><span class="text-blue-500 mr-3 mt-1">&#10003;</span><span><strong>Security Audit Log:</strong> Track important events like failed clock-ins.</span></li>
+                </ul>
+            </div>
+        </div>
+        <div class="mt-12">
+            <a href="{{ url_for('auth.pricing') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg">
+                View Pricing and Plans
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

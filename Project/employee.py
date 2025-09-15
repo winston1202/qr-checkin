@@ -324,7 +324,7 @@ def create_employee_account(user_id):
 
         # Send verification email
         try:
-            msg = Message("Your TimeClock Verification Code", recipients=[email])
+            msg = Message("Your QrCheckin Verification Code", recipients=[email])
             msg.body = f"Your verification code is: {verification_code}"
             mail.send(msg)
             flash("A verification code has been sent to your email.", "success")

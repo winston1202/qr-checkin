@@ -53,7 +53,7 @@ def admin_signup():
         }
 
         try:
-            msg = Message("Your TimeClock Verification Code", recipients=[email])
+            msg = Message("Your QrCheckin Verification Code", recipients=[email])
             msg.body = f"Your verification code is: {verification_code}"
             mail.send(msg)
             flash("A verification code has been sent to your email.", "success")
@@ -142,3 +142,7 @@ def logout():
     session.clear()
     flash("You have been successfully logged out.", "success")
     return redirect(url_for('auth.home'))
+
+@auth_bp.route("/about")
+def about_page():
+    return render_template("marketing/about.html")
