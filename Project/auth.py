@@ -22,6 +22,9 @@ def home():
 @auth_bp.route("/features")
 def features(): return render_template("marketing/features.html")
 
+@auth_bp.route("/about")
+def about_page(): return render_template("marketing/about.html")
+
 @auth_bp.route("/pricing")
 def pricing(): return render_template("marketing/pricing.html")
 
@@ -143,6 +146,3 @@ def logout():
     flash("You have been successfully logged out.", "success")
     return redirect(url_for('auth.home'))
 
-@auth_bp.route("/about")
-def about_page():
-    return render_template("marketing/about.html")
