@@ -248,69 +248,39 @@ def confirm_entry():
 
 @employee_bp.route("/execute_action", methods=["POST"])
 def execute_action():
-    current_app.logger.info("--- EXECUTE ACTION STARTED ---")
-    
-    if 'pending_action' not in session:
-        current_app.logger.error("Execute action failed: 'pending_action' not in session.")
+    if 'pending_action' not in session: 
         return redirect(url_for('employee.scan'))
         
     action_data = session.pop('pending_action')
-    current_app.logger.info(f"Action data retrieved: {action_data}")
-    
-    user_id = action_data.get('user_id')
-    user = User.query.get(user_id)
+    user = User.query.get(action_data['user_id'])
 
     if not user:
-        current_app.logger.error(f"Execute action failed: User with ID {user_id} not found in database.")
         flash("This user no longer exists in the system. The action was cancelled.", "error")
         return redirect(url_for('auth.home'))
-
-    current_app.logger.info(f"User found: ID={user.id}, Name='{user.name}', Team_ID={user.team_id}")
 
     now = datetime.now(pytz.timezone("America/Chicago"))
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
     current_time = now.strftime("%I:%M:%S %p")
     status_type = ''
 
-    try:
-        if action_data['action_type'] == 'Clock Out':
-            current_app.logger.info("Action is 'Clock Out'. Finding log entry...")
-            log_entry = TimeLog.query.filter_by(user_id=user.id, date=today_date, clock_out=None).first()
-            if log_entry:
-                current_app.logger.info(f"Found log entry ID {log_entry.id} to update.")
-                log_entry.clock_out = current_time
-            else:
-                current_app.logger.warning("Could not find a matching log entry to clock out.")
-            status_type = 'clock_out'
-        else: # Clock In
-            current_app.logger.info("Action is 'Clock In'. Creating new log entry...")
-            new_log = TimeLog(
-                user_id=user.id, 
-                team_id=user.team_id, 
-                date=today_date, 
-                clock_in=current_time
-            )
-            db.session.add(new_log)
-            status_type = 'clock_in'
-            
-        current_app.logger.info("Committing to database...")
-        db.session.commit()
-        current_app.logger.info("Database commit successful.")
+    if action_data['action_type'] == 'Clock Out':
+        log_entry = TimeLog.query.filter_by(user_id=user.id, date=today_date, clock_out=None).first()
+        if log_entry: 
+            log_entry.clock_out = current_time
+        status_type = 'clock_out'
+    else:
+        new_log = TimeLog(user_id=user.id, team_id=user.team_id, date=today_date, clock_in=current_time)
+        db.session.add(new_log)
+        status_type = 'clock_in'
         
-        return redirect(url_for(
-            'employee.success', 
-            status=status_type, 
-            name=user.name, 
-            user_id=user.id
-        ))
-
-    except Exception as e:
-        # This will catch the database crash and log the real error.
-        current_app.logger.error(f"!!! DATABASE CRASH IN EXECUTE_ACTION !!!")
-        current_app.logger.error(f"ERROR: {e}")
-        db.session.rollback() # Roll back the failed transaction
-        flash("A database error occurred. Please try again.", "error")
-        return redirect(url_for('employee.scan'))
+    db.session.commit()
+    
+    return redirect(url_for(
+        'employee.success', 
+        status=status_type, 
+        name=user.name, 
+        user_id=user.id
+    ))
     
 @employee_bp.route("/quick_clock_out", methods=["POST"])
 def quick_clock_out():
@@ -408,3 +378,23 @@ def verify_employee_email():
     email = session['temp_employee_account_data']['email']
     form_action_url = url_for('employee.verify_employee_email')
     return render_template("auth/verify_email.html", email=email, form_action=form_action_url)
+
+@employee_bp.route("/success")
+def success():
+    # Get all the necessary info directly from the URL query parameters
+    user_id = request.args.get('user_id')
+    status_type = request.args.get('status')
+    worker_name = request.args.get('name')
+
+    # Find the user object so we can check if they have an email
+    user = User.query.get(user_id) if user_id else None
+
+    # This check is still good to have in case the URL is malformed
+    if not all([user, status_type, worker_name]):
+        flash("An unexpected error occurred while showing the success page. Please check your dashboard to confirm your status.", "error")
+        return redirect(url_for('auth.home'))
+
+    return render_template("success.html", 
+                           status_type=status_type, 
+                           worker_name=worker_name, 
+                           user=user)
