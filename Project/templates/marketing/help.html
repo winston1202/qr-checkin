@@ -5,7 +5,7 @@
     <div class="max-w-4xl mx-auto px-4">
         <div class="text-center">
             <h2 class="text-3xl font-extrabold text-gray-900">Help & Support</h2>
-            <p class="mt-4 text-lg text-gray-500">Find answers to common questions and learn how to use the time clock system.</p>
+            <p class="mt-4 text-lg text-gray-500">Find answers to common questions and learn how to use the QrCheckin system.</p>
         </div>
 
         <!-- Issue Reporting Section -->
@@ -13,7 +13,6 @@
             <h3 class="text-xl font-bold text-gray-900">Having an Issue?</h3>
             <p class="mt-2 text-gray-600">If you've found a bug or have a problem not answered below, please let us know! Provide as much detail as possible, including screenshots and the steps you took.</p>
             <div class="mt-4">
-                <!-- IMPORTANT: Change the email address in the line below! -->
                 <a href="mailto:winstonbusiness69@gmail.com?subject=[QrCheckin App] Issue Report" 
                    class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg">
                     Report an Issue
@@ -33,7 +32,7 @@
                         <span class="text-gray-400 group-open:rotate-90 transition-transform">&#9654;</span>
                     </summary>
                     <div class="mt-4 text-gray-600">
-                        Log in to your Admin Dashboard. On the main page, you will see a "Team Invitation Link". Click the "Copy Link" button and send this URL to your employees via email, text, or another messaging service.
+                        Log in to your Admin Dashboard. On the main page, you will see a "Team Invitation Link". Click the "Copy Link" button and send this URL to your employees. This is a "smart link"—new employees will be guided through setup, and existing employees will be taken directly to their clock-in workflow.
                     </div>
                 </details>
                 <details class="group p-4 rounded-lg bg-gray-50 mt-2">
@@ -42,25 +41,43 @@
                         <span class="text-gray-400 group-open:rotate-90 transition-transform">&#9654;</span>
                     </summary>
                     <div class="mt-4 text-gray-600">
-                        Go to the "Users" tab on your dashboard. Find the employee in the list and click the "Clear Token" button. This will free up their name. They can then click the original invitation link on their new device to register it to their name. All their past time logs will be preserved.
+                        Go to the "Users" tab on your dashboard. Find the employee in the list and click the "Clear Token" button. This unlinks their name from their old device. They can then click the original invitation link on their new device to register it to their name. All their past time logs will be preserved.
                     </div>
                 </details>
                 <details class="group p-4 rounded-lg bg-gray-50 mt-2">
                     <summary class="font-medium cursor-pointer list-none flex justify-between items-center">
-                        How do I make another user an Admin?
+                        How do I upgrade to the Pro plan?
                         <span class="text-gray-400 group-open:rotate-90 transition-transform">&#9654;</span>
                     </summary>
                     <div class="mt-4 text-gray-600">
-                        Go to the "Users" tab. Find the user you want to promote and click the "Promote to Admin" button. They will now have access to the admin dashboard. Note: They will need to create an account with a password first if they haven't already.
+                        While logged in, you will see an "Upgrade to Pro" button in the header of your admin dashboard. You can also visit the public <a href="{{ url_for('auth.pricing') }}" class="text-blue-500 underline">Pricing page</a>. Clicking the upgrade button will take you to a secure Stripe page to complete the subscription.
+                    </div>
+                </details>
+                <details class="group p-4 rounded-lg bg-gray-50 mt-2">
+                    <summary class="font-medium cursor-pointer list-none flex justify-between items-center">
+                        How do I manage my subscription or cancel my plan?
+                        <span class="text-gray-400 group-open:rotate-90 transition-transform">&#9654;</span>
+                    </summary>
+                    <div class="mt-4 text-gray-600">
+                        If you are on the Pro plan, a "Manage" link will appear in the header of your admin dashboard. Clicking this will take you to a secure Stripe Customer Portal where you can update your payment method, view invoices, or cancel your subscription at any time.
+                    </div>
+                </details>
+                <details class="group p-4 rounded-lg bg-gray-50 mt-2">
+                    <summary class="font-medium cursor-pointer list-none flex justify-between items-center">
+                        How do I make another user an Admin? (Pro Feature)
+                        <span class="text-gray-400 group-open:rotate-90 transition-transform">&#9654;</span>
+                    </summary>
+                    <div class="mt-4 text-gray-600">
+                        First, your team must be on the Pro plan. Second, the employee must have created an account with an email and password. Once both conditions are met, go to the "Users" tab, find the user you want to promote, and the "Promote" button will be active.
                     </div>
                 </details>
                  <details class="group p-4 rounded-lg bg-gray-50 mt-2">
                     <summary class="font-medium cursor-pointer list-none flex justify-between items-center">
-                        What does the "Location Verification" setting do?
+                        What is the Security Audit Log for? (Pro Feature)
                         <span class="text-gray-400 group-open:rotate-90 transition-transform">&#9654;</span>
                     </summary>
                     <div class="mt-4 text-gray-600">
-                        When this setting is ON, employees must be within the 500-foot geofence of your building to clock in or out. When it is OFF, they can clock in from anywhere. You can toggle this for your team at any time from the "Settings" tab.
+                        The Audit Log, available on the Pro plan, provides extra security by tracking important events. It records every time an employee fails a geofence check (tries to clock in while too far away) and every time someone tries to clock in with a name that doesn't match the registered user for that device.
                     </div>
                 </details>
             </div>
@@ -70,20 +87,29 @@
                 <h3 class="text-2xl font-bold text-gray-800 border-b pb-2 mb-4">For Employees</h3>
                 <details class="group p-4 rounded-lg bg-gray-50">
                     <summary class="font-medium cursor-pointer list-none flex justify-between items-center">
-                        How do I clock in for the first time?
+                        How do I clock in?
                         <span class="text-gray-400 group-open:rotate-90 transition-transform">&#9654;</span>
                     </summary>
                     <div class="mt-4 text-gray-600">
-                        You must use the unique invitation link sent to you by your manager. Click the link, enter your full name, and follow the on-screen instructions.
+                        Your manager will send you a unique "Team Invitation Link". For your first time, you will click this link and enter your name. For all future clock-ins, you can just reuse the same link or visit the main website URL, and the system will automatically recognize your device.
                     </div>
                 </details>
                 <details class="group p-4 rounded-lg bg-gray-50 mt-2">
                     <summary class="font-medium cursor-pointer list-none flex justify-between items-center">
-                        How do I clock in on other days?
+                        The screen says my device is registered to someone else. What do I do?
                         <span class="text-gray-400 group-open:rotate-90 transition-transform">&#9654;</span>
                     </summary>
                     <div class="mt-4 text-gray-600">
-                        After you join a team, your device is "remembered". You can simply go to the main website URL. The system will recognize your device and automatically start the clock-in or clock-out process for you.
+                        This is a security feature. It means the phone or computer you are using is already linked to another employee's name. You must ask your manager to find that employee's name on the "Users" tab and click "Clear Token" for them. This will free up the device for you to use.
+                    </div>
+                </details>
+                <details class="group p-4 rounded-lg bg-gray-50 mt-2">
+                    <summary class="font-medium cursor-pointer list-none flex justify-between items-center">
+                        How can I see my past hours?
+                        <span class="text-gray-400 group-open:rotate-90 transition-transform">&#9654;</span>
+                    </summary>
+                    <div class="mt-4 text-gray-600">
+                        After you clock in or out, the success page will have a "Create My Account" button. This allows you to create a free, optional account with an email and password. Once you have an account, you can log in at any time to view your personal dashboard and see a full history of all your time entries.
                     </div>
                 </details>
             </div>

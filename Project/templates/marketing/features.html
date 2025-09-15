@@ -3,14 +3,37 @@
 {% block content %}
 <div class="py-20 bg-white">
     <div class="max-w-7xl mx-auto px-4 text-center">
-        <h2 class="text-3xl font-extrabold text-gray-900">Powerful Features for Modern Teams</h2>
-        <div class="mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-3 text-left">
-            <div class="p-6 bg-gray-50 rounded-lg"><h3 class="text-xl font-bold">Geolocation Verification</h3><p class="mt-2 text-gray-500">Ensure employees are on-site with a secure geofence, configurable per team.</p></div>
-            <div class="p-6 bg-gray-50 rounded-lg"><h3 class="text-xl font-bold">Real-Time Dashboard</h3><p class="mt-2 text-gray-500">Admins see who's currently clocked in for their team, with live updates.</p></div>
-            <div class="p-6 bg-gray-50 rounded-lg"><h3 class="text-xl font-bold">Frictionless for Employees</h3><p class="mt-2 text-gray-500">No accounts needed to clock in. Employees use a secure link and enter their name.</p></div>
-            <div class="p-6 bg-gray-50 rounded-lg"><h3 class="text-xl font-bold">Self-Serve Team Management</h3><p class="mt-2 text-gray-500">Admins create their team, customize its profile, and manage users without developer help.</p></div>
-            <div class="p-6 bg-gray-50 rounded-lg"><h3 class="text-xl font-bold">Detailed User Workflow</h3><p class="mt-2 text-gray-500">The classic workflow, including typo correction and device recognition, is built-in.</p></div>
-            <div class="p-6 bg-gray-50 rounded-lg"><h3 class="text-xl font-bold">Admin Role Management</h3><p class="mt-2 text-gray-500">Team admins can promote other users to admin status to share management duties.</p></div>
+        <h2 class="text-3xl font-extrabold text-gray-900">Features for Every Team</h2>
+        <p class="mt-4 text-lg text-gray-500">From small crews to growing businesses, we have a plan that fits.</p>
+
+        <div class="mt-16 grid gap-12 md:grid-cols-2 text-left">
+            <!-- Free Plan Features -->
+            <div class="p-8 bg-gray-50 rounded-lg border">
+                <h3 class="text-2xl font-bold text-gray-800">Free Plan</h3>
+                <p class="mt-2 text-gray-500">All the essentials for getting started.</p>
+                <ul class="mt-6 space-y-4">
+                    <li class="flex items-start"><span class="text-green-500 mr-3 mt-1">&#10003;</span><span><strong>1 Admin per Team:</strong> Simple, centralized management.</span></li>
+                    <li class="flex items-start"><span class="text-green-500 mr-3 mt-1">&#10003;</span><span><strong>Up to 5 Users:</strong> Perfect for small teams.</span></li>
+                    <li class="flex items-start"><span class="text-green-500 mr-3 mt-1">&#10003;</span><span><strong>Live Dashboard:</strong> See who is currently clocked in.</span></li>
+                    <li class="flex items-start"><span class="text-green-500 mr-3 mt-1">&#10003;</span><span><strong>Full Time Log:</strong> View and export clock-in/out history.</span></li>
+                </ul>
+            </div>
+            <!-- Pro Plan Features -->
+            <div class="p-8 bg-blue-50 rounded-lg border border-blue-300">
+                <h3 class="text-2xl font-bold text-blue-800">Pro Plan</h3>
+                <p class="mt-2 text-gray-500">Everything in Free, plus powerful tools for growth.</p>
+                <ul class="mt-6 space-y-4">
+                    <li class="flex items-start"><span class="text-blue-500 mr-3 mt-1">&#10003;</span><span><strong>Unlimited Admins:</strong> Share management duties with your team.</span></li>
+                    <li class="flex items-start"><span class="text-blue-500 mr-3 mt-1">&#10003;</span><span><strong>Expanded User Limit:</strong> Grow your team with confidence.</span></li>
+                    <li class="flex items-start"><span class="text-blue-500 mr-3 mt-1">&#10003;</span><span><strong>Geofence Security:</strong> Ensure employees are on-site when they clock in.</span></li>
+                    <li class="flex items-start"><span class="text-blue-500 mr-3 mt-1">&#10003;</span><span><strong>Security Audit Log:</strong> Track important events like failed clock-ins.</span></li>
+                </ul>
+            </div>
+        </div>
+        <div class="mt-12">
+            <a href="{{ url_for('auth.pricing') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg">
+                View Pricing and Plans
+            </a>
         </div>
     </div>
 </div>
