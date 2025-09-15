@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
-    <title>{% block title %}Time Clock Service{% endblock %}</title>
+    <title>{% block title %}QrCheckin Service{% endblock %}</title>
 </head>
 <body class="bg-gray-50 font-sans">
     <nav class="bg-white shadow-md sticky top-0 z-50">
@@ -14,7 +14,6 @@
                     <a href="{{ url_for('auth.home') }}" class="text-2xl font-bold text-gray-800">QrCheckin</a>
                 </div>
                 
-                <!-- === THIS IS THE UPDATED NAVIGATION SECTION === -->
                 <div class="hidden sm:flex sm:items-center sm:space-x-8">
                     <a href="{{ url_for('auth.home') }}" class="text-gray-500 hover:text-gray-900">Home</a>
                     <a href="{{ url_for('auth.features') }}" class="text-gray-500 hover:text-gray-900">Features</a>
@@ -23,7 +22,6 @@
                     <a href="{{ url_for('auth.pricing') }}" class="text-gray-500 hover:text-gray-900">Pricing</a>
                     <a href="{{ url_for('auth.help_page') }}" class="text-gray-500 hover:text-gray-900">Help</a>
                 </div>
-                <!-- === END OF UPDATED SECTION === -->
                 
                 <div class="hidden sm:flex items-center space-x-2">
                     <a href="{{ url_for('auth.login') }}" class="text-gray-600 hover:bg-gray-100 px-3 py-2 rounded-md text-sm font-medium">Log In</a>
@@ -48,7 +46,7 @@
     </main>
     <footer class="bg-gray-800 text-white">
         <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 text-center">
-            <p>&copy; 2025 QrCheckin Inc. All rights reserved.</p>
+            <p>&copy; 2025 QrCheckin. All rights reserved.</p>
         </div>
     </footer>
 </body>
