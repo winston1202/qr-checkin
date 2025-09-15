@@ -1,0 +1,139 @@
+{% extends "marketing/base_layout.html" %}
+{% block title %}Terms of Service{% endblock %}
+
+{% block content %}
+<div class="py-20 bg-white">
+    <div class="max-w-4xl mx-auto px-4 prose prose-lg">
+        <!-- The 'prose' class from Tailwind CSS will automatically style the headings, paragraphs, and lists. -->
+        
+        <div class="text-center">
+            <h1><strong>TERMS OF SERVICE</strong></h1>
+            <p><strong>Last updated: September 15, 2025</strong></p>
+        </div>
+
+        <h2><strong>1. AGREEMENT TO OUR LEGAL TERMS</strong></h2>
+        <p>
+            We are QrCheckin ("<strong>Company</strong>," "<strong>we</strong>," "<strong>us</strong>," "<strong>our</strong>"), a company registered in Arkansas, United States at 70 Richland Hills Dr, Conway, AR 72034. We operate the website <a href="https://qr-checkin-tn8u.onrender.com" target="_blank" rel="noopener noreferrer">https://qr-checkin-tn8u.onrender.com</a> (the "<strong>Site</strong>"), as well as any other related products and services that refer or link to these legal terms (the "<strong>Legal Terms</strong>") (collectively, the "<strong>Services</strong>").
+        </p>
+        <p>
+            These Legal Terms constitute a legally binding agreement made between you, whether personally or on behalf of an entity ("<strong>you</strong>"), and QrCheckin, concerning your access to and use of the Services. You agree that by accessing the Services, you have read, understood, and agreed to be bound by all of these Legal Terms. IF YOU DO NOT AGREE WITH ALL OF THESE LEGAL TERMS, THEN YOU ARE EXPRESSLY PROHIBITED FROM USING THE SERVICES AND YOU MUST DISCONTINUE USE IMMEDIATELY.
+        </p>
+
+        <h2><strong>2. INTELLECTUAL PROPERTY RIGHTS</strong></h2>
+        <p>
+            We are the owner or the licensee of all intellectual property rights in our Services, including all source code, databases, functionality, software, website designs, audio, video, text, photographs, and graphics in the Services (the "Content"), as well as the trademarks, service marks, and logos contained therein (the "Marks"). The Content and Marks are provided in or through the Services "AS IS" for your personal, non-commercial use or internal business purpose only.
+        </p>
+
+        <h2><strong>3. USER REPRESENTATIONS</strong></h2>
+        <p>
+            By using the Services, you represent and warrant that: (1) all registration information you submit will be true, accurate, current, and complete; (2) you will maintain the accuracy of such information; (3) you have the legal capacity and you agree to comply with these Legal Terms; (4) you will not access the Services through automated or non-human means; (5) you will not use the Services for any illegal or unauthorized purpose; and (6) your use of the Services will not violate any applicable law or regulation.
+        </p>
+
+        <h2><strong>4. USER REGISTRATION</strong></h2>
+        <p>
+            You may be required to register to use the Services. You agree to keep your password confidential and will be responsible for all use of your account and password.
+        </p>
+
+        <h2><strong>5. PURCHASES AND PAYMENT</strong></h2>
+        <p>
+            We accept payments through Stripe, which may include Visa, Mastercard, American Express, Discover, and PayPal. You agree to provide current, complete, and accurate purchase and account information for all purchases. All payments shall be in US dollars.
+        </p>
+
+        <h2><strong>6. SUBSCRIPTIONS</strong></h2>
+        <p>
+            Your subscription will continue and automatically renew on a monthly basis unless canceled. You can cancel your subscription at any time by logging into your account and using the "Manage" link to access the Stripe customer portal. Your cancellation will take effect at the end of the current paid term. All purchases are non-refundable.
+        </p>
+
+        <h2><strong>7. PROHIBITED ACTIVITIES</strong></h2>
+        <p>
+            You may not access or use the Services for any purpose other than that for which we make the Services available. As a user of the Services, you agree not to:
+        </p>
+        <ul>
+            <li>Systematically retrieve data or other content from the Services to create or compile, directly or indirectly, a collection, database, or directory without written permission from us.</li>
+            <li>Trick, defraud, or mislead us and other users, especially in any attempt to learn sensitive account information such as user passwords.</li>
+            <li>Circumvent, disable, or otherwise interfere with security-related features of the Services.</li>
+            <li>Disparage, tarnish, or otherwise harm, in our opinion, us and/or the Services.</li>
+            <li>Use any information obtained from the Services in order to harass, abuse, or harm another person.</li>
+            <li>Make improper use of our support services or submit false reports of abuse or misconduct.</li>
+            <li>Engage in any automated use of the system, such as using scripts to send comments or messages, or using any data mining, robots, or similar data gathering and extraction tools.</li>
+            <li>Interfere with, disrupt, or create an undue burden on the Services or the networks or services connected to the Services.</li>
+            <li>Attempt to impersonate another user or person or use the username of another user.</li>
+            <li>Sell or otherwise transfer your profile.</li>
+        </ul>
+
+        <h2><strong>8. USER GENERATED CONTRIBUTIONS</strong></h2>
+        <p>The Services does not offer users to submit or post content. However, we may provide you with the opportunity to create or submit content to us, such as feedback or suggestions ("Contributions"). Any Contributions you transmit may be treated in accordance with the Services' Privacy Policy.</p>
+
+        <h2><strong>9. CONTRIBUTION LICENSE</strong></h2>
+        <p>You and the Services agree that we may access, store, process, and use any information and personal data that you provide following the terms of the Privacy Policy and your choices. By submitting suggestions or other feedback regarding the Services, you agree that we can use and share such feedback for any purpose without compensation to you.</p>
+
+        <h2><strong>10. SERVICES MANAGEMENT</strong></h2>
+        <p>We reserve the right, but not the obligation, to: (1) monitor the Services for violations of these Legal Terms; (2) take appropriate legal action against anyone who violates the law or these Legal Terms; (3) refuse, restrict access to, or disable any of your Contributions; (4) remove or disable files and content that are excessive in size or burdensome to our systems; and (5) otherwise manage the Services in a manner designed to protect our rights and property and to facilitate the proper functioning of the Services.</p>
+
+        <h2><strong>11. PRIVACY POLICY</strong></h2>
+        <p>We care about data privacy and security. Please review our Privacy Policy at: <a href="{{ url_for('auth.privacy_policy') }}">{{ url_for('auth.privacy_policy', _external=True) }}</a>. By using the Services, you agree to be bound by our Privacy Policy, which is incorporated into these Legal Terms.</p>
+
+        <h2><strong>12. TERM AND TERMINATION</strong></h2>
+        <p>These Legal Terms shall remain in full force and effect while you use the Services. WE RESERVE THE RIGHT TO, IN OUR SOLE DISCRETION AND WITHOUT NOTICE OR LIABILITY, DENY ACCESS TO AND USE OF THE SERVICES (INCLUDING BLOCKING CERTAIN IP ADDRESSES), TO ANY PERSON FOR ANY REASON. WE MAY TERMINATE YOUR USE OR PARTICIPATION IN THE SERVICES OR DELETE YOUR ACCOUNT AND ANY CONTENT OR INFORMATION THAT YOU POSTED AT ANY TIME, WITHOUT WARNING, IN OUR SOLE DISCRETION.</p>
+
+        <h2><strong>13. MODIFICATIONS AND INTERRUPTIONS</strong></h2>
+        <p>We reserve the right to change, modify, or remove the contents of the Services at any time or for any reason at our sole discretion without notice. We cannot guarantee the Services will be available at all times. We may experience hardware, software, or other problems or need to perform maintenance related to the Services, resulting in interruptions, delays, or errors.</p>
+
+        <h2><strong>14. GOVERNING LAW</strong></h2>
+        <p>These Legal Terms and your use of the Services are governed by and construed in accordance with the laws of the State of Arkansas.</p>
+
+        <h2><strong>15. DISPUTE RESOLUTION</strong></h2>
+        <p>The Parties agree to first attempt to negotiate any Dispute informally for at least thirty (30) days before initiating arbitration. If the Parties are unable to resolve a Dispute through informal negotiations, the Dispute will be finally and exclusively resolved by binding arbitration.</p>
+
+        <h2><strong>16. CORRECTIONS</strong></h2>
+        <p>There may be information on the Services that contains typographical errors, inaccuracies, or omissions. We reserve the right to correct any errors, inaccuracies, or omissions and to change or update the information on the Services at any time, without prior notice.</p>
+
+        <h2><strong>17. DISCLAIMER</strong></h2>
+        <p>THE SERVICES ARE PROVIDED ON AN AS-IS AND AS-AVAILABLE BASIS. YOU AGREE THAT YOUR USE OF THE SERVICES WILL BE AT YOUR SOLE RISK. TO THE FULLEST EXTENT PERMITTED BY LAW, WE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED, IN CONNECTION WITH THE SERVICES AND YOUR USE THEREOF.</p>
+
+        <h2><strong>18. LIMITATIONS OF LIABILITY</strong></h2>
+        <p>IN NO EVENT WILL WE OR OUR DIRECTORS, EMPLOYEES, OR AGENTS BE LIABLE TO YOU OR ANY THIRD PARTY FOR ANY DIRECT, INDIRECT, CONSEQUENTIAL, EXEMPLARY, INCIDENTAL, SPECIAL, OR PUNITIVE DAMAGES, INCLUDING LOST PROFIT, LOST REVENUE, LOSS OF DATA, OR OTHER DAMAGES ARISING FROM YOUR USE OF THE SERVICES, EVEN IF WE HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.</p>
+
+        <h2><strong>19. INDEMNIFICATION</strong></h2>
+        <p>You agree to defend, indemnify, and hold us harmless, including our subsidiaries, affiliates, and all of our respective officers, agents, partners, and employees, from and against any loss, damage, liability, claim, or demand, including reasonable attorneys’ fees and expenses, made by any third party due to or arising out of: (1) use of the Services; (2) breach of these Legal Terms; (3) any breach of your representations and warranties; or (4) your violation of the rights of a third party.</p>
+
+        <h2><strong>20. USER DATA</strong></h2>
+        <p>We will maintain certain data that you transmit to the Services for the purpose of managing the performance of the Services. Although we perform regular routine backups of data, you are solely responsible for all data that you transmit. You agree that we shall have no liability to you for any loss or corruption of any such data.</p>
+
+        <h2><strong>21. ELECTRONIC COMMUNICATIONS, TRANSACTIONS, AND SIGNATURES</strong></h2>
+        <p>Visiting the Services, sending us emails, and completing online forms constitute electronic communications. You consent to receive electronic communications, and you agree that all agreements, notices, disclosures, and other communications we provide to you electronically satisfy any legal requirement that such communication be in writing.</p>
+
+        <h2><strong>22. CALIFORNIA USERS AND RESIDENTS</strong></h2>
+        <p>If any complaint with us is not satisfactorily resolved, you can contact the Complaint Assistance Unit of the Division of Consumer Services of the California Department of Consumer Affairs in writing at 1625 North Market Blvd., Suite N 112, Sacramento, California 95834 or by telephone at (800) 952-5210 or (916) 445-1254.</p>
+
+        <h2><strong>23. MISCELLANEOUS</strong></h2>
+        <p>These Legal Terms and any policies or operating rules posted by us on the Services constitute the entire agreement between you and us. Our failure to exercise or enforce any right or provision shall not operate as a waiver of such right or provision. There is no joint venture, partnership, employment or agency relationship created between you and us as a result of these Legal Terms or use of the Services.</p>
+
+        <h2><strong>24. SERVICE MODIFICATIONS</strong></h2>
+        <p>We reserve the right to modify, suspend, or discontinue the Service at any time, with or without notice, provided that such changes will not materially reduce the core functionality of the Service you have already paid for.</p>
+
+        <h2><strong>25. BETA FEATURES DISCLAIMER</strong></h2>
+        <p>From time to time, we may release features identified as beta, preview, or experimental. Such features are provided “as is” and may contain bugs or errors. Your use of these features is at your own risk.</p>
+
+        <h2><strong>26. USER DATA RESPONSIBILITY</strong></h2>
+        <p>You are solely responsible for maintaining backups of any data you submit or store through the Service. We are not responsible for loss of data, except to the extent required by applicable law.</p>
+
+        <h2><strong>27. FAIR USE POLICY</strong></h2>
+        <p>You agree to use the Service only for lawful purposes and in a manner consistent with its intended use. Excessive, abusive, or unauthorized use of the Service may result in suspension or termination of your account.</p>
+
+        <h2><strong>28. CONTACT US</strong></h2>
+        <p>
+            In order to resolve a complaint regarding the Services or to receive further information, please contact us at:
+        </p>
+        <address>
+            <strong>QrCheckin</strong><br>
+            70 Richland Hills Dr<br>
+            Conway, AR 72034<br>
+            United States<br>
+            Phone: 501-499-3484<br>
+            <a href="mailto:winstonbusiness69@gmail.com">winstonbusiness69@gmail.com</a>
+        </address>
+
+    </div>
+</div>
+{% endblock %}

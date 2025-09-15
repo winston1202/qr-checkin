@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <title>{% block title %}QrCheckin Service{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
 </head>
 <body class="bg-gray-50 font-sans">
     <nav class="bg-white shadow-md sticky top-0 z-50">
@@ -47,6 +48,11 @@
     <footer class="bg-gray-800 text-white">
         <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 text-center">
             <p>&copy; 2025 QrCheckin. All rights reserved.</p>
+            <p class="mt-4 text-sm">
+            <a href="{{ url_for('auth.privacy_policy') }}" class="text-gray-400 hover:underline">Privacy Policy</a>
+            <span class="mx-2 text-gray-500">|</span>
+            <a href="{{ url_for('auth.terms_of_service') }}" class="text-gray-400 hover:underline">Terms of Service</a>
+        </p>
         </div>
     </footer>
 </body>

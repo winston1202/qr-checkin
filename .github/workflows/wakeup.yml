@@ -2,49 +2,31 @@ name: DST-Aware Keep-Alive for Render Service
 
 on:
   schedule:
-    # Every 15 minutes during the combined UTC windows for CST/CDT on weekdays.
-    - cron: '*/15 11-14,20-23 * * 1-5'
+    # This workflow runs every 15 minutes, 24/7.
+    # The Python script itself will determine if it's the right time.
+    - cron: '*/15 * * * *'
 
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check date and ping server if within correct business hours
-        run: |
-          # --- This script is timezone-aware and handles US DST automatically ---
-          # US DST runs from the second Sunday in March to the first Sunday in November.
+      # Step 1: Check out a copy of your repository's code
+      - name: Check out repository
+        uses: actions/checkout@v3
 
-          YEAR=$(date -u +'%Y')
-          # Calculate the exact second DST starts and ends for the current year
-          DST_START=$(date -d "$YEAR-03-01 +$(($(($(date -d "$YEAR-03-01" +%w)-7)*-1)+7)) days + 1 week" +%s)
-          DST_END=$(date -d "$YEAR-11-01 +$(($(($(date -d "$YEAR-11-01" +%w)-7)*-1))) days" +%s)
+      # Step 2: Set up a Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
 
-          NOW=$(date -u +%s)
-          HOUR_UTC=$(date -u +'%H')
+      # Step 3: Install the required libraries for the script
+      - name: Install dependencies
+        run: pip install pytz requests
 
-          IS_DST=0
-          if (( NOW >= DST_START && NOW < DST_END )); then
-            IS_DST=1
-          fi
-
-          # --- Define business hours with the corrected ranges ---
-          if (( IS_DST == 1 )); then
-            echo "We are in Daylight Saving Time (CDT / UTC-5)."
-            # Corrected: To cover 6-9 AM and 3-6 PM CDT, we need hours 11-13 and 20-22 UTC
-            if (( (HOUR_UTC >= 11 && HOUR_UTC < 14) || (HOUR_UTC >= 20 && HOUR_UTC < 23) )); then
-              echo "Within CDT business hours. Pinging server..."
-              curl -fsS https://qr-checkin-tn8u.onrender.com || echo "Ping failed!"
-            else
-              echo "Not within CDT business hours. No ping sent."
-            fi
-          else
-            echo "We are in Standard Time (CST / UTC-6)."
-            # Corrected: To cover 6-9 AM and 3-6 PM CST, we need hours 12-14 and 21-23 UTC
-            if (( (HOUR_UTC >= 12 && HOUR_UTC < 15) || (HOUR_UTC >= 21 && HOUR_UTC < 24) )); then
-              echo "Within CST business hours. Pinging server..."
-              curl -fsS https://qr-checkin-tn8u.onrender.com || echo "Ping failed!"
-            else
-              echo "Not within CST business hours. No ping sent."
-            fi
-          fi
+      # Step 4: Run the Python script
+      - name: Run wakeup script
+        env:
+          RENDER_URL: ${{ secrets.RENDER_URL }}
+        run: python .github/scripts/wakeup.py

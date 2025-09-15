@@ -1,4 +1,4 @@
-from flask import Flask, g, session
+from flask import Flask, g, session, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_mail import Mail
@@ -73,4 +73,15 @@ def create_app():
         
         db.create_all()
 
+        @app.errorhandler(404)
+        def page_not_found(e):
+            return render_template('404.html'), 404
+
+        @app.errorhandler(500)
+        def internal_server_error(e):
+            # You might want to add error logging here in the future
+            return render_template('500.html'), 500
+
         return app
+    
+    

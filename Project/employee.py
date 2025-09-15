@@ -351,12 +351,22 @@ def verify_employee_email():
         flash("Your session has expired. Please try creating your account again.", "error")
         return redirect(url_for('auth.home'))
 
+    # Define all necessary variables once at the beginning
+    account_data = session.get('temp_employee_account_data')
+    email = account_data['email']
+    user_id = account_data['user_id']
+    form_action_url = url_for('employee.verify_employee_email')
+    
+    # --- THIS IS THE NEW LOGIC ---
+    # Define the correct "back" URL for the employee flow, which needs the user_id
+    back_url = url_for('employee.create_employee_account', user_id=user_id)
+    # --- END OF NEW LOGIC ---
+
     if request.method == 'POST':
         submitted_code = request.form.get('code')
-        account_data = session.get('temp_employee_account_data')
+        # account_data is already fetched above
 
         if submitted_code == account_data['code']:
-            # Find the user and update their record
             user_to_update = User.query.get(account_data['user_id'])
             if user_to_update:
                 user_to_update.email = account_data['email']
@@ -372,12 +382,11 @@ def verify_employee_email():
                 return redirect(url_for('auth.home'))
         else:
             flash("Incorrect verification code. Please try again.", "error")
-            return redirect(url_for('employee.verify_employee_email'))
+            # Re-render the page on failure, now passing the back_url
+            return render_template("auth/verify_email.html", email=email, form_action=form_action_url, back_url=back_url)
 
-    # For the GET request, prepare to render the template
-    email = session['temp_employee_account_data']['email']
-    form_action_url = url_for('employee.verify_employee_email')
-    return render_template("auth/verify_email.html", email=email, form_action=form_action_url)
+    # For the GET request, pass the new back_url variable to the template
+    return render_template("auth/verify_email.html", email=email, form_action=form_action_url, back_url=back_url)
 
 @employee_bp.route("/success")
 def success():

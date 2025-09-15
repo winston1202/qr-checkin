@@ -1,0 +1,14 @@
+{% extends "marketing/base_layout.html" %}
+{% block title %}Server Error{% endblock %}
+{% block content %}
+<div class="py-20 text-center">
+    <h1 class="text-6xl font-extrabold text-red-600">500</h1>
+    <h2 class="mt-4 text-3xl font-bold text-gray-800">Internal Server Error</h2>
+    <p class="mt-2 text-lg text-gray-500">Sorry, something went wrong on our end. We've been notified and are looking into it.</p>
+    <div class="mt-8">
+        <a href="{{ url_for('auth.home') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg">
+            Go back home
+        </a>
+    </div>
+</div>
+{% endblock %}

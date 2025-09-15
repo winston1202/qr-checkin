@@ -74,12 +74,18 @@ def verify_email():
         return redirect(url_for('auth.admin_signup'))
 
     # Define these once for both GET and POST
-    email = session['temp_signup_data']['email']
+    signup_data = session.get('temp_signup_data')
+    email = signup_data['email']
     form_action_url = url_for('auth.verify_email')
+    
+    # --- THIS IS THE NEW LOGIC ---
+    # Define the correct "back" URL for the admin flow
+    back_url = url_for('auth.admin_signup')
+    # --- END OF NEW LOGIC ---
 
     if request.method == 'POST':
         submitted_code = request.form.get('code')
-        signup_data = session.get('temp_signup_data')
+        # signup_data is already fetched above
 
         if submitted_code == signup_data['code']:
             new_team = Team(name=signup_data['team_name'])
@@ -87,16 +93,16 @@ def verify_email():
             db.session.commit()
             
             new_admin = User(
-                name=signup_data['name'], 
-                # ... (other user details) ...
+                name=signup_data['name'],
+                # Filling in the previously missing details
+                email=signup_data['email'],
+                password=signup_data['hashed_password'],
+                role='Admin',
                 team_id=new_team.id
             )
             db.session.add(new_admin)
             
-            # --- THIS IS THE LINE TO CHANGE ---
             default_setting = TeamSetting(team_id=new_team.id, name='LocationVerificationEnabled', value='FALSE')
-            # --- END OF CHANGE ---
-
             db.session.add(default_setting)
             db.session.commit()
 
@@ -106,11 +112,11 @@ def verify_email():
             return redirect(url_for('admin.dashboard'))
         else:
             flash("Incorrect verification code. Please try again.", "error")
-            # Re-render the page on failure instead of redirecting
-            return render_template("auth/verify_email.html", email=email, form_action=form_action_url)
+            # Re-render the page on failure, now passing the back_url
+            return render_template("auth/verify_email.html", email=email, form_action=form_action_url, back_url=back_url)
             
-    # For the GET request
-    return render_template("auth/verify_email.html", email=email, form_action=form_action_url)
+    # For the GET request, pass the new back_url variable to the template
+    return render_template("auth/verify_email.html", email=email, form_action=form_action_url, back_url=back_url)
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
@@ -145,4 +151,12 @@ def logout():
     session.clear()
     flash("You have been successfully logged out.", "success")
     return redirect(url_for('auth.home'))
+
+@auth_bp.route("/privacy")
+def privacy_policy():
+    return render_template("marketing/privacy.html")
+
+@auth_bp.route("/terms")
+def terms_of_service():
+    return render_template("marketing/terms.html")
 
