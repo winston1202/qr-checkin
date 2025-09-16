@@ -2,26 +2,22 @@ name: DST-Aware Keep-Alive for Render Service
 
 on:
   schedule:
-    - cron: '*/5 * * * *'   # every 5 minutes
-  workflow_dispatch:         # allows manual trigger
+    - cron: '*/5 * * * 1-5'  # Every 5 minutes, Mon–Fri
+  workflow_dispatch:         # Allows manual trigger
 
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v3
+      - name: Ping Render app during business hours
+        run: |
+          # Get current hour in US Central time (automatically handles DST)
+          HOUR=$(TZ=America/Chicago date +'%H')
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-
-      - name: Install dependencies
-        run: pip install pytz requests
-
-      - name: Run wakeup script
-        env:
-          RENDER_URL: ${{ secrets.RENDER_URL }}
-        run: python .github/scripts/wakeup.py
+          if { [ "$HOUR" -ge 6 ] && [ "$HOUR" -lt 9 ] ; } || { [ "$HOUR" -ge 15 ] && [ "$HOUR" -lt 18 ] ; }; then
+            echo "Within business hours. Pinging server..."
+            curl -fsS https://qr-checkin-tn8u.onrender.com || echo "Ping failed!"
+          else
+            echo "Outside business hours. No ping sent."
+          fi
