@@ -6,6 +6,7 @@ from flask_session import Session  # <-- NEW IMPORT
 import os
 import stripe
 from datetime import datetime, timezone
+from .models import db 
 
 # Initialize plugins
 db = SQLAlchemy()
