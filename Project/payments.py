@@ -1,6 +1,6 @@
 # app/Project/payments.py
 
-from flask import Blueprint, request, redirect, url_for, g, flash, render_template, current_app, session
+from flask import Blueprint, request, redirect, url_for, g, flash, render_template, current_app
 from .extensions import db
 from .models import Team, User
 from .decorators import admin_required
@@ -19,7 +19,8 @@ def create_checkout_session():
             line_items=[{'price': price_id, 'quantity': 1}],
             mode='subscription',
             allow_promotion_codes=True,
-            success_url=url_for('payments.success', _external=True), # A simple success URL is all we need
+            # This simple URL points to our unbreakable success route
+            success_url=url_for('payments.success', _external=True),
             cancel_url=url_for('payments.cancel', _external=True),
             client_reference_id=g.user.team_id 
         )
@@ -29,16 +30,14 @@ def create_checkout_session():
         flash("Error communicating with Stripe. Please try again.", "error")
         return redirect(url_for('auth.pricing'))
 
-# === THIS IS THE NEW, SIMPLIFIED, AND ROBUST SUCCESS ROUTE ===
 @payments_bp.route("/success")
 def success():
     """
     This is a simple confirmation page. It trusts the webhook to handle the
     database update and safely directs the user to the login page.
     """
-    flash("Payment successful! Your plan has been upgraded. Please log in to continue.", "success")
+    flash("Payment successful! Your plan has been upgraded. Please log in to view your dashboard.", "success")
     return redirect(url_for('auth.login'))
-# === END OF NEW SUCCESS ROUTE ===
 
 @payments_bp.route("/cancel")
 def cancel():
@@ -58,9 +57,12 @@ def create_portal_session():
     )
     return redirect(portal_session.url, code=303)
 
-# === This is the webhook that does all the real work ===
 @payments_bp.route("/stripe-webhook", methods=["POST"])
 def stripe_webhook():
+    """
+    Listens for events from Stripe to update the database reliably.
+    This version is robust for Live Mode.
+    """
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get("Stripe-Signature")
     webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
@@ -86,7 +88,7 @@ def stripe_webhook():
                     team.plan = "Pro"
                     team.stripe_customer_id = customer_id
                     db.session.commit()
-                    current_app.logger.info(f"Team {team.id} successfully upgraded via webhook.")
+                    current_app.logger.info(f"Team {team.id} successfully upgraded to Pro.")
         
         elif event_type == "invoice.paid":
              customer_id = obj.get("customer")
@@ -105,7 +107,7 @@ def stripe_webhook():
                 team.plan = "Free"
                 team.pro_access_expires_at = None
                 db.session.commit()
-                current_app.logger.info(f"Team {team.id} successfully downgraded via webhook.")
+                current_app.logger.info(f"Team {team.id} successfully downgraded to Free.")
 
     except Exception as e:
         current_app.logger.error(f"Error handling Stripe webhook ({event_type}): {e}")
