@@ -1,4 +1,4 @@
-from flask import Blueprint, request, redirect, url_for, g, flash, render_template, current_app
+from flask import Blueprint, request, redirect, url_for, g, flash, render_template, current_app, datetime
 from .models import db, Team, User  # <-- Make sure User is imported
 from .decorators import admin_required
 import stripe
@@ -91,9 +91,7 @@ def create_portal_session():
 
 @payments_bp.route("/stripe-webhook", methods=["POST"])
 def stripe_webhook():
-    """
-    Listens for events from Stripe to update the database reliably.
-    """
+    # ... (the payload, signature, and event creation parts are the same) ...
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get("Stripe-Signature")
     webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
@@ -101,32 +99,58 @@ def stripe_webhook():
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
     except (ValueError, stripe.error.SignatureVerificationError) as e:
-        current_app.logger.error(f"Stripe webhook error: {e}")
+        # ... (error handling is the same) ...
         return "Invalid payload or signature", 400
 
     event_type = event.get("type")
     obj = event["data"]["object"]
 
     try:
-        if event_type == "checkout.session.completed":
-            team_id = obj.get("client_reference_id")
-            customer_id = obj.get("customer")
-            if team_id:
-                team = Team.query.get(int(team_id))
-                if team:
-                    team.plan = "Pro"
-                    team.stripe_customer_id = customer_id
-                    db.session.commit()
+        # --- NEW LOGIC FOR HANDLING SUBSCRIPTION CHANGES ---
         
+        # When a subscription is FIRST created or renewed
+        if event_type == "invoice.paid":
+            customer_id = obj.get("customer")
+            if customer_id:
+                team = Team.query.filter_by(stripe_customer_id=customer_id).first()
+                # Find the subscription period end date from the invoice
+                period_end = obj.get("lines", {}).get("data", [{}])[0].get("period", {}).get("end")
+                if team and period_end:
+                    team.plan = "Pro"
+                    # Convert the Unix timestamp to a Python datetime object
+                    team.pro_access_expires_at = datetime.fromtimestamp(period_end)
+                    db.session.commit()
+
+        # When a user SCHEDULES a cancellation
+        elif event_type == "customer.subscription.updated":
+            customer_id = obj.get("customer")
+            # This flag is true when a user clicks "Cancel" in the portal
+            if obj.get("cancel_at_period_end"):
+                team = Team.query.filter_by(stripe_customer_id=customer_id).first()
+                if team:
+                    # We don't change the plan yet, just log the event for our records
+                    current_app.logger.info(f"Team {team.id} has scheduled cancellation.")
+            else:
+                # This handles if a user "renews" a scheduled cancellation
+                team = Team.query.filter_by(stripe_customer_id=customer_id).first()
+                if team:
+                    period_end = obj.get("current_period_end")
+                    if period_end:
+                        team.pro_access_expires_at = datetime.fromtimestamp(period_end)
+                        db.session.commit()
+                        current_app.logger.info(f"Team {team.id} has renewed their subscription.")
+
+        # When the subscription is TRULY deleted by Stripe at the period end
         elif event_type == "customer.subscription.deleted":
             customer_id = obj.get("customer")
             team = Team.query.filter_by(stripe_customer_id=customer_id).first()
             if team:
                 team.plan = "Free"
+                team.pro_access_expires_at = None
                 db.session.commit()
 
     except Exception as e:
-        current_app.logger.error(f"Error handling Stripe webhook ({event_type}): {e}")
+        # ... (error handling is the same) ...
         return "Webhook processing error", 500
 
     return "OK", 200

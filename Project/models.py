@@ -50,4 +50,16 @@ class AuditLog(db.Model):
     details = db.Column(db.String(255), nullable=True)
     timestamp = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(pytz.timezone("America/Chicago")))
 
+class Team(db.Model):
+    # ... (id, name, join_token, etc.) ...
+    plan = db.Column(db.String(50), nullable=False, default='Free')
+    stripe_customer_id = db.Column(db.String(100), nullable=True, unique=True)
+    
+    # --- ADD THIS NEW LINE ---
+    pro_access_expires_at = db.Column(db.DateTime, nullable=True)
+    # --- END OF NEW LINE ---
+
+    users = db.relationship('User', backref='team', lazy=True, cascade="all, delete-orphan")
+    settings = db.relationship('TeamSetting', backref='team', lazy=True, cascade="all, delete-orphan")
+
     user = db.relationship('User')

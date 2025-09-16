@@ -5,6 +5,7 @@ from flask_mail import Mail
 from flask_session import Session  # <-- NEW IMPORT
 import os
 import stripe
+from datetime import datetime, timezone
 
 # Initialize plugins
 db = SQLAlchemy()
@@ -15,6 +16,7 @@ sess = Session()  # <-- NEW SESSION OBJECT
 def create_app():
     """Construct the core application."""
     app = Flask(__name__, instance_relative_config=False, template_folder='templates')
+    
     
     # Configure the app
     app.secret_key = os.environ.get("SECRET_KEY")
@@ -56,6 +58,11 @@ def create_app():
         def load_logged_in_user():
             user_id = session.get('user_id')
             g.user = models.User.query.get(user_id) if user_id else None
+
+            @app.context_processor
+            def inject_now():
+            # Use the modern, timezone-aware method for UTC
+                return {'now': datetime.now(timezone.utc)}
             
             if g.user and g.user.email:
                 super_admin_email = os.environ.get('SUPER_ADMIN_USERNAME')
@@ -72,6 +79,8 @@ def create_app():
         app.register_blueprint(payments.payments_bp)
         
         db.create_all()
+
+        
 
         @app.errorhandler(404)
         def page_not_found(e):
