@@ -1,22 +1,12 @@
 from flask import Flask, g, session, render_template
-from flask_sqlalchemy import SQLAlchemy
-from flask_bcrypt import Bcrypt
-from flask_mail import Mail
-from flask_session import Session  # <-- NEW IMPORT
+from .extensions import db, bcrypt, mail, sess
+from datetime import datetime, timezone
 import os
 import stripe
-from datetime import datetime, timezone
-from .models import db 
 
-# Initialize plugins
-db = SQLAlchemy()
-bcrypt = Bcrypt()
-mail = Mail()
-sess = Session()  # <-- NEW SESSION OBJECT
 
 def create_app():
-    """Construct the core application."""
-    app = Flask(__name__, instance_relative_config=False, template_folder='templates')
+    app = Flask(__name__, instance_relative_config=False, template_folder='templates', static_folder='static')
     
     
     # Configure the app

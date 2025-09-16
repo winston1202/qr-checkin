@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, g
-from .models import db, Team, User, TeamSetting
+from .extensions import db, Team, User, TeamSetting
 from functools import wraps
 
 # A new, separate blueprint for Super Admin functions

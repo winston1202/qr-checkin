@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from .models import db, User, Team, TeamSetting
-from . import bcrypt, mail # Import mail object
+from .extensions import db, User, Team, TeamSetting
+from .extensions import bcrypt, mail # Import mail object
 from flask_mail import Message # Import Message object
 import random
 import os

@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response, current_app
-from .models import db, User, Team, TimeLog, TeamSetting, AuditLog
-from . import bcrypt, mail
+from .extensions import db, User, Team, TimeLog, TeamSetting, AuditLog
+from .extensions import bcrypt, mail
 from datetime import datetime
 import pytz
 from math import radians, sin, cos, sqrt, atan2
