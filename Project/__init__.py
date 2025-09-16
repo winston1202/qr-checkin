@@ -59,11 +59,6 @@ def create_app():
         def load_logged_in_user():
             user_id = session.get('user_id')
             g.user = models.User.query.get(user_id) if user_id else None
-
-            @app.context_processor
-            def inject_now():
-            # Use the modern, timezone-aware method for UTC
-                return {'now': datetime.now(timezone.utc)}
             
             if g.user and g.user.email:
                 super_admin_email = os.environ.get('SUPER_ADMIN_USERNAME')
@@ -71,26 +66,31 @@ def create_app():
             else:
                 g.is_super_admin = False
 
-        # Import and register blueprints
+        # 2. Define the context_processor handler (it is now OUTSIDE of the other function)
+        @app.context_processor
+        def inject_now():
+            return {'now': datetime.now(timezone.utc)}
+
+        # 3. Import and register blueprints
         from . import auth, employee, admin, super_admin, payments
         app.register_blueprint(auth.auth_bp)
         app.register_blueprint(employee.employee_bp)
         app.register_blueprint(admin.admin_bp)
         app.register_blueprint(super_admin.super_admin_bp)
         app.register_blueprint(payments.payments_bp)
-        
-        db.create_all()
 
-        
-
+        # 4. Define error handlers
         @app.errorhandler(404)
         def page_not_found(e):
             return render_template('404.html'), 404
 
         @app.errorhandler(500)
         def internal_server_error(e):
-            # You might want to add error logging here in the future
             return render_template('500.html'), 500
+        
+        # --- END OF STRUCTURAL FIX ---
+        
+        db.create_all()
 
         return app
     
