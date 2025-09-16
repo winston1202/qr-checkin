@@ -87,31 +87,45 @@ def create_portal_session():
 def stripe_webhook():
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get("Stripe-Signature")
+    
+    # --- THIS IS THE FIX ---
+    # It correctly gets the secret from the environment variables.
+    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
+    # --- END OF FIX ---
 
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, current_app.config["STRIPE_WEBHOOK_SECRET"]
-        )
-    except ValueError as e:
-        # Invalid payload
-        return "Invalid payload", 400
-    except stripe.error.SignatureVerificationError as e:
-        # Invalid signature
-        return "Invalid signature", 400
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except (ValueError, stripe.error.SignatureVerificationError) as e:
+        current_app.logger.error(f"Stripe webhook error: {e}")
+        return "Invalid payload or signature", 400
 
-    # Handle the event
-    if event["type"] == "checkout.session.completed":
-        session_data = event["data"]["object"]
+    event_type = event.get("type")
+    obj = event["data"]["object"]
 
-        # Get the team_id you passed into Checkout
-        team_id = int(session_data.get("client_reference_id"))
+    try:
+        if event_type == "checkout.session.completed":
+            session = stripe.checkout.Session.retrieve(obj.id)
+            team_id = session.client_reference_id
+            customer_id = session.customer
 
-        # Upgrade that team in your DB
-        team = Team.query.get(team_id)
-        if team:
-            team.is_pro = True
-            db.session.commit()
+            if team_id:
+                team = Team.query.get(int(team_id))
+                if team:
+                    team.plan = "Pro"
+                    team.stripe_customer_id = customer_id
+                    db.session.commit()
+                    current_app.logger.info(f"Team {team.id} successfully upgraded to Pro.")
+        
+        elif event_type == "customer.subscription.deleted":
+            customer_id = obj.get("customer")
+            team = Team.query.filter_by(stripe_customer_id=customer_id).first()
+            if team:
+                team.plan = "Free"
+                db.session.commit()
+                current_app.logger.info(f"Team {team.id} successfully downgraded to Free.")
 
-        current_app.logger.info(f"Team {team_id} upgraded to Pro via webhook.")
+    except Exception as e:
+        current_app.logger.error(f"Error handling Stripe webhook ({event_type}): {e}")
+        return "Webhook processing error", 500
 
-    return "Success", 200
+    return "OK", 200
