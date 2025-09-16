@@ -1,4 +1,4 @@
-from flask import Blueprint, request, redirect, url_for, g, flash, render_template, current_app
+from flask import Blueprint, request, redirect, url_for, g, flash, render_template, current_app, session
 from datetime import datetime  # <-- Import datetime on its own line
 from .extensions import db
 from .models import Team, User
@@ -31,45 +31,37 @@ def create_checkout_session():
 
 @payments_bp.route("/success")
 def success():
-    """
-    Handles the user's return from a successful Stripe payment.
-    This route is robust against session loss and logs errors gracefully.
-    """
-    # Best Case: The user is still logged in.
-    if g.user and g.user.role == 'Admin':
-        flash("Payment successful! Your team is now on the Pro plan.", "success")
-        return redirect(url_for('admin.dashboard'))
-
-    # Fallback Case: The user's session was lost. Use the session_id from the URL.
     stripe_session_id = request.args.get('session_id')
-    if not stripe_session_id:
-        flash("Could not verify payment session. Please log in to see your plan status.", "error")
-        return redirect(url_for('auth.login'))
 
     try:
-        session_data = stripe.checkout.Session.retrieve(stripe_session_id)
-        team_id_str = session_data.get('client_reference_id')
-        
-        if not team_id_str:
-            flash("Could not identify the team for this payment. Please log in to confirm status.", "error")
+        # 1. If user session survived
+        if g.user and g.user.role == 'Admin':
+            flash("Payment successful! Your team is now on the Pro plan.", "success")
+            return redirect(url_for('admin.dashboard'))
+
+        # 2. If session is gone, use Stripe data
+        if not stripe_session_id:
+            flash("Payment successful, but session was lost. Please log in.", "error")
             return redirect(url_for('auth.login'))
 
-        # Safely convert team_id from string to integer
-        team_id = int(team_id_str)
+        session_data = stripe.checkout.Session.retrieve(stripe_session_id)
+        team_id = int(session_data.get('client_reference_id'))
+
+        # Grab the admin for this team
         team_admin = User.query.filter_by(team_id=team_id, role='Admin').first()
-        
-        flash("Payment successful! Your team is now on the Pro plan. Please log in to continue.", "success")
-        
-        # Pre-fill the admin's email for a smooth login experience
+
         if team_admin:
-            return redirect(url_for('auth.login', email=team_admin.email))
+            # Restore session so g.user works again
+            session['user_id'] = team_admin.id
+            flash("Payment successful! Your team is now on the Pro plan.", "success")
+            return redirect(url_for('admin.dashboard'))
         else:
+            flash("Payment successful! Please log in to access your dashboard.", "success")
             return redirect(url_for('auth.login'))
 
     except Exception as e:
-        # Log the real error for debugging and show a helpful message
         current_app.logger.error(f"Error in Stripe success route: {e}")
-        flash("We couldn’t confirm your payment details automatically, but your subscription is likely active. Please log in to check your status.", "warning")
+        flash("We couldn’t confirm your payment, but your subscription is likely active.", "warning")
         return redirect(url_for('auth.login'))
 
 @payments_bp.route("/cancel")
@@ -93,73 +85,33 @@ def create_portal_session():
 
 @payments_bp.route("/stripe-webhook", methods=["POST"])
 def stripe_webhook():
-    """
-    Listens for events from Stripe to update the database reliably.
-    This version is robust for Live Mode and correctly handles the subscription lifecycle.
-    """
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get("Stripe-Signature")
-    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
 
     try:
-        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
-    except (ValueError, stripe.error.SignatureVerificationError) as e:
-        current_app.logger.error(f"Stripe webhook signature error: {e}")
-        return "Invalid payload or signature", 400
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, current_app.config["STRIPE_WEBHOOK_SECRET"]
+        )
+    except ValueError as e:
+        # Invalid payload
+        return "Invalid payload", 400
+    except stripe.error.SignatureVerificationError as e:
+        # Invalid signature
+        return "Invalid signature", 400
 
-    event_type = event.get("type")
-    obj = event["data"]["object"]
+    # Handle the event
+    if event["type"] == "checkout.session.completed":
+        session_data = event["data"]["object"]
 
-    try:
-        # Event 1: A new subscription is successfully created.
-        if event_type == "checkout.session.completed":
-            session = stripe.checkout.Session.retrieve(obj.id, expand=["subscription"])
-            
-            team_id = session.client_reference_id
-            customer_id = session.customer
-            subscription = session.get('subscription') # Use .get() for safety
+        # Get the team_id you passed into Checkout
+        team_id = int(session_data.get("client_reference_id"))
 
-            if team_id:
-                team = Team.query.get(int(team_id))
-                if team:
-                    team.plan = "Pro"
-                    team.stripe_customer_id = customer_id
-                    
-                    # --- THIS IS THE FIX ---
-                    # Only try to get the expiration date IF the subscription object exists
-                    if subscription and subscription.get('current_period_end'):
-                        team.pro_access_expires_at = datetime.fromtimestamp(subscription.current_period_end)
-                    # --- END OF FIX ---
-                    
-                    db.session.commit()
-                    current_app.logger.info(f"Team {team.id} successfully upgraded to Pro.")
+        # Upgrade that team in your DB
+        team = Team.query.get(team_id)
+        if team:
+            team.is_pro = True
+            db.session.commit()
 
-        # Event 2: A recurring payment succeeds (subscription is renewed).
-        elif event_type == "invoice.paid":
-            customer_id = obj.get("customer")
-            subscription_id = obj.get("subscription")
-            if customer_id and obj.get("billing_reason") == "subscription_cycle":
-                team = Team.query.filter_by(stripe_customer_id=customer_id).first()
-                if team:
-                    # Get the full subscription object to get the end date
-                    subscription = stripe.Subscription.retrieve(subscription_id)
-                    if subscription and subscription.get('current_period_end'):
-                        team.pro_access_expires_at = datetime.fromtimestamp(subscription.current_period_end)
-                        db.session.commit()
-                        current_app.logger.info(f"Team {team.id} successfully renewed Pro plan.")
+        current_app.logger.info(f"Team {team_id} upgraded to Pro via webhook.")
 
-        # Event 3: The subscription is TRULY deleted by Stripe at the period end.
-        elif event_type == "customer.subscription.deleted":
-            customer_id = obj.get("customer")
-            team = Team.query.filter_by(stripe_customer_id=customer_id).first()
-            if team:
-                team.plan = "Free"
-                team.pro_access_expires_at = None
-                db.session.commit()
-                current_app.logger.info(f"Team {team.id} successfully downgraded to Free.")
-
-    except Exception as e:
-        current_app.logger.error(f"Error handling Stripe webhook ({event_type}): {e}")
-        return "Webhook processing error", 500
-
-    return "OK", 200
+    return "Success", 200
