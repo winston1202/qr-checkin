@@ -93,7 +93,10 @@ def create_portal_session():
 
 @payments_bp.route("/stripe-webhook", methods=["POST"])
 def stripe_webhook():
-    # ... (the payload, signature, and event creation parts are the same) ...
+    """
+    Listens for events from Stripe to update the database reliably.
+    This version is robust for Live Mode and correctly handles the subscription lifecycle.
+    """
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get("Stripe-Signature")
     webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
@@ -101,58 +104,59 @@ def stripe_webhook():
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
     except (ValueError, stripe.error.SignatureVerificationError) as e:
-        # ... (error handling is the same) ...
+        current_app.logger.error(f"Stripe webhook signature error: {e}")
         return "Invalid payload or signature", 400
 
     event_type = event.get("type")
     obj = event["data"]["object"]
 
     try:
-        # --- NEW LOGIC FOR HANDLING SUBSCRIPTION CHANGES ---
-        
-        # When a subscription is FIRST created or renewed
-        if event_type == "invoice.paid":
-            customer_id = obj.get("customer")
-            if customer_id:
-                team = Team.query.filter_by(stripe_customer_id=customer_id).first()
-                # Find the subscription period end date from the invoice
-                period_end = obj.get("lines", {}).get("data", [{}])[0].get("period", {}).get("end")
-                if team and period_end:
+        # Event 1: A new subscription is successfully created.
+        if event_type == "checkout.session.completed":
+            # Retrieve the full session to get all necessary details reliably.
+            session = stripe.checkout.Session.retrieve(obj.id, expand=["subscription"])
+            
+            team_id = session.client_reference_id
+            customer_id = session.customer
+            subscription = session.subscription
+
+            if team_id:
+                team = Team.query.get(int(team_id))
+                if team:
                     team.plan = "Pro"
-                    # Convert the Unix timestamp to a Python datetime object
-                    team.pro_access_expires_at = datetime.fromtimestamp(period_end)
+                    team.stripe_customer_id = customer_id
+                    # Get the expiration date from the subscription object
+                    if subscription and subscription.current_period_end:
+                        team.pro_access_expires_at = datetime.fromtimestamp(subscription.current_period_end)
                     db.session.commit()
+                    current_app.logger.info(f"Team {team.id} successfully upgraded to Pro.")
 
-        # When a user SCHEDULES a cancellation
-        elif event_type == "customer.subscription.updated":
+        # Event 2: A recurring payment succeeds (subscription is renewed).
+        elif event_type == "invoice.paid":
             customer_id = obj.get("customer")
-            # This flag is true when a user clicks "Cancel" in the portal
-            if obj.get("cancel_at_period_end"):
+            subscription = obj.get("subscription")
+            if customer_id and obj.get("billing_reason") == "subscription_cycle":
                 team = Team.query.filter_by(stripe_customer_id=customer_id).first()
                 if team:
-                    # We don't change the plan yet, just log the event for our records
-                    current_app.logger.info(f"Team {team.id} has scheduled cancellation.")
-            else:
-                # This handles if a user "renews" a scheduled cancellation
-                team = Team.query.filter_by(stripe_customer_id=customer_id).first()
-                if team:
-                    period_end = obj.get("current_period_end")
-                    if period_end:
-                        team.pro_access_expires_at = datetime.fromtimestamp(period_end)
+                    # Update the expiration date to the new period end
+                    sub_obj = stripe.Subscription.retrieve(subscription)
+                    if sub_obj and sub_obj.current_period_end:
+                        team.pro_access_expires_at = datetime.fromtimestamp(sub_obj.current_period_end)
                         db.session.commit()
-                        current_app.logger.info(f"Team {team.id} has renewed their subscription.")
+                        current_app.logger.info(f"Team {team.id} successfully renewed Pro plan.")
 
-        # When the subscription is TRULY deleted by Stripe at the period end
+        # Event 3: The subscription is TRULY deleted by Stripe at the period end.
         elif event_type == "customer.subscription.deleted":
             customer_id = obj.get("customer")
             team = Team.query.filter_by(stripe_customer_id=customer_id).first()
             if team:
                 team.plan = "Free"
-                team.pro_access_expires_at = None
+                team.pro_access_expires_at = None # Clear the expiration date
                 db.session.commit()
+                current_app.logger.info(f"Team {team.id} successfully downgraded to Free.")
 
     except Exception as e:
-        # ... (error handling is the same) ...
+        current_app.logger.error(f"Error handling Stripe webhook ({event_type}): {e}")
         return "Webhook processing error", 500
 
     return "OK", 200
