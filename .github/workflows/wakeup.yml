@@ -24,4 +24,4 @@ jobs:
       - name: Run wakeup script
         env:
           RENDER_URL: ${{ secrets.RENDER_URL }}
-        run: python app/.github/scripts/wakeup.py
+        run: python APP/.github/scripts/wakeup.py
