@@ -1,8 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from .extensions import db
-from .extensions import bcrypt, mail
-from .models import User, Team, TeamSetting
-from flask_mail import Message # Import Message object
+from .extensions import db, bcrypt, mail  # <-- CORRECT: Get tools from the central hub
+from .models import User, Team, TeamSetting # <-- CORRECT: Get data blueprints from models
+from flask_mail import Message
 import random
 import os
 
