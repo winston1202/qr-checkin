@@ -275,8 +275,10 @@ def execute_action():
         
     db.session.commit()
     
+    # --- THIS IS THE FIX ---
+    # It now points to the new, unique endpoint name: 'employee_success'
     return redirect(url_for(
-        'employee.success', 
+        'employee.employee_success',  # <-- Renamed for clarity
         status=status_type, 
         name=user.name, 
         user_id=user.id
@@ -388,17 +390,15 @@ def verify_employee_email():
     # For the GET request, pass the new back_url variable to the template
     return render_template("auth/verify_email.html", email=email, form_action=form_action_url, back_url=back_url)
 
-@employee_bp.route("/success")
-def success():
-    # Get all the necessary info directly from the URL query parameters
+@employee_bp.route("/clock_in_success")
+def employee_success():
+# --- END OF FIX ---
     user_id = request.args.get('user_id')
     status_type = request.args.get('status')
     worker_name = request.args.get('name')
 
-    # Find the user object so we can check if they have an email
     user = User.query.get(user_id) if user_id else None
 
-    # This check is still good to have in case the URL is malformed
     if not all([user, status_type, worker_name]):
         flash("An unexpected error occurred while showing the success page. Please check your dashboard to confirm your status.", "error")
         return redirect(url_for('auth.home'))
