@@ -2,31 +2,25 @@ name: DST-Aware Keep-Alive for Render Service
 
 on:
   schedule:
-    # This workflow runs every 15 minutes, 24/7.
-    # The Python script itself will determine if it's the right time.
-    - cron: '*/15 * * * *'
+    - cron: '*/5 * * * *'   # every 5 minutes
 
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Check out a copy of your repository's code
       - name: Check out repository
         uses: actions/checkout@v3
 
-      # Step 2: Set up a Python environment
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
 
-      # Step 3: Install the required libraries for the script
       - name: Install dependencies
         run: pip install pytz requests
 
-      # Step 4: Run the Python script
       - name: Run wakeup script
         env:
           RENDER_URL: ${{ secrets.RENDER_URL }}
-        run: python .github/scripts/wakeup.py
+        run: python app/.github/scripts/wakeup.py
