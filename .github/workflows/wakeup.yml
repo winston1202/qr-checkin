@@ -3,7 +3,7 @@ name: DST-Aware Keep-Alive for Render Service
 on:
   schedule:
     - cron: '*/5 * * * *'   # every 5 minutes
-  workflow_dispatch:          # <--- this allows manual triggering
+  workflow_dispatch:         # allows manual trigger
 
 jobs:
   keep-alive:
@@ -24,4 +24,4 @@ jobs:
       - name: Run wakeup script
         env:
           RENDER_URL: ${{ secrets.RENDER_URL }}
-        run: python app/.github/scripts/wakeup.py
+        run: python .github/scripts/wakeup.py
