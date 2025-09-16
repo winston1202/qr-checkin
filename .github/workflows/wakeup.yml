@@ -3,6 +3,7 @@ name: DST-Aware Keep-Alive for Render Service
 on:
   schedule:
     - cron: '*/5 * * * *'   # every 5 minutes
+  workflow_dispatch:          # <--- this allows manual triggering
 
 jobs:
   keep-alive:
