@@ -113,35 +113,38 @@ def stripe_webhook():
     try:
         # Event 1: A new subscription is successfully created.
         if event_type == "checkout.session.completed":
-            # Retrieve the full session to get all necessary details reliably.
             session = stripe.checkout.Session.retrieve(obj.id, expand=["subscription"])
             
             team_id = session.client_reference_id
             customer_id = session.customer
-            subscription = session.subscription
+            subscription = session.get('subscription') # Use .get() for safety
 
             if team_id:
                 team = Team.query.get(int(team_id))
                 if team:
                     team.plan = "Pro"
                     team.stripe_customer_id = customer_id
-                    # Get the expiration date from the subscription object
-                    if subscription and subscription.current_period_end:
+                    
+                    # --- THIS IS THE FIX ---
+                    # Only try to get the expiration date IF the subscription object exists
+                    if subscription and subscription.get('current_period_end'):
                         team.pro_access_expires_at = datetime.fromtimestamp(subscription.current_period_end)
+                    # --- END OF FIX ---
+                    
                     db.session.commit()
                     current_app.logger.info(f"Team {team.id} successfully upgraded to Pro.")
 
         # Event 2: A recurring payment succeeds (subscription is renewed).
         elif event_type == "invoice.paid":
             customer_id = obj.get("customer")
-            subscription = obj.get("subscription")
+            subscription_id = obj.get("subscription")
             if customer_id and obj.get("billing_reason") == "subscription_cycle":
                 team = Team.query.filter_by(stripe_customer_id=customer_id).first()
                 if team:
-                    # Update the expiration date to the new period end
-                    sub_obj = stripe.Subscription.retrieve(subscription)
-                    if sub_obj and sub_obj.current_period_end:
-                        team.pro_access_expires_at = datetime.fromtimestamp(sub_obj.current_period_end)
+                    # Get the full subscription object to get the end date
+                    subscription = stripe.Subscription.retrieve(subscription_id)
+                    if subscription and subscription.get('current_period_end'):
+                        team.pro_access_expires_at = datetime.fromtimestamp(subscription.current_period_end)
                         db.session.commit()
                         current_app.logger.info(f"Team {team.id} successfully renewed Pro plan.")
 
@@ -151,7 +154,7 @@ def stripe_webhook():
             team = Team.query.filter_by(stripe_customer_id=customer_id).first()
             if team:
                 team.plan = "Free"
-                team.pro_access_expires_at = None # Clear the expiration date
+                team.pro_access_expires_at = None
                 db.session.commit()
                 current_app.logger.info(f"Team {team.id} successfully downgraded to Free.")
 
