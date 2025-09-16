@@ -19,7 +19,7 @@ def create_checkout_session():
             line_items=[{'price': price_id, 'quantity': 1}],
             mode='subscription',
             allow_promotion_codes=True,
-            success_url=url_for('payments.success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
+            success_url=url_for('payments.success', _external=True), # A simple success URL is all we need
             cancel_url=url_for('payments.cancel', _external=True),
             client_reference_id=g.user.team_id 
         )
@@ -29,41 +29,16 @@ def create_checkout_session():
         flash("Error communicating with Stripe. Please try again.", "error")
         return redirect(url_for('auth.pricing'))
 
+# === THIS IS THE NEW, SIMPLIFIED, AND ROBUST SUCCESS ROUTE ===
 @payments_bp.route("/success")
 def success():
     """
-    Handles the user's return from a successful Stripe payment.
-    Restores the user's session if it was lost and redirects to the dashboard.
+    This is a simple confirmation page. It trusts the webhook to handle the
+    database update and safely directs the user to the login page.
     """
-    stripe_session_id = request.args.get('session_id')
-    try:
-        # Best Case: The user's session survived the redirect.
-        if g.user and g.user.role == 'Admin':
-            flash("Payment successful! Your team has been upgraded to the Pro plan.", "success")
-            return redirect(url_for('admin.dashboard'))
-
-        # Fallback Case: The session was lost. Use the Stripe session_id to find the user.
-        if not stripe_session_id:
-            flash("Payment successful, but we couldn't log you back in automatically. Please log in.", "error")
-            return redirect(url_for('auth.login'))
-
-        session_data = stripe.checkout.Session.retrieve(stripe_session_id)
-        team_id = int(session_data.get('client_reference_id'))
-        team_admin = User.query.filter_by(team_id=team_id, role='Admin').first()
-
-        if team_admin:
-            # This is the key: we log the user back in by setting their session ID.
-            session['user_id'] = team_admin.id
-            flash("Payment successful! Your team has been upgraded to the Pro plan.", "success")
-            return redirect(url_for('admin.dashboard'))
-        else:
-            flash("Payment successful! Please log in to access your dashboard.", "success")
-            return redirect(url_for('auth.login'))
-
-    except Exception as e:
-        current_app.logger.error(f"Error in Stripe success route: {e}")
-        flash("We couldn’t confirm your payment automatically, but your subscription is likely active. Please log in.", "warning")
-        return redirect(url_for('auth.login'))
+    flash("Payment successful! Your plan has been upgraded. Please log in to continue.", "success")
+    return redirect(url_for('auth.login'))
+# === END OF NEW SUCCESS ROUTE ===
 
 @payments_bp.route("/cancel")
 def cancel():
@@ -83,12 +58,9 @@ def create_portal_session():
     )
     return redirect(portal_session.url, code=303)
 
+# === This is the webhook that does all the real work ===
 @payments_bp.route("/stripe-webhook", methods=["POST"])
 def stripe_webhook():
-    """
-    Listens for events from Stripe to update the database reliably.
-    This version is robust for Live Mode and correctly handles the subscription lifecycle.
-    """
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get("Stripe-Signature")
     webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
@@ -114,11 +86,11 @@ def stripe_webhook():
                     team.plan = "Pro"
                     team.stripe_customer_id = customer_id
                     db.session.commit()
-                    current_app.logger.info(f"Team {team.id} successfully upgraded to Pro.")
+                    current_app.logger.info(f"Team {team.id} successfully upgraded via webhook.")
         
         elif event_type == "invoice.paid":
-            customer_id = obj.get("customer")
-            if customer_id and obj.get("billing_reason") in ["subscription_cycle", "subscription_create"]:
+             customer_id = obj.get("customer")
+             if customer_id and obj.get("billing_reason") in ["subscription_cycle", "subscription_create"]:
                 team = Team.query.filter_by(stripe_customer_id=customer_id).first()
                 if team:
                     period_end = obj.get("lines", {}).get("data", [{}])[0].get("period", {}).get("end")
@@ -133,7 +105,7 @@ def stripe_webhook():
                 team.plan = "Free"
                 team.pro_access_expires_at = None
                 db.session.commit()
-                current_app.logger.info(f"Team {team.id} successfully downgraded to Free.")
+                current_app.logger.info(f"Team {team.id} successfully downgraded via webhook.")
 
     except Exception as e:
         current_app.logger.error(f"Error handling Stripe webhook ({event_type}): {e}")
