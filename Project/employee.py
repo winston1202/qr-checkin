@@ -275,6 +275,7 @@ def execute_action():
         
     db.session.commit()
     
+    # This explicit redirect is the key to the fix
     return redirect(url_for(
         'employee.success', 
         status=status_type, 
@@ -390,15 +391,14 @@ def verify_employee_email():
 
 @employee_bp.route("/success")
 def success():
-    # Get all the necessary info directly from the URL query parameters
+    # This function correctly reads the parameters from the URL
     user_id = request.args.get('user_id')
     status_type = request.args.get('status')
     worker_name = request.args.get('name')
 
-    # Find the user object so we can check if they have an email
     user = User.query.get(user_id) if user_id else None
 
-    # This check is still good to have in case the URL is malformed
+    # This check now passes because the redirect is sending the correct data
     if not all([user, status_type, worker_name]):
         flash("An unexpected error occurred while showing the success page. Please check your dashboard to confirm your status.", "error")
         return redirect(url_for('auth.home'))
