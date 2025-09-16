@@ -1,4 +1,5 @@
-from flask import Blueprint, request, redirect, url_for, g, flash, render_template, current_app, datetime
+from flask import Blueprint, request, redirect, url_for, g, flash, render_template, current_app
+from datetime import datetime  # <-- Import datetime on its own line
 from .models import db, Team, User  # <-- Make sure User is imported
 from .decorators import admin_required
 import stripe
