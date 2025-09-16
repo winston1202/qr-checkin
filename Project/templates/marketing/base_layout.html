@@ -32,18 +32,33 @@
         </div>
     </nav>
     <main>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="max-w-4xl mx-auto p-4">
-                {% for category, message in messages %}
-                    <div class="p-4 rounded-md {{ 'bg-green-100 text-green-800' if category == 'success' else 'bg-red-100 text-red-800' }}">
+        <main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="max-w-4xl mx-auto p-4">
+            {% for category, message in messages %}
+                <!-- === THIS IS THE IMPROVED LOGIC === -->
+                {% if category == 'success' %}
+                    <div class="p-4 rounded-md bg-green-100 text-green-800">
                         {{ message | safe }}
                     </div>
-                {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
-        {% block content %}{% endblock %}
+                {% elif category == 'error' %}
+                    <div class="p-4 rounded-md bg-red-100 text-red-800">
+                        {{ message | safe }}
+                    </div>
+                {% else %}
+                    <!-- Fallback for any other category like 'warning' or 'info' -->
+                    <div class="p-4 rounded-md bg-blue-100 text-blue-800">
+                        {{ message | safe }}
+                    </div>
+                {% endif %}
+                <!-- === END OF IMPROVED LOGIC === -->
+            {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+</main>
     </main>
     <footer class="bg-gray-800 text-white">
         <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 text-center">
