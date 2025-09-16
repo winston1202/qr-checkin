@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, g, make_response, redirect, url_for, flash, jsonify
-from .extensions import db, User, Team, TimeLog, TeamSetting, AuditLog
+from .extensions import db
+from .models import User, Team, TimeLog, TeamSetting, AuditLog
 from .decorators import admin_required
 from datetime import datetime
 import pytz
