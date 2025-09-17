@@ -65,16 +65,31 @@
     </main>
 
     <!-- FOOTER -->
-    <footer class="relative bg-gradient-to-t from-indigo-900/50 to-indigo-800/30 backdrop-blur-md border-t border-white/20 mt-auto">
-        <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 text-center">
-            <p class="text-white/80">&copy; 2025 QrCheckin. All rights reserved.</p>
-            <div class="mt-4 flex flex-wrap justify-center gap-4 text-sm">
-                <a href="{{ url_for('auth.privacy_policy') }}" class="text-white/70 hover:text-white transition">Privacy Policy</a>
-                <span class="text-white/50">|</span>
-                <a href="{{ url_for('auth.terms_of_service') }}" class="text-white/70 hover:text-white transition">Terms of Service</a>
-            </div>
-        </div>
-    </footer>
+    <footer class="relative bg-gradient-to-t from-indigo-900/90 to-indigo-800/80 backdrop-blur-lg border-t border-white/20 mt-auto shadow-inner">
+    <div class="max-w-7xl mx-auto py-10 px-6 sm:px-8 lg:px-10 text-center">
+        
+        <!-- Branding / tagline -->
+        <p class="text-white font-semibold text-lg mb-4">
+            QrCheckin – Secure, Simple, Smart
+        </p>
 
+        <!-- Divider -->
+        <div class="border-t border-white/20 my-4"></div>
+
+        <!-- Links -->
+        <div class="flex flex-wrap justify-center gap-6 text-sm sm:text-base mb-4">
+            <a href="{{ url_for('auth.privacy_policy') }}" class="text-white/80 hover:text-white transition">Privacy Policy</a>
+            <span class="text-white/50">|</span>
+            <a href="{{ url_for('auth.terms_of_service') }}" class="text-white/80 hover:text-white transition">Terms of Service</a>
+            <span class="text-white/50">|</span>
+            <a href="{{ url_for('auth.help_page') }}" class="text-white/80 hover:text-white transition">Help Center</a>
+        </div>
+
+        <!-- Copyright -->
+        <p class="text-white/60 text-sm sm:text-base">
+            &copy; 2025 QrCheckin. All rights reserved.
+        </p>
+    </div>
+</footer>
 </body>
 </html>
