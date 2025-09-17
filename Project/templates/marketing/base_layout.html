@@ -38,7 +38,7 @@
     </nav>
 
     <!-- MAIN CONTENT -->
-    <main class="flex-grow">
+    <main>
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 <div class="max-w-4xl mx-auto p-4">
@@ -65,7 +65,7 @@
     </main>
 
     <!-- FOOTER -->
-    <footer class="relative bg-white/10 backdrop-blur-md border-t border-white/20">
+    <footer class="relative bg-white/10 backdrop-blur-md border-t border-white/20 mt-auto">
         <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 text-center">
             <p class="text-white/80">&copy; 2025 QrCheckin. All rights reserved.</p>
             <div class="mt-4 flex flex-wrap justify-center gap-4 text-sm">
