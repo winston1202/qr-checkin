@@ -1,26 +1,28 @@
 {% extends "marketing/base_layout.html" %}
 {% block title %}The Simple Time Clock for Your Team{% endblock %}
 {% block content %}
-<div class="relative min-h-screen flex items-center justify-center overflow-hidden">
+<div class="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-700">
 
     <!-- Decorative blurred shapes -->
     <div class="absolute w-72 h-72 bg-white/10 rounded-full blur-3xl top-12 left-12"></div>
     <div class="absolute w-96 h-96 bg-blue-400/20 rounded-full blur-3xl bottom-0 right-0"></div>
 
     <!-- Glass hero container -->
-    <div class="relative z-10 max-w-3xl mx-auto text-center px-6 py-16 bg-white/20 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30">
-        <h1 class="text-4xl sm:text-5xl font-extrabold text-white drop-shadow-lg">
+    <div class="relative z-10 max-w-3xl mx-auto text-center px-8 py-20 bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/20 hover:shadow-3xl transition duration-500">
+        <h1 class="text-5xl sm:text-6xl font-extrabold text-white drop-shadow-lg leading-tight">
             The Simple, Secure Time Clock for Your Team
         </h1>
-        <p class="mt-6 text-lg sm:text-xl text-white/90">
+        <p class="mt-6 text-lg sm:text-2xl text-white/90 max-w-xl mx-auto">
             Geolocation-verified time tracking that's easy for employees and powerful for managers.
         </p>
-        <div class="mt-10">
+        <div class="mt-12">
             <a href="{{ url_for('auth.admin_signup') }}"
-               class="bg-white/80 hover:bg-white text-indigo-700 font-bold py-3 px-10 rounded-full text-lg shadow-md transition">
+               class="inline-block bg-white/80 hover:bg-white text-indigo-700 font-bold py-4 px-12 rounded-full text-lg shadow-lg hover:shadow-xl transition duration-300">
                 Get Started for Free
             </a>
         </div>
+        <!-- subtle gradient highlight at top for extra polish -->
+        <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-white/30 via-white/10 to-white/30 rounded-t-3xl pointer-events-none"></div>
     </div>
 </div>
 {% endblock %}

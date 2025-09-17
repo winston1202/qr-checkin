@@ -9,33 +9,34 @@
 </head>
 <body class="bg-gradient-to-br from-indigo-600 via-blue-600 to-blue-800 font-sans text-gray-900 relative overflow-x-hidden">
 
-        <!-- NAV -->
-    <nav class="bg-indigo-700/80 backdrop-blur-md border-b border-white/20 sticky top-0 z-50 shadow-lg">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <div class="flex-shrink-0">
-                    <a href="{{ url_for('auth.home') }}" class="flex items-center gap-2 text-2xl font-bold text-white drop-shadow">
-                        <img class="h-8 w-auto" src="{{ url_for('static', filename='favicon.png') }}" alt="QrCheckin Logo">
-                        <span>QrCheckin</span>
-                    </a>
-                </div>
-                
-                <div class="hidden sm:flex sm:items-center sm:space-x-8">
-                    <a href="{{ url_for('auth.home') }}" class="text-white/80 hover:text-white">Home</a>
-                    <a href="{{ url_for('auth.features') }}" class="text-white/80 hover:text-white">Features</a>
-                    <a href="{{ url_for('auth.about_page') }}" class="text-white/80 hover:text-white">About</a>
-                    <a href="{{ url_for('auth.how_to_start') }}" class="text-white/80 hover:text-white">How to Start</a>
-                    <a href="{{ url_for('auth.pricing') }}" class="text-white/80 hover:text-white">Pricing</a>
-                    <a href="{{ url_for('auth.help_page') }}" class="text-white/80 hover:text-white">Help</a>
-                </div>
-                
-                <div class="hidden sm:flex items-center space-x-2">
-                    <a href="{{ url_for('auth.login') }}" class="text-white/90 hover:bg-white/20 px-3 py-2 rounded-md text-sm font-medium">Log In</a>
-                    <a href="{{ url_for('auth.admin_signup') }}" class="bg-white/80 hover:bg-white text-indigo-700 px-3 py-2 rounded-md text-sm font-bold shadow">Sign Up</a>
-                </div>
+<!-- NAV -->
+<nav class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-[length:200%_200%] backdrop-blur-md border-b border-white/20 sticky top-0 z-50 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center h-16">
+            <div class="flex-shrink-0">
+                <a href="{{ url_for('auth.home') }}" class="flex items-center gap-2 text-2xl font-bold text-white drop-shadow">
+                    <img class="h-8 w-auto" src="{{ url_for('static', filename='favicon.png') }}" alt="QrCheckin Logo">
+                    <span>QrCheckin</span>
+                </a>
+            </div>
+            
+            <div class="hidden sm:flex sm:items-center sm:space-x-8">
+                <a href="{{ url_for('auth.home') }}" class="text-white/80 hover:text-white">Home</a>
+                <a href="{{ url_for('auth.features') }}" class="text-white/80 hover:text-white">Features</a>
+                <a href="{{ url_for('auth.about_page') }}" class="text-white/80 hover:text-white">About</a>
+                <a href="{{ url_for('auth.how_to_start') }}" class="text-white/80 hover:text-white">How to Start</a>
+                <a href="{{ url_for('auth.pricing') }}" class="text-white/80 hover:text-white">Pricing</a>
+                <a href="{{ url_for('auth.help_page') }}" class="text-white/80 hover:text-white">Help</a>
+            </div>
+            
+            <div class="hidden sm:flex items-center space-x-2">
+                <a href="{{ url_for('auth.login') }}" class="text-white/90 hover:bg-white/20 px-3 py-2 rounded-md text-sm font-medium">Log In</a>
+                <a href="{{ url_for('auth.admin_signup') }}" class="bg-white/80 hover:bg-white text-indigo-700 px-3 py-2 rounded-md text-sm font-bold shadow">Sign Up</a>
             </div>
         </div>
-    </nav>
+    </div>
+</nav>
+
 
 
     <!-- FLASH MESSAGES -->
