@@ -1,26 +1,56 @@
 {% extends "marketing/base_layout.html" %}
 {% block title %}The Simple Time Clock for Your Team{% endblock %}
 {% block content %}
-<div class="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700">
+<div class="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-cyan-500 via-indigo-600 to-purple-700">
 
     <!-- Decorative blurred shapes -->
-    <div class="absolute w-72 h-72 bg-white/10 rounded-full blur-3xl top-12 left-12"></div>
-    <div class="absolute w-96 h-96 bg-blue-400/20 rounded-full blur-3xl bottom-0 right-0"></div>
+    <div class="absolute w-80 h-80 bg-cyan-200/20 rounded-full blur-3xl top-20 left-8 animate-pulse-slow hidden sm:block"></div>
+    <div class="absolute w-96 h-96 bg-purple-500/25 rounded-full blur-3xl bottom-24 right-16 animate-pulse-slow hidden md:block"></div>
+    <div class="absolute w-48 h-48 bg-indigo-300/10 rounded-full blur-2xl top-12 right-24 animate-pulse-slow hidden lg:block"></div>
+
+    <!-- Floating shimmer effect behind hero card -->
+    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div class="w-3/4 h-96 bg-white/5 rounded-3xl backdrop-blur-3xl animate-shimmer opacity-20"></div>
+    </div>
 
     <!-- Glass hero container -->
-    <div class="relative z-10 max-w-3xl mx-auto text-center px-8 py-20 bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/20 hover:shadow-3xl transition duration-500">
-        <h1 class="text-5xl sm:text-6xl font-extrabold text-white drop-shadow-lg leading-tight">
+    <div class="relative z-10 max-w-3xl mx-auto text-center px-6 sm:px-10 py-20 sm:py-24 bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/20 hover:shadow-3xl transition-all duration-500">
+        
+        <!-- Heading -->
+        <h1 class="text-4xl sm:text-5xl md:text-6xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/90 drop-shadow-lg leading-tight">
             The Simple, Secure Time Clock for Your Team
         </h1>
-        <p class="mt-6 text-lg sm:text-2xl text-white/90 max-w-xl mx-auto">
+        
+        <!-- Subheading -->
+        <p class="mt-8 sm:mt-10 text-base sm:text-lg md:text-2xl text-white/95 max-w-xl mx-auto leading-relaxed">
             Geolocation-verified time tracking that's easy for employees and powerful for managers.
         </p>
-        <div class="mt-12">
+        
+        <!-- CTA Button -->
+        <div class="mt-10 sm:mt-14">
             <a href="{{ url_for('auth.admin_signup') }}"
-               class="inline-block bg-white/80 hover:bg-white text-indigo-700 font-bold py-4 px-12 rounded-full text-lg shadow-lg hover:shadow-xl transition duration-300">
+               class="inline-block bg-gradient-to-r from-white/90 to-white/70 text-indigo-700 font-bold py-3 sm:py-4 px-10 sm:px-16 rounded-full text-lg shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:scale-105 hover:from-white hover:to-white/100">
                 Get Started for Free
             </a>
         </div>
     </div>
 </div>
+
+<!-- Tailwind Custom Animations -->
+<style>
+@keyframes shimmer {
+  0% { transform: translateX(-50%) }
+  100% { transform: translateX(50%) }
+}
+.animate-shimmer {
+  animation: shimmer 8s linear infinite;
+}
+@keyframes pulse-slow {
+  0%,100% { opacity: 0.2; }
+  50% { opacity: 0.4; }
+}
+.animate-pulse-slow {
+  animation: pulse-slow 6s ease-in-out infinite;
+}
+</style>
 {% endblock %}
