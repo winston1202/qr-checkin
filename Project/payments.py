@@ -61,7 +61,8 @@ def create_portal_session():
 def stripe_webhook():
     """
     Listens for events from Stripe to update the database reliably.
-    This version is robust for Live Mode.
+    This version is robust for Live Mode and correctly handles the full subscription lifecycle,
+    including scheduled cancellations and renewals.
     """
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get("Stripe-Signature")
@@ -77,6 +78,7 @@ def stripe_webhook():
     obj = event["data"]["object"]
 
     try:
+        # Event 1: A new subscription is successfully created.
         if event_type == "checkout.session.completed":
             session = stripe.checkout.Session.retrieve(obj.id)
             team_id = session.client_reference_id
@@ -87,19 +89,33 @@ def stripe_webhook():
                 if team:
                     team.plan = "Pro"
                     team.stripe_customer_id = customer_id
+                    # On a new subscription, there is no cancellation date.
+                    team.pro_access_expires_at = None
                     db.session.commit()
                     current_app.logger.info(f"Team {team.id} successfully upgraded to Pro.")
-        
-        elif event_type == "invoice.paid":
-             customer_id = obj.get("customer")
-             if customer_id and obj.get("billing_reason") in ["subscription_cycle", "subscription_create"]:
-                team = Team.query.filter_by(stripe_customer_id=customer_id).first()
-                if team:
-                    period_end = obj.get("lines", {}).get("data", [{}])[0].get("period", {}).get("end")
-                    if period_end:
-                        team.pro_access_expires_at = datetime.fromtimestamp(period_end)
-                        db.session.commit()
 
+        # Event 2: A subscription is updated (e.g., a user cancels or renews).
+        elif event_type == "customer.subscription.updated":
+            customer_id = obj.get("customer")
+            team = Team.query.filter_by(stripe_customer_id=customer_id).first()
+
+            if team:
+                # Check if the user has scheduled the subscription to cancel at the end of the period.
+                if obj.get("cancel_at_period_end"):
+                    # If yes, save the exact date it will expire.
+                    # 'cancel_at' is a reliable timestamp for this.
+                    expiration_date = datetime.fromtimestamp(obj.get("cancel_at"))
+                    team.pro_access_expires_at = expiration_date
+                    current_app.logger.info(f"Team {team.id} has scheduled their subscription to cancel on {expiration_date}.")
+                else:
+                    # If no, it means they have renewed or reactivated the plan.
+                    # We must clear the expiration date.
+                    team.pro_access_expires_at = None
+                    current_app.logger.info(f"Team {team.id} has renewed/reactivated their subscription.")
+                
+                db.session.commit()
+
+        # Event 3: The subscription is TRULY deleted by Stripe at the period end.
         elif event_type == "customer.subscription.deleted":
             customer_id = obj.get("customer")
             team = Team.query.filter_by(stripe_customer_id=customer_id).first()
@@ -107,7 +123,79 @@ def stripe_webhook():
                 team.plan = "Free"
                 team.pro_access_expires_at = None
                 db.session.commit()
-                current_app.logger.info(f"Team {team.id} successfully downgraded to Free.")
+                current_app.logger.info(f"Team {team.id} has been successfully downgraded to Free.")
+
+    except Exception as e:
+        current_app.logger.error(f"Error handling Stripe webhook ({event_type}): {e}")
+        return "Webhook processing error", 500
+
+    return "OK", 200@payments_bp.route("/stripe-webhook", methods=["POST"])
+def stripe_webhook():
+    """
+    Listens for events from Stripe to update the database reliably.
+    This version is robust for Live Mode and correctly handles the full subscription lifecycle,
+    including scheduled cancellations and renewals.
+    """
+    payload = request.get_data(as_text=True)
+    sig_header = request.headers.get("Stripe-Signature")
+    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except (ValueError, stripe.error.SignatureVerificationError) as e:
+        current_app.logger.error(f"Stripe webhook signature error: {e}")
+        return "Invalid payload or signature", 400
+
+    event_type = event.get("type")
+    obj = event["data"]["object"]
+
+    try:
+        # Event 1: A new subscription is successfully created.
+        if event_type == "checkout.session.completed":
+            session = stripe.checkout.Session.retrieve(obj.id)
+            team_id = session.client_reference_id
+            customer_id = session.customer
+
+            if team_id:
+                team = Team.query.get(int(team_id))
+                if team:
+                    team.plan = "Pro"
+                    team.stripe_customer_id = customer_id
+                    # On a new subscription, there is no cancellation date.
+                    team.pro_access_expires_at = None
+                    db.session.commit()
+                    current_app.logger.info(f"Team {team.id} successfully upgraded to Pro.")
+
+        # Event 2: A subscription is updated (e.g., a user cancels or renews).
+        elif event_type == "customer.subscription.updated":
+            customer_id = obj.get("customer")
+            team = Team.query.filter_by(stripe_customer_id=customer_id).first()
+
+            if team:
+                # Check if the user has scheduled the subscription to cancel at the end of the period.
+                if obj.get("cancel_at_period_end"):
+                    # If yes, save the exact date it will expire.
+                    # 'cancel_at' is a reliable timestamp for this.
+                    expiration_date = datetime.fromtimestamp(obj.get("cancel_at"))
+                    team.pro_access_expires_at = expiration_date
+                    current_app.logger.info(f"Team {team.id} has scheduled their subscription to cancel on {expiration_date}.")
+                else:
+                    # If no, it means they have renewed or reactivated the plan.
+                    # We must clear the expiration date.
+                    team.pro_access_expires_at = None
+                    current_app.logger.info(f"Team {team.id} has renewed/reactivated their subscription.")
+                
+                db.session.commit()
+
+        # Event 3: The subscription is TRULY deleted by Stripe at the period end.
+        elif event_type == "customer.subscription.deleted":
+            customer_id = obj.get("customer")
+            team = Team.query.filter_by(stripe_customer_id=customer_id).first()
+            if team:
+                team.plan = "Free"
+                team.pro_access_expires_at = None
+                db.session.commit()
+                current_app.logger.info(f"Team {team.id} has been successfully downgraded to Free.")
 
     except Exception as e:
         current_app.logger.error(f"Error handling Stripe webhook ({event_type}): {e}")
