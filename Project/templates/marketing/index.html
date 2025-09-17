@@ -1,13 +1,26 @@
 {% extends "marketing/base_layout.html" %}
 {% block title %}The Simple Time Clock for Your Team{% endblock %}
 {% block content %}
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);" class="text-white">
-        <div class="max-w-4xl mx-auto text-center py-24 px-4">
-            <h1 class="text-4xl sm:text-5xl font-extrabold">The Simple, Secure Time Clock for Your Team</h1>
-            <p class="mt-4 text-lg sm:text-xl">Geolocation-verified time tracking that's easy for employees and powerful for managers.</p>
-            <div class="mt-8">
-                <a href="{{ url_for('auth.admin_signup') }}" class="bg-white text-blue-600 font-bold py-3 px-8 rounded-full text-lg hover:bg-gray-200">Get Started for Free</a>
-            </div>
+<div class="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 overflow-hidden">
+    
+    <!-- Decorative blurred shapes -->
+    <div class="absolute w-72 h-72 bg-white/20 rounded-full blur-3xl top-10 left-10"></div>
+    <div class="absolute w-96 h-96 bg-blue-400/30 rounded-full blur-3xl bottom-0 right-0"></div>
+    
+    <!-- Glass container -->
+    <div class="relative z-10 max-w-3xl mx-auto text-center px-6 py-16 bg-white/20 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30">
+        <h1 class="text-4xl sm:text-5xl font-extrabold text-white drop-shadow-lg">
+            The Simple, Secure Time Clock for Your Team
+        </h1>
+        <p class="mt-6 text-lg sm:text-xl text-white/90">
+            Geolocation-verified time tracking that's easy for employees and powerful for managers.
+        </p>
+        <div class="mt-10">
+            <a href="{{ url_for('auth.admin_signup') }}"
+               class="bg-white/80 hover:bg-white text-indigo-700 font-bold py-3 px-10 rounded-full text-lg shadow-md transition">
+                Get Started for Free
+            </a>
         </div>
     </div>
+</div>
 {% endblock %}
