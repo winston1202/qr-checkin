@@ -7,10 +7,10 @@
     <title>{% block title %}QrCheckin Service{% endblock %}</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
 </head>
-<body class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 font-sans">
+<body class="bg-gray-50 font-sans flex flex-col min-h-screen">
 
     <!-- NAV -->
-    <nav class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 backdrop-blur-md border-b border-white/20 sticky top-0 z-50 shadow-lg">
+    <nav class="bg-indigo-700/80 backdrop-blur-md border-b border-white/20 sticky top-0 z-50 shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <div class="flex-shrink-0">
@@ -37,40 +37,42 @@
         </div>
     </nav>
 
-    <main>
+    <!-- MAIN CONTENT -->
+    <main class="flex-grow">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 <div class="max-w-4xl mx-auto p-4">
-                    {% for category, message in messages %}
-                        {% if category == 'success' %}
-                            <div class="p-4 rounded-md bg-green-100 text-green-800">
-                                {{ message | safe }}
-                            </div>
-                        {% elif category == 'error' %}
-                            <div class="p-4 rounded-md bg-red-100 text-red-800">
-                                {{ message | safe }}
-                            </div>
-                        {% else %}
-                            <div class="p-4 rounded-md bg-blue-100 text-blue-800">
-                                {{ message | safe }}
-                            </div>
-                        {% endif %}
-                    {% endfor %}
+                {% for category, message in messages %}
+                    {% if category == 'success' %}
+                        <div class="p-4 rounded-md bg-green-100 text-green-800">
+                            {{ message | safe }}
+                        </div>
+                    {% elif category == 'error' %}
+                        <div class="p-4 rounded-md bg-red-100 text-red-800">
+                            {{ message | safe }}
+                        </div>
+                    {% else %}
+                        <div class="p-4 rounded-md bg-blue-100 text-blue-800">
+                            {{ message | safe }}
+                        </div>
+                    {% endif %}
+                {% endfor %}
                 </div>
             {% endif %}
         {% endwith %}
+
         {% block content %}{% endblock %}
     </main>
 
     <!-- FOOTER -->
-    <footer class="relative z-10 bg-white/10 backdrop-blur-2xl border-t border-white/20 shadow-inner">
-        <div class="max-w-7xl mx-auto py-8 px-6 sm:px-8 lg:px-10 text-center text-white">
-            <p class="text-sm sm:text-base drop-shadow-md">&copy; 2025 QrCheckin. All rights reserved.</p>
-            <p class="mt-4 text-sm sm:text-base text-white/70">
-                <a href="{{ url_for('auth.privacy_policy') }}" class="hover:text-white underline">Privacy Policy</a>
-                <span class="mx-2">|</span>
-                <a href="{{ url_for('auth.terms_of_service') }}" class="hover:text-white underline">Terms of Service</a>
-            </p>
+    <footer class="relative bg-white/10 backdrop-blur-md border-t border-white/20">
+        <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 text-center">
+            <p class="text-white/80">&copy; 2025 QrCheckin. All rights reserved.</p>
+            <div class="mt-4 flex flex-wrap justify-center gap-4 text-sm">
+                <a href="{{ url_for('auth.privacy_policy') }}" class="text-white/70 hover:text-white transition">Privacy Policy</a>
+                <span class="text-white/50">|</span>
+                <a href="{{ url_for('auth.terms_of_service') }}" class="text-white/70 hover:text-white transition">Terms of Service</a>
+            </div>
         </div>
     </footer>
 
