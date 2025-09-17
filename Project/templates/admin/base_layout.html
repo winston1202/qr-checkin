@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ENSURE THIS LINE IS HERE -->
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
     <title>{% block title %}Admin Dashboard{% endblock %} - QrCheckin</title>
 </head>
@@ -12,29 +13,30 @@
         
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6">
             {% if g.is_super_admin %}
-                <!-- Header for Super Admin -->
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-800">System Management</h1>
-                    <p class="text-gray-600">Super Administrator View</p>
+                <div class="flex items-center gap-3">
+                    <img class="h-10 w-auto" src="{{ url_for('static', filename='favicon.png') }}" alt="QrCheckin Logo">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800">System Management</h1>
+                        <p class="text-gray-600">Super Administrator View</p>
+                    </div>
                 </div>
             {% else %}
-                <!-- Header for Regular Admins with Integrated Subscription Status -->
                 <div class="flex items-center gap-x-4">
-                    <div>
-                        <h1 class="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
-                        <p class="text-gray-600">Managing Team: <strong>{{ g.user.team.name }}</strong></p>
+                    <div class="flex items-center gap-3">
+                        <img class="h-10 w-auto" src="{{ url_for('static', filename='favicon.png') }}" alt="QrCheckin Logo">
+                        <div>
+                            <h1 class="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
+                            <p class="text-gray-600">Managing Team: <strong>{{ g.user.team.name }}</strong></p>
+                        </div>
                     </div>
                     
-                    <!-- === THIS IS THE NEW SUBSCRIPTION STATUS LOGIC === -->
                     {% if g.user.team.plan == 'Free' %}
-                        <!-- User is on the Free plan -->
                         <form action="{{ url_for('payments.create_checkout_session') }}" method="POST">
                             <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold py-1 px-4 rounded-full shadow-sm">
                                 Upgrade to Pro
                             </button>
                         </form>
                     {% elif g.user.team.pro_access_expires_at and g.user.team.pro_access_expires_at.replace(tzinfo=None) < now.replace(tzinfo=None) %}
-                        <!-- User was on Pro, but it has expired -->
                         <div class="flex items-center gap-3">
                             <span class="bg-gray-100 text-gray-800 text-xs font-semibold px-3 py-1 rounded-full">Pro Expired</span>
                             <form action="{{ url_for('payments.create_checkout_session') }}" method="POST">
@@ -42,13 +44,13 @@
                             </form>
                         </div>
                     {% else %}
-                        <!-- User is on the Pro plan -->
                         <div class="flex items-center gap-3">
                             <span class="bg-green-100 text-green-800 text-xs font-semibold px-3 py-1 rounded-full">Pro Plan</span>
-                            <form action="{{ url_for('payments.create_portal_session') }}" method="POST">
-                                <button type="submit" class="text-sm font-medium text-gray-500 hover:text-gray-800">Manage</button>
-                            </form>
-                            <!-- Show the cancellation status if it's scheduled -->
+                            {% if g.user.id == g.user.team.owner_id %}
+                                <form action="{{ url_for('payments.create_portal_session') }}" method="POST">
+                                    <button type="submit" class="text-sm font-medium text-gray-500 hover:text-gray-800">Manage</button>
+                                </form>
+                            {% endif %}
                             {% if g.user.team.pro_access_expires_at %}
                                 <p class="text-xs text-yellow-700">
                                     Cancels on {{ g.user.team.pro_access_expires_at.strftime('%b %d, %Y') }}
@@ -56,7 +58,6 @@
                             {% endif %}
                         </div>
                     {% endif %}
-                    <!-- === END OF SUBSCRIPTION STATUS LOGIC === -->
                 </div>
             {% endif %}
             
@@ -70,16 +71,13 @@
                 <nav class="-mb-px flex space-x-6 overflow-x-auto">
                     
                     {% if g.is_super_admin %}
-                        <!-- Navigation for Super Admin -->
                         <a href="{{ url_for('super_admin.dashboard') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-red-600 hover:text-red-800 border-red-500">
                             Super Admin Dashboard
                         </a>
                     {% else %}
-                        <!-- Navigation for Regular Admin -->
                         <a href="{{ url_for('admin.dashboard') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.dashboard' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Dashboard</a>
                         <a href="{{ url_for('admin.time_log') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.time_log' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Time Log</a>
                         
-                        <!-- Audit Log is now a Pro-only feature -->
                         {% if g.user.team.plan == 'Pro' %}
                         <a href="{{ url_for('admin.audit_log') }}" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm {{ 'border-blue-500 text-blue-600' if request.endpoint == 'admin.audit_log' else 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">Audit Log</a>
                         {% endif %}

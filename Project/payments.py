@@ -47,6 +47,13 @@ def cancel():
 @payments_bp.route("/create-portal-session", methods=["POST"])
 @admin_required
 def create_portal_session():
+    # --- THIS IS THE NEW SECURITY CHECK ---
+    # We now check if the logged-in user's ID matches the team's owner_id.
+    if g.user.id != g.user.team.owner_id:
+        flash("Only the team owner can manage the subscription.", "error")
+        return redirect(url_for('admin.dashboard'))
+    # --- END OF SECURITY CHECK ---
+
     if not g.user.team.stripe_customer_id:
         flash("No subscription found to manage.", "error")
         return redirect(url_for('admin.dashboard'))

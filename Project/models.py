@@ -14,6 +14,7 @@ class Team(db.Model):
     pro_access_expires_at = db.Column(db.DateTime, nullable=True)
     users = db.relationship('User', backref='team', lazy=True, cascade="all, delete-orphan")
     settings = db.relationship('TeamSetting', backref='team', lazy=True, cascade="all, delete-orphan")
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
