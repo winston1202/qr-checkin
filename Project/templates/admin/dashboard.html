@@ -1,32 +1,66 @@
 {% extends "admin/base_layout.html" %}
 {% block title %}Dashboard{% endblock %}
+
 {% block content %}
-
-<!-- The old banner code that was here has been completely removed. -->
-
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     <div class="lg:col-span-2">
         <div class="bg-white p-6 rounded-lg shadow-md">
             <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Currently Clocked In</h2>
             <div id="currently-in-container">
-                <!-- Real-time data will be injected here by the script below -->
+                <!-- Real-time data will be injected here -->
             </div>
         </div>
     </div>
     <div class="lg:col-span-1 space-y-8">
+        
+        <!-- === THIS IS THE NEW "SHARE" CARD === -->
         <div class="bg-white p-6 rounded-lg shadow-md">
-            <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Team Invitation Link</h2>
-            <p class="text-gray-600 mb-4">Share this link with employees to join.</p>
-            <input type="text" id="joinLinkInput" value="{{ join_link }}" readonly class="w-full p-2 border rounded-md bg-gray-100">
-            <button id="copyLinkBtn" class="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">Copy Link</button>
+            <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Invite Your Team</h2>
+            <p class="text-gray-600 mb-4">Click below to get your team's unique invitation link or QR code.</p>
+            <button id="shareBtn" class="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">
+                Share Invitation
+            </button>
+            <!-- Hidden input to hold the link for the copy function -->
+            <input type="hidden" id="joinLinkInput" value="{{ join_link }}">
         </div>
+        <!-- === END OF NEW CARD === -->
+        
         <div class="bg-white p-6 rounded-lg shadow-md">
             <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Team Stats</h2>
             <p class="text-gray-600">Total Users on Team: <strong class="text-xl">{{ user_count }}</strong></p>
         </div>
     </div>
 </div>
+
+<!-- === THIS IS THE NEW SHARE MODAL WINDOW === -->
+<div id="shareModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full flex items-center justify-center hidden">
+    <div class="relative mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+        <h3 class="text-lg text-center font-medium text-gray-900">Share Invitation</h3>
+        
+        <!-- This container holds the initial buttons -->
+        <div id="shareOptions" class="mt-4 px-7 py-3 space-y-3">
+            <button id="copyLinkBtn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Copy Link</button>
+            <button id="showQrBtn" class="w-full bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg">Show QR Code</button>
+        </div>
+
+        <!-- This container will hold the QR code and will be hidden initially -->
+        <div id="qrCodeContainer" class="hidden text-center mt-4">
+            <p class="text-sm text-gray-500 mb-2">Have employees scan this code with their phone's camera.</p>
+            <img id="qrCodeImg" src="" alt="Invitation QR Code" class="mx-auto border p-2">
+            <button id="printQrBtn" class="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">
+                Print QR Code
+            </button>
+        </div>
+
+        <div class="mt-4 px-4 py-3 border-t">
+            <button id="closeModalBtn" class="px-4 py-2 bg-gray-200 rounded-md w-full">Cancel</button>
+        </div>
+    </div>
+</div>
+<!-- === END OF MODAL === -->
+
 <script>
+    // SCRIPT FOR "CURRENTLY CLOCKED IN" (Unchanged)
     async function updateDashboard() {
         try {
             const response = await fetch("{{ url_for('admin.api_dashboard_data') }}");
@@ -38,10 +72,10 @@
                 people.forEach(person => {
                     tableHTML += `
                         <tr class="border-t">
-                            <td class="py-3 font-semibold">${person.Name}</td>
-                            <td class="py-3 text-gray-600">${person['Clock In']}</td>
+                            <td class="py-3 font-semibold">\${person.Name}</td>
+                            <td class="py-3 text-gray-600">\${person['Clock In']}</td>
                             <td class="py-3">
-                                <form action="/admin/fix_clock_out/${person.id}" method="POST">
+                                <form action="/admin/fix_clock_out/\${person.id}" method="POST">
                                     <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold py-2 px-3 rounded">Clock Out Now</button>
                                 </form>
                             </td>
@@ -54,15 +88,77 @@
             }
         } catch (error) { console.error("Error updating dashboard:", error); }
     }
+
+    // SCRIPT FOR THE NEW SHARE MODAL
     document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('copyLinkBtn').addEventListener('click', () => {
-            const input = document.getElementById('joinLinkInput');
-            input.select();
-            document.execCommand('copy');
-            alert('Invitation link copied!');
-        });
+        // Run the dashboard update script
         updateDashboard();
         setInterval(updateDashboard, 15000);
+
+        // Get all the elements for the modal
+        const shareBtn = document.getElementById('shareBtn');
+        const shareModal = document.getElementById('shareModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const copyLinkBtn = document.getElementById('copyLinkBtn');
+        const showQrBtn = document.getElementById('showQrBtn');
+        const qrCodeContainer = document.getElementById('qrCodeContainer');
+        const qrCodeImg = document.getElementById('qrCodeImg');
+        const shareOptions = document.getElementById('shareOptions');
+        const printQrBtn = document.getElementById('printQrBtn');
+
+        // Function to open and close the modal
+        shareBtn.addEventListener('click', () => shareModal.classList.remove('hidden'));
+        closeModalBtn.addEventListener('click', () => shareModal.classList.add('hidden'));
+
+        // Logic for the "Copy Link" button
+        copyLinkBtn.addEventListener('click', () => {
+            const input = document.getElementById('joinLinkInput');
+            navigator.clipboard.writeText(input.value).then(() => {
+                alert('Invitation link copied!');
+                shareModal.classList.add('hidden');
+            });
+        });
+
+        // Logic for the "Show QR Code" button
+        showQrBtn.addEventListener('click', async () => {
+            // Show a loading state
+            showQrBtn.textContent = 'Generating...';
+            showQrBtn.disabled = true;
+
+            try {
+                // Fetch the QR code image from our new backend route
+                const response = await fetch("{{ url_for('admin.generate_qr_code') }}");
+                const data = await response.json();
+                
+                // Set the image source with the base64 data
+                qrCodeImg.src = `data:image/png;base64,${data.qr_code_image}`;
+                
+                // Hide the initial options and show the QR code container
+                shareOptions.classList.add('hidden');
+                qrCodeContainer.classList.remove('hidden');
+
+            } catch (error) {
+                console.error("Error generating QR code:", error);
+                alert("Could not generate QR code. Please try again.");
+            } finally {
+                // Reset the button state
+                showQrBtn.textContent = 'Show QR Code';
+                showQrBtn.disabled = false;
+            }
+        });
+
+        // Logic for the "Print QR Code" button
+        printQrBtn.addEventListener('click', () => {
+            const qrCodeUrl = qrCodeImg.src;
+            const printWindow = window.open('', '', 'height=400,width=400');
+            printWindow.document.write('<html><head><title>QrCheckin Invitation</title></head><body style="text-align:center;">');
+            printWindow.document.write('<h2>Scan to Clock In</h2>');
+            printWindow.document.write('<img src="' + qrCodeUrl + '" style="width:300px;height:300px;">');
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+        });
     });
 </script>
 {% endblock %}

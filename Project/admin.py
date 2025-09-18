@@ -8,6 +8,9 @@ import csv
 import io
 import os
 from sqlalchemy import or_
+import qrcode
+import io
+import base64
 
 # A SINGLE blueprint for ALL admin routes, prefixed with /admin
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -303,3 +306,31 @@ def audit_log():
     """Displays a log of security-related events for the team."""
     logs = AuditLog.query.filter_by(team_id=g.user.team_id).order_by(AuditLog.timestamp.desc()).all()
     return render_template("admin/audit_log.html", logs=logs)
+
+@admin_bp.route("/generate_qr_code")
+@admin_required
+def generate_qr_code():
+    """Generates a QR code for the team's invitation link."""
+    # Get the same join link that's on the dashboard
+    join_link = url_for('employee.join_team', join_token=g.user.team.join_token, _external=True)
+    
+    # Generate the QR code image in memory
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(join_link)
+    qr.make(fit=True)
+    
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # Save the image to a byte buffer
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    
+    # Encode the image data in base64 to send it via JSON
+    img_str = base64.b64encode(buf.getvalue()).decode("utf-8")
+    
+    return jsonify({"qr_code_image": img_str})
