@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>QrCheckin Invitation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* This ensures the page size is appropriate and printing looks good */
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            @page {
+                size: letter; /* You can also use A4 */
+                margin: 1in;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans">
+    <div class="max-w-xl mx-auto p-8 border-4 border-gray-800 rounded-lg text-center flex flex-col items-center justify-center h-full">
+        
+        <!-- Header with Logo and Brand Name -->
+        <div class="flex items-center gap-4 mb-8">
+            <!-- This line adds your logo to the printout -->
+            <img src="{{ url_for('static', filename='favicon.png') }}" alt="QrCheckin Logo" class="h-16 w-16">
+            <div>
+                <h1 class="text-4xl font-bold text-gray-800">QrCheckin</h1>
+                <p class="text-lg text-gray-500">Employee Clock-In</p>
+            </div>
+        </div>
+        
+        <!-- QR Code Image -->
+        <!-- The 'qr_code_image_src' is passed in from the backend -->
+        <img src="{{ qr_code_image_src }}" alt="Invitation QR Code" class="w-80 h-80 border-4 border-gray-300 p-2 rounded-lg">
+        
+        <!-- Instructions -->
+        <div class="mt-8">
+            <h2 class="text-2xl font-semibold text-gray-700">Scan to Clock In or Out</h2>
+            <p class="mt-2 text-gray-600">
+                Open the camera app on your phone and point it at the code above.
+            </p>
+        </div>
+
+    </div>
+</body>
+</html>

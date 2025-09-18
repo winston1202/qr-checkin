@@ -60,7 +60,7 @@
 <!-- === END OF MODAL === -->
 
 <script>
-    // SCRIPT FOR "CURRENTLY CLOCKED IN" (Unchanged)
+    // SCRIPT FOR "CURRENTLY CLOCKED IN"
     async function updateDashboard() {
         try {
             const response = await fetch("{{ url_for('admin.api_dashboard_data') }}");
@@ -91,11 +91,9 @@
 
     // SCRIPT FOR THE NEW SHARE MODAL
     document.addEventListener('DOMContentLoaded', () => {
-        // Run the dashboard update script
         updateDashboard();
         setInterval(updateDashboard, 15000);
 
-        // Get all the elements for the modal
         const shareBtn = document.getElementById('shareBtn');
         const shareModal = document.getElementById('shareModal');
         const closeModalBtn = document.getElementById('closeModalBtn');
@@ -106,11 +104,9 @@
         const shareOptions = document.getElementById('shareOptions');
         const printQrBtn = document.getElementById('printQrBtn');
 
-        // Function to open and close the modal
         shareBtn.addEventListener('click', () => shareModal.classList.remove('hidden'));
         closeModalBtn.addEventListener('click', () => shareModal.classList.add('hidden'));
 
-        // Logic for the "Copy Link" button
         copyLinkBtn.addEventListener('click', () => {
             const input = document.getElementById('joinLinkInput');
             navigator.clipboard.writeText(input.value).then(() => {
@@ -119,45 +115,42 @@
             });
         });
 
-        // Logic for the "Show QR Code" button
         showQrBtn.addEventListener('click', async () => {
-            // Show a loading state
             showQrBtn.textContent = 'Generating...';
             showQrBtn.disabled = true;
 
             try {
-                // Fetch the QR code image from our new backend route
                 const response = await fetch("{{ url_for('admin.generate_qr_code') }}");
                 const data = await response.json();
-                
-                // Set the image source with the base64 data
-                qrCodeImg.src = `data:image/png;base64,${data.qr_code_image}`;
-                
-                // Hide the initial options and show the QR code container
+                qrCodeImg.src = `data:image/png;base64,\${data.qr_code_image}`;
                 shareOptions.classList.add('hidden');
                 qrCodeContainer.classList.remove('hidden');
-
             } catch (error) {
                 console.error("Error generating QR code:", error);
                 alert("Could not generate QR code. Please try again.");
             } finally {
-                // Reset the button state
                 showQrBtn.textContent = 'Show QR Code';
                 showQrBtn.disabled = false;
             }
         });
 
-        // Logic for the "Print QR Code" button
+        // This is the new, improved print logic
         printQrBtn.addEventListener('click', () => {
             const qrCodeUrl = qrCodeImg.src;
-            const printWindow = window.open('', '', 'height=400,width=400');
-            printWindow.document.write('<html><head><title>QrCheckin Invitation</title></head><body style="text-align:center;">');
-            printWindow.document.write('<h2>Scan to Clock In</h2>');
-            printWindow.document.write('<img src="' + qrCodeUrl + '" style="width:300px;height:300px;">');
-            printWindow.document.write('</body></html>');
-            printWindow.document.close();
-            printWindow.focus();
-            printWindow.print();
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{{ url_for('admin.print_qr_code') }}";
+            form.target = '_blank';
+
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'qr_code_image_src';
+            hiddenInput.value = qrCodeUrl;
+
+            form.appendChild(hiddenInput);
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
         });
     });
 </script>

@@ -334,3 +334,14 @@ def generate_qr_code():
     img_str = base64.b64encode(buf.getvalue()).decode("utf-8")
     
     return jsonify({"qr_code_image": img_str})
+
+@admin_bp.route("/print_qr_code", methods=["POST"])
+@admin_required
+def print_qr_code():
+    """Renders the branded QR code page for printing."""
+    # The image data is sent from the frontend JavaScript
+    qr_code_image_src = request.form.get('qr_code_image_src')
+    if not qr_code_image_src:
+        return "No QR code data provided.", 400
+    
+    return render_template("admin/print_qr.html", qr_code_image_src=qr_code_image_src)
