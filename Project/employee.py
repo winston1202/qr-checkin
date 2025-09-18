@@ -202,11 +202,22 @@ def enable_location():
 
 @employee_bp.route("/confirm_entry")
 def confirm_entry():
-    if 'pending_action' not in session: return redirect(url_for('employee.scan'))
+    if 'pending_action' not in session: 
+        return redirect(url_for('employee.scan'))
+        
     action_data = session['pending_action']
     user = User.query.get(action_data['user_id'])
+
+    # --- THIS IS THE FIX ---
+    # The redirect for an "already clocked out" user was still using the old, incorrect endpoint name.
     if action_data['action_type'] == 'Already Clocked Out':
-        return redirect(url_for('employee.success', status='already_complete', name=user.name, user_id=user.id))
+        return redirect(url_for(
+            'employee.employee_success', # <-- This has been corrected
+            status='already_complete', 
+            name=user.name, 
+            user_id=user.id
+        ))
+    # --- END OF FIX ---
     
     settings = get_team_settings(user.team_id)
     location_check_required = settings.get('LocationVerificationEnabled') == 'TRUE'
@@ -223,18 +234,10 @@ def confirm_entry():
             distance = calculate_distance(building_lat, building_lon, float(user_lat_str), float(request.args.get('lon')))
             
             if (distance * 3.28084) > allowed_radius_feet:
-                # --- THIS IS THE NEW LOGIC ---
-                # Log the geofence failure before redirecting.
                 log_detail = f"Clock-in failed. User was {int(distance * 3.28084)} feet from the geofence center."
-                log_entry = AuditLog(
-                    team_id=user.team_id,
-                    user_id=user.id,
-                    event_type="Geofence Failure",
-                    details=log_detail
-                )
+                log_entry = AuditLog(team_id=user.team_id, user_id=user.id, event_type="Geofence Failure", details=log_detail)
                 db.session.add(log_entry)
                 db.session.commit()
-                # --- END OF NEW LOGIC ---
                 return redirect(url_for('employee.location_failed', message=f"You are too far away. You must be within {allowed_radius_feet} feet."))
         except (TypeError, ValueError, AttributeError):
             return redirect(url_for('employee.location_failed', message="Could not verify location due to a configuration error."))
