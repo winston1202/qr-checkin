@@ -46,42 +46,37 @@ def prepare_and_store_action(user):
 
 @employee_bp.route("/join/<join_token>")
 def join_team(join_token):
-    """
-    Handles the team invitation link.
-    If the user's device is already recognized, it redirects them to their
-    clock-in/out workflow. If the device is new, it GIVES THEM a new token
-    before proceeding.
-    """
     device_token = request.cookies.get('device_token')
 
-    # Case 1: This is a returning user on a recognized device.
+    # This is the primary check for a returning user on a known device.
     if device_token:
         user = User.query.filter_by(device_token=device_token).first()
         if user:
+            # --- THIS IS THE FIX ---
+            # We must set the team information in the session here,
+            # because the user is skipping the 'scan' page.
+            session['join_team_id'] = user.team_id
+            session['join_team_name'] = user.team.name
+            admin = User.query.filter_by(team_id=user.team_id, role='Admin').first()
+            session['join_admin_name'] = admin.name if admin else 'N/A'
+
+            # Now that the session is correctly set up, we can prepare the action.
             prepare_and_store_action(user)
             return redirect(url_for('employee.confirm_entry'))
+            # --- END OF FIX ---
 
-    # If we get here, the user is either on a new device OR they are a brand new user.
+    # If the device is not recognized, proceed to the name entry page.
     team = Team.query.filter_by(join_token=join_token).first_or_404()
     session['join_team_id'] = team.id
     session['join_team_name'] = team.name
     admin = User.query.filter_by(team_id=team.id, role='Admin').first()
     session['join_admin_name'] = admin.name if admin else 'N/A'
     
-    # --- THIS IS THE NEW, CRITICAL LOGIC ---
-    # Case 2: This is a brand new device/visitor. We must create a token for them.
+    response = make_response(redirect(url_for('employee.scan')))
     if not device_token:
-        # We need to create a response object to attach the new cookie to.
-        response = make_response(redirect(url_for('employee.scan')))
         new_token = str(uuid.uuid4())
-        # Set the cookie in the user's browser. It will be available on the next request.
-        response.set_cookie('device_token', new_token, max_age=365*24*60*60) # Expires in 1 year
-        return response
-    # --- END OF NEW LOGIC ---
-
-    # Case 3: The device has a token, but it's not linked to any user yet.
-    # We can just send them to the scan page to register their name.
-    return redirect(url_for('employee.scan'))
+        response.set_cookie('device_token', new_token, max_age=365*24*60*60)
+    return response
 
 @employee_bp.route("/scan", methods=["GET", "POST"])
 def scan():
