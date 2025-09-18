@@ -295,10 +295,33 @@ def generate_qr_code():
     img_str = base64.b64encode(buf.getvalue()).decode("utf-8")
     return jsonify({"qr_code_image": img_str})
 
-@admin_bp.route("/print_qr_code", methods=["POST"])
+@admin_bp.route("/print_qr_code") # No methods needed, defaults to GET
 @admin_required
 def print_qr_code():
-    qr_code_image_src = request.form.get('qr_code_image_src')
-    if not qr_code_image_src:
-        return "No QR code data provided.", 400
+    """
+    Generates a QR code from the team's join link AND renders the
+    branded, printer-friendly page all in one step.
+    """
+    # 1. Build the join link
+    join_link = url_for('employee.join_team', join_token=g.user.team.join_token, _external=True)
+
+    # 2. Generate the QR code image in memory
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(join_link)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # 3. Save the image to a byte buffer
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    
+    # 4. Encode the image data in base64 to pass to the template
+    qr_code_image_src = f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode('utf-8')}"
+
+    # 5. Render the beautiful print template with the image data
     return render_template("admin/print_qr.html", qr_code_image_src=qr_code_image_src)
