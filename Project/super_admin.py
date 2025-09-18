@@ -50,8 +50,14 @@ def delete_team(team_id):
     """Allows the Super Admin to delete an entire team and all its data."""
     team_to_delete = Team.query.get_or_404(team_id)
     
-    # The 'cascade' in the database models will automatically delete
-    # all users, time logs, and settings associated with this team.
+    # --- THIS IS THE FIX ---
+    # Manually break the circular dependency by setting the owner to None.
+    # This tells the database that the Team no longer depends on the User (owner).
+    team_to_delete.owner = None
+    db.session.add(team_to_delete)
+    # --- END OF FIX ---
+
+    # Now that the circle is broken, the cascade delete can work safely.
     db.session.delete(team_to_delete)
     db.session.commit()
     
