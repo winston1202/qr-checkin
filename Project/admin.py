@@ -98,7 +98,8 @@ def time_log():
             filter_dt = datetime.strptime(filter_date, "%Y-%m-%d")
             date_str = f"%b. {get_day_with_suffix(filter_dt.day)}, %Y"
             query = query.filter(TimeLog.date == date_str)
-        except ValueError: pass
+        except ValueError:
+            pass
 
     sort_column = getattr(TimeLog, sort_by, TimeLog.id)
     if sort_order == 'desc':
@@ -108,13 +109,16 @@ def time_log():
     
     filtered_logs = query.all()
 
-    return render_template("admin/time_log.html", 
-                           logs=filtered_logs, 
-                           unique_names=unique_names,
-                           filter_name=filter_name,
-                           filter_date=filter_date,
-                           sort_by=sort_by,
-                           sort_order=sort_order)
+    return render_template(
+        "admin/time_log.html", 
+        logs=filtered_logs, 
+        unique_names=unique_names,
+        filter_name=filter_name,
+        filter_date=filter_date,
+        sort_by=sort_by,
+        sort_order=sort_order
+    )
+
 
 @admin_bp.route("/users")
 @admin_required
@@ -389,45 +393,6 @@ def print_qr_code():
         qr_code_image_src=f"data:image/png;base64,{qr_code_image}"
     )
 
-
-@admin_bp.route("/time_log")
-@admin_required
-def time_log():
-    """Displays the filterable and sortable Time Clock Log page."""
-    query = TimeLog.query.join(User).filter(TimeLog.team_id == g.user.team_id)
-    
-    all_users_on_team = User.query.filter_by(team_id=g.user.team_id).order_by(User.name).all()
-    unique_names = [user.name for user in all_users_on_team]
-    
-    filter_name = request.args.get('name', '')
-    filter_date = request.args.get('date', '')
-    sort_by = request.args.get('sort_by', 'id')
-    sort_order = request.args.get('sort_order', 'desc')
-
-    if filter_name:
-        query = query.filter(User.name == filter_name)
-    if filter_date:
-        try:
-            filter_dt = datetime.strptime(filter_date, "%Y-%m-%d")
-            date_str = f"%b. {get_day_with_suffix(filter_dt.day)}, %Y"
-            query = query.filter(TimeLog.date == date_str)
-        except ValueError: pass
-
-    sort_column = getattr(TimeLog, sort_by, TimeLog.id)
-    if sort_order == 'desc':
-        query = query.order_by(sort_column.desc())
-    else:
-        query = query.order_by(sort_column.asc())
-    
-    filtered_logs = query.all()
-
-    return render_template("admin/time_log.html", 
-                           logs=filtered_logs, 
-                           unique_names=unique_names,
-                           filter_name=filter_name,
-                           filter_date=filter_date,
-                           sort_by=sort_by,
-                           sort_order=sort_order)
 
 @admin_bp.route("/users")
 @admin_required
