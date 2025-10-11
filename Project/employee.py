@@ -78,6 +78,8 @@ def join_team(join_token):
         response.set_cookie('device_token', new_token, max_age=365*24*60*60)
     return response
 
+# In app/Project/employee.py
+
 @employee_bp.route("/scan", methods=["GET", "POST"])
 def scan():
     if request.method == 'POST':
@@ -89,50 +91,25 @@ def scan():
             flash("You must use a valid invitation link to join a team.", "error")
             return redirect(url_for('auth.home'))
 
-        # Scenario 1: Is this a returning user on a recognized device?
-        user_by_token = User.query.filter_by(device_token=device_token).first()
-        if user_by_token:
-            # If the name they entered is different, it might be a typo.
-            if user_by_token.name.lower() != name.lower():
-                # --- THIS IS THE NEW LOGIC ---
-                # Log the identity mismatch event before redirecting.
-                log_entry = AuditLog(
-                    team_id=user_by_token.team_id, 
-                    user_id=user_by_token.id, 
-                    event_type="Identity Mismatch", 
-                    details=f"Attempted to use name '{name}'."
-                )
-                db.session.add(log_entry)
-                db.session.commit()
-                # --- END OF NEW LOGIC ---
-                session['typo_conflict'] = {'correct_name': user_by_token.name}
-                return redirect(url_for('employee.handle_typo'))
-            # Otherwise, proceed directly.
-            prepare_and_store_action(user_by_token)
-            return redirect(url_for('employee.confirm_entry'))
-
-        # Scenario 2: The device is not recognized. Let's check the name.
+        # First, find the user by the name they entered on this specific team.
         user_by_name = User.query.filter_by(name=name, team_id=team_id).first()
         
-        # Case 2a: The user exists by name.
         if user_by_name:
-            # Security Check: If that name is already tied to a *different* device, block it.
-            if user_by_name.device_token:
-                flash(f"<strong>Security Alert:</strong> The name <strong>{name}</strong> is already registered to a different device. An admin must clear their token before you can use this name on a new device.", "error")
-                return redirect(url_for('employee.scan'))
-            # Success Case: The name exists and is free. Register this new device to them.
-            else:
-                user_by_name.device_token = device_token
-                db.session.commit()
-                prepare_and_store_action(user_by_name)
-                return redirect(url_for('employee.confirm_entry'))
+            # The user exists. It doesn't matter if they are on a new device.
+            # We will now "claim" or "update" their device token.
+            user_by_name.device_token = device_token
+            db.session.commit()
+            
+            # Now, proceed directly to the clock-in confirmation. This is seamless.
+            prepare_and_store_action(user_by_name)
+            return redirect(url_for('employee.confirm_entry'))
         
-        # Case 2b: The user does not exist by name. They are brand new.
         else:
+            # The user does not exist on this team. They are a brand new employee.
+            # Send them to the name confirmation page.
             session['new_user_registration'] = {'name': name}
             return redirect(url_for('employee.register'))
 
-    # For the GET request
     return render_template("scan.html", team_name=session.get('join_team_name'), admin_name=session.get('join_admin_name'))
 
 @employee_bp.route("/register", methods=["GET", "POST"])
