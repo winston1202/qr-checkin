@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
-    <title>Your Dashboard</title>
+    <title>Your Dashboard - QrCheckin</title>
 </head>
 <body class="bg-gray-100">
     <div class="max-w-4xl mx-auto p-4 sm:p-8">
@@ -30,7 +30,7 @@
             {% endif %}
         {% endwith %}
 
-        <!-- === NEW: Current Status Card === -->
+        <!-- Current Status Card -->
         <div class="bg-white p-8 rounded-2xl shadow-lg mb-8 text-center">
             
             {% if current_status == 'clocked_in' %}
@@ -43,8 +43,6 @@
                 
                 <form action="{{ url_for('employee.quick_clock_out') }}" method="POST">
                     <input type="hidden" name="user_id" value="{{ g.user.id }}">
-                    <!-- Redirect back to dashboard after clocking out -->
-                    <input type="hidden" name="next" value="{{ url_for('employee.dashboard') }}">
                     <button type="submit" class="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-xl transition transform hover:scale-105 shadow-md">
                         Clock Out Now
                     </button>
@@ -67,10 +65,19 @@
                     <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 </div>
                 <h2 class="text-xl font-bold text-gray-800 mb-2">Not Clocked In</h2>
-                <p class="text-gray-600">You have not clocked in yet today.</p>
+                <p class="text-gray-600 mb-6">You have not clocked in yet today.</p>
+
+                <!-- === THIS IS THE NEWLY ADDED BUTTON === -->
+                <form action="{{ url_for('employee.quick_clock_out') }}" method="POST">
+                    <input type="hidden" name="user_id" value="{{ g.user.id }}">
+                    <button type="submit" class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl transition transform hover:scale-105 shadow-md">
+                        Clock In Now
+                    </button>
+                </form>
+                <!-- === END OF NEW SECTION === -->
+
             {% endif %}
         </div>
-        <!-- === END OF NEW SECTION === -->
 
         <!-- History Table -->
         <div class="bg-white p-6 rounded-lg shadow-md">
