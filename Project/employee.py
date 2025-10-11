@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response, current_app, g
 from .extensions import db, bcrypt, mail
 from .models import User, Team, TimeLog, TeamSetting, AuditLog
 from datetime import datetime
@@ -259,12 +259,29 @@ def execute_action():
         user_id=user.id
     ))
     
+# In app/Project/employee.py
+
 @employee_bp.route("/quick_clock_out", methods=["POST"])
 def quick_clock_out():
-    user_id = request.form.get("user_id")
-    user = User.query.get(user_id) if user_id else None
-    if not user: return redirect(url_for('employee.scan'))
+    # User ID is taken from g.user if logged in, or form data if from success page
+    user = g.user
+    if not user:
+        user_id = request.form.get("user_id")
+        user = User.query.get(user_id) if user_id else None
+    
+    if not user:
+        return redirect(url_for('auth.home'))
+        
     prepare_and_store_action(user)
+    
+    # --- THIS IS THE CHANGE ---
+    # Check if we should redirect back to the dashboard
+    next_url = request.form.get("next")
+    if next_url:
+        # Perform the action immediately and redirect back
+        return execute_action() 
+    # --- END OF CHANGE ---
+
     return redirect(url_for('employee.confirm_entry'))
 
 @employee_bp.route("/location_failed")
