@@ -307,15 +307,33 @@ def create_employee_account(user_id):
 
 @employee_bp.route("/dashboard")
 def dashboard():
-    # A simple employee dashboard - check if they are logged in
     user_id = session.get('user_id')
     if not user_id:
-        flash("You must be logged in to view your dashboard.", "error")
-        return redirect(url_for('auth.login'))
+        # ... redirect to login ...
+        user = User.query.get(user_id)
+
+    # --- NEW LOGIC ---
+    from . import get_day_with_suffix # Assuming helper is available
+    now = datetime.now(pytz.timezone("America/Chicago"))
+    today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
+
+    current_log = TimeLog.query.filter_by(user_id=user.id, date=today_date).first()
     
-    user = User.query.get(user_id)
+    status = 'not_clocked_in'
+    if current_log:
+        if current_log.clock_out is None:
+            status = 'clocked_in'
+        else:
+            status = 'complete'
+    # -----------------
+
     my_logs = TimeLog.query.filter_by(user_id=user.id).order_by(TimeLog.id.desc()).all()
-    return render_template("employee/dashboard.html", logs=my_logs, user=user)
+    
+    return render_template("employee/dashboard.html", 
+                           logs=my_logs, 
+                           user=user,
+                           status=status, # Pass new data
+                           today_date=today_date)
 
 @employee_bp.route("/verify_email", methods=["GET", "POST"])
 def verify_employee_email():
