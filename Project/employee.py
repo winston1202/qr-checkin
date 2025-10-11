@@ -271,6 +271,8 @@ def quick_clock_out():
 def location_failed():
     return render_template("location_failed.html", message=request.args.get('message'))
 
+# In app/Project/employee.py
+
 @employee_bp.route("/create_account/<int:user_id>", methods=["GET", "POST"])
 def create_employee_account(user_id):
     user = User.query.get_or_404(user_id)
@@ -286,27 +288,20 @@ def create_employee_account(user_id):
             flash("That email is already in use. Please choose another.", "error")
             return redirect(url_for('employee.create_employee_account', user_id=user.id))
 
-        # Generate verification code and store data in session
-        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-        verification_code = f"{random.randint(100000, 999999)}"
+        # --- THIS IS THE NEW, SIMPLIFIED LOGIC ---
+        # We are skipping the email verification and creating the account directly.
         
-        session['temp_employee_account_data'] = {
-            'user_id': user.id,
-            'email': email,
-            'hashed_password': hashed_password,
-            'code': verification_code
-        }
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+        
+        user.email = email
+        user.password = hashed_password
+        db.session.commit()
 
-        # Send verification email
-        try:
-            msg = Message("Your QrCheckin Verification Code", recipients=[email])
-            msg.body = f"Your verification code is: {verification_code}"
-            mail.send(msg)
-            flash("A verification code has been sent to your email.", "success")
-            return redirect(url_for('employee.verify_employee_email'))
-        except Exception as e:
-            flash(f"Could not send email. Check server configuration. Error: {e}", "error")
-            return redirect(url_for('employee.create_employee_account', user_id=user.id))
+        # Log the user in directly.
+        session['user_id'] = user.id
+        flash("Your account has been created successfully! You are now logged in.", "success")
+        return redirect(url_for('employee.dashboard'))
+        # --- END OF NEW LOGIC ---
 
     return render_template("employee/create_account.html", user=user)
 
