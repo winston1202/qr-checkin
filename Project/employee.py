@@ -322,34 +322,39 @@ def create_employee_account(user_id):
 
     return render_template("employee/create_account.html", user=user)
 
+# In app/Project/employee.py
+
 @employee_bp.route("/dashboard")
 def dashboard():
     user_id = session.get('user_id')
     if not user_id:
-        # ... redirect to login ...
-        user = User.query.get(user_id)
+        flash("You must be logged in to view your dashboard.", "error")
+        return redirect(url_for('auth.login'))
+    
+    user = g.user
 
-    # --- NEW LOGIC ---
-    from . import get_day_with_suffix # Assuming helper is available
+    # --- THIS IS THE FIX ---
+    # The 'from . import ...' line has been REMOVED.
+    # The function can now correctly find the local helper function.
     now = datetime.now(pytz.timezone("America/Chicago"))
     today_date = now.strftime(f"%b. {get_day_with_suffix(now.day)}, %Y")
+    # --- END OF FIX ---
 
-    current_log = TimeLog.query.filter_by(user_id=user.id, date=today_date).first()
+    todays_log = TimeLog.query.filter_by(user_id=user.id, date=today_date).first()
     
-    status = 'not_clocked_in'
-    if current_log:
-        if current_log.clock_out is None:
-            status = 'clocked_in'
+    current_status = 'not_clocked_in'
+    if todays_log:
+        if todays_log.clock_out is None:
+            current_status = 'clocked_in'
         else:
-            status = 'complete'
-    # -----------------
+            current_status = 'complete'
 
     my_logs = TimeLog.query.filter_by(user_id=user.id).order_by(TimeLog.id.desc()).all()
     
     return render_template("employee/dashboard.html", 
                            logs=my_logs, 
-                           user=user,
-                           status=status, # Pass new data
+                           current_status=current_status,
+                           current_log=todays_log,
                            today_date=today_date)
 
 @employee_bp.route("/verify_email", methods=["GET", "POST"])
