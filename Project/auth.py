@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app
 from .extensions import db, bcrypt, mail  # <-- CORRECT: Get tools from the central hub
 from .models import User, Team, TeamSetting # <-- CORRECT: Get data blueprints from models
 from flask_mail import Message
@@ -43,6 +43,8 @@ def how_to_start(): return render_template("marketing/how_to_start.html")
 def help_page():
     return render_template("marketing/help.html")
 
+# In app/Project/auth.py
+
 @auth_bp.route("/signup", methods=["GET", "POST"])
 def admin_signup():
     if request.method == 'POST':
@@ -51,27 +53,51 @@ def admin_signup():
             flash("An account with that email already exists. Please log in.", "error")
             return redirect(url_for('auth.login'))
         
-        password = request.form.get('password')
-        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-        verification_code = f"{random.randint(100000, 999999)}"
-        
-        session['temp_signup_data'] = {
-            'name': request.form.get('name'),
-            'email': email,
-            'hashed_password': hashed_password,
-            'team_name': request.form.get('team_name'),
-            'code': verification_code
-        }
+        # --- THIS IS THE NEW, SIMPLIFIED LOGIC ---
+        # We are skipping the email verification and creating the account directly.
 
         try:
-            msg = Message("Your QrCheckin Verification Code", recipients=[email])
-            msg.body = f"Your verification code is: {verification_code}"
-            mail.send(msg)
-            flash("A verification code has been sent to your email.", "success")
-            return redirect(url_for('auth.verify_email'))
+            # 1. Create the new team
+            new_team = Team(name=request.form.get('team_name'))
+            db.session.add(new_team)
+            db.session.commit()
+            
+            # 2. Hash the password and create the new admin user
+            password = request.form.get('password')
+            hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+            new_admin = User(
+                name=request.form.get('name'),
+                email=email,
+                password=hashed_password,
+                role='Admin',
+                team_id=new_team.id
+            )
+            db.session.add(new_admin)
+            db.session.commit() # Commit to get the new admin's ID
+
+            # 3. Set the new admin as the owner of the team
+            new_team.owner_id = new_admin.id
+            db.session.add(new_team)
+
+            # 4. Add the default geofence setting
+            default_setting = TeamSetting(team_id=new_team.id, name='LocationVerificationEnabled', value='FALSE')
+            db.session.add(default_setting)
+
+            # Final commit
+            db.session.commit()
+
+            # 5. Log the new user in and redirect
+            session.clear()
+            session['user_id'] = new_admin.id
+            flash("Your team and account have been created successfully!", "success")
+            return redirect(url_for('admin.dashboard'))
+
         except Exception as e:
-            flash(f"Could not send email. Check server configuration. Error: {e}", "error")
+            current_app.logger.error(f"CRITICAL: Failed to create admin account: {e}")
+            db.session.rollback() # Roll back any partial database changes
+            flash("A database error occurred. Could not create your account.", "error")
             return redirect(url_for('auth.admin_signup'))
+        # --- END OF NEW LOGIC ---
 
     return render_template("auth/admin_signup.html")
 
