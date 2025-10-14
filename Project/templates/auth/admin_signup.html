@@ -14,12 +14,12 @@
 <body class="gradient-bg min-h-screen flex items-center justify-center p-4">
     <div class="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl w-full max-w-md card-enter">
         <div class="text-center mb-6">
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">Create Your Team</h1>
-            <p class="text-gray-600">Start tracking time in less than a minute.</p>
+            <h1 id="signup-heading" class="text-3xl font-bold text-gray-800 mb-2">Create Your Team</h1>
+            <p id="signup-sub" class="text-gray-600">Start tracking time in less than a minute.</p>
         </div>
 
         <form action="{{ url_for('auth.admin_signup') }}" method="POST" class="space-y-4">
-            <div>
+            <div id="team-name-row">
                 <label for="team_name" class="block text-sm text-left font-medium text-gray-700">Team Name</label>
                 <input id="team_name" name="team_name" placeholder="e.g., Main Office Staff" required class="mt-1 w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
@@ -73,7 +73,7 @@
             </div>
             <!-- === END OF NEW SECTION === -->
 
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl !mt-6 transition">
+            <button id="signup-button" type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl !mt-6 transition">
                 Create Account & Team
             </button>
         </form>
@@ -90,10 +90,23 @@
         const joinInput = document.getElementById('join_token');
         const form = document.querySelector('form');
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const teamNameRow = document.getElementById('team-name-row');
+    const signupHeading = document.getElementById('signup-heading');
+    const signupButton = document.getElementById('signup-button');
 
         function updateJoinVisibility() {
-            if (document.querySelector('input[name="role"]:checked').value === 'User') joinRow.style.display = 'block';
-            else joinRow.style.display = 'none';
+            const val = document.querySelector('input[name="role"]:checked').value;
+            if (val === 'User') {
+                joinRow.style.display = 'block';
+                teamNameRow.style.display = 'none';
+                signupHeading.textContent = 'Create Employee Account';
+                signupButton.textContent = 'Create Account & Join Team';
+            } else {
+                joinRow.style.display = 'none';
+                teamNameRow.style.display = 'block';
+                signupHeading.textContent = 'Create Your Team';
+                signupButton.textContent = 'Create Account & Team';
+            }
         }
 
         roleRadios.forEach(r => r.addEventListener('change', updateJoinVisibility));
