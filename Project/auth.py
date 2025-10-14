@@ -48,22 +48,57 @@ def help_page():
 @auth_bp.route("/signup", methods=["GET", "POST"])
 def admin_signup():
     if request.method == 'POST':
+        # Basic form values
         email = request.form.get('email')
+        password = request.form.get('password')
+        role = request.form.get('role') or 'Admin'
+
+        # Prevent duplicate emails
         if User.query.filter_by(email=email).first():
             flash("An account with that email already exists. Please log in.", "error")
             return redirect(url_for('auth.login'))
-        
-        # --- THIS IS THE NEW, SIMPLIFIED LOGIC ---
-        # We are skipping the email verification and creating the account directly.
 
+        # Employee signup flow (join existing team)
+        if role == 'User':
+            join_token = request.form.get('join_token')
+            if not join_token:
+                flash("Please provide a team invitation token to join.", "error")
+                return redirect(url_for('auth.admin_signup'))
+
+            team = Team.query.filter_by(join_token=join_token).first()
+            if not team:
+                flash("Invalid team invitation token.", "error")
+                return redirect(url_for('auth.admin_signup'))
+
+            try:
+                hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+                new_user = User(
+                    name=request.form.get('name'),
+                    email=email,
+                    password=hashed_password,
+                    role='User',
+                    team_id=team.id
+                )
+                db.session.add(new_user)
+                db.session.commit()
+
+                # Auto-login newly created employee
+                session.clear()
+                session['user_id'] = new_user.id
+                flash("Your account has been created and you are now logged in.", "success")
+                return redirect(url_for('employee.dashboard'))
+            except Exception as e:
+                current_app.logger.error(f"Failed to create employee account: {e}")
+                db.session.rollback()
+                flash("Could not create your account. Please try again.", "error")
+                return redirect(url_for('auth.admin_signup'))
+
+        # Admin signup flow (create a new team)
         try:
-            # 1. Create the new team
             new_team = Team(name=request.form.get('team_name'))
             db.session.add(new_team)
             db.session.commit()
-            
-            # 2. Hash the password and create the new admin user
-            password = request.form.get('password')
+
             hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
             new_admin = User(
                 name=request.form.get('name'),
@@ -73,31 +108,23 @@ def admin_signup():
                 team_id=new_team.id
             )
             db.session.add(new_admin)
-            db.session.commit() # Commit to get the new admin's ID
-
-            # 3. Set the new admin as the owner of the team
-            new_team.owner_id = new_admin.id
-            db.session.add(new_team)
-
-            # 4. Add the default geofence setting
-            default_setting = TeamSetting(team_id=new_team.id, name='LocationVerificationEnabled', value='FALSE')
-            db.session.add(default_setting)
-
-            # Final commit
             db.session.commit()
 
-            # 5. Log the new user in and redirect
+            new_team.owner_id = new_admin.id
+            db.session.add(new_team)
+            default_setting = TeamSetting(team_id=new_team.id, name='LocationVerificationEnabled', value='FALSE')
+            db.session.add(default_setting)
+            db.session.commit()
+
             session.clear()
             session['user_id'] = new_admin.id
             flash("Your team and account have been created successfully!", "success")
             return redirect(url_for('admin.dashboard'))
-
         except Exception as e:
             current_app.logger.error(f"CRITICAL: Failed to create admin account: {e}")
-            db.session.rollback() # Roll back any partial database changes
+            db.session.rollback()
             flash("A database error occurred. Could not create your account.", "error")
             return redirect(url_for('auth.admin_signup'))
-        # --- END OF NEW LOGIC ---
 
     return render_template("auth/admin_signup.html")
 

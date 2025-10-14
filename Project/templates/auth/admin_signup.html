@@ -35,6 +35,27 @@
                 <label for="password" class="block text-sm text-left font-medium text-gray-700">Password</label>
                 <input id="password" name="password" type="password" required class="mt-1 w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
+            <!-- Role selection -->
+            <div>
+                <label class="block text-sm text-left font-medium text-gray-700">Account Type</label>
+                <div class="mt-2 flex gap-4">
+                    <label class="inline-flex items-center">
+                        <input type="radio" name="role" value="Admin" checked class="form-radio">
+                        <span class="ml-2 text-sm">Admin (create a new team)</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="radio" name="role" value="User" class="form-radio">
+                        <span class="ml-2 text-sm">Employee (join existing team)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Join token (only for Employee signups) -->
+            <div id="join-token-row" style="display:none;">
+                <label for="join_token" class="block text-sm text-left font-medium text-gray-700">Team Invitation Token</label>
+                <input id="join_token" name="join_token" placeholder="Paste invitation token here" class="mt-1 w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <p class="text-xs text-gray-500 mt-1">Ask your admin for the team invitation token (join link).</p>
+            </div>
             
             <!-- === THIS IS THE NEWLY ADDED SECTION === -->
             <div class="flex items-start pt-2">
@@ -62,5 +83,58 @@
             <a href="{{ url_for('auth.login') }}" class="font-medium text-blue-600 hover:text-blue-500">Log In</a>
         </p>
     </div>
+    <script>
+        // Toggle join token input when role changes and validate on submit
+        const roleRadios = document.querySelectorAll('input[name="role"]');
+        const joinRow = document.getElementById('join-token-row');
+        const joinInput = document.getElementById('join_token');
+        const form = document.querySelector('form');
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+        function updateJoinVisibility() {
+            if (document.querySelector('input[name="role"]:checked').value === 'User') joinRow.style.display = 'block';
+            else joinRow.style.display = 'none';
+        }
+
+        roleRadios.forEach(r => r.addEventListener('change', updateJoinVisibility));
+
+        // Auto-fill join token from URL parameter if present and select Employee
+        (function autoFillFromUrl() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const token = params.get('join_token') || params.get('token');
+                if (token) {
+                    // select employee role
+                    const userRadio = document.querySelector('input[name="role"][value="User"]');
+                    if (userRadio) userRadio.checked = true;
+                    joinInput.value = token;
+                    updateJoinVisibility();
+                }
+            } catch (e) {
+                // ignore URL parsing errors
+            }
+        })();
+
+        // Simple client-side validation: require join token when role=User and check UUID-ish format
+        form.addEventListener('submit', function (ev) {
+            const role = document.querySelector('input[name="role"]:checked').value;
+            if (role === 'User') {
+                const token = joinInput.value.trim();
+                if (!token) {
+                    ev.preventDefault();
+                    alert('Please provide the team invitation token to join as an Employee.');
+                    return false;
+                }
+                if (!uuidRegex.test(token)) {
+                    // not strictly required to be a UUID, but warn if format looks wrong
+                    const ok = confirm('The token you entered does not look like a typical invitation token. Continue anyway?');
+                    if (!ok) {
+                        ev.preventDefault();
+                        return false;
+                    }
+                }
+            }
+        });
+    </script>
 </body>
 </html>
