@@ -325,3 +325,21 @@ def print_qr_code():
 
     # 5. Render the beautiful print template with the image data
     return render_template("admin/print_qr.html", qr_code_image_src=qr_code_image_src)
+
+@admin_bp.route("/users/toggle_floating/<int:user_id>", methods=["POST"])
+@admin_required
+def toggle_floating_user(user_id):
+    """Toggles the 'is_floating' status for a user."""
+    target_user = User.query.get_or_404(user_id)
+    
+    # Security check
+    if target_user.team_id != g.user.team_id:
+        return "Unauthorized", 403
+
+    # Toggle the boolean status
+    target_user.is_floating = not target_user.is_floating
+    db.session.commit()
+    
+    status = "enabled" if target_user.is_floating else "disabled"
+    flash(f"Floating user mode has been {status} for {target_user.name}. This is for users with unreliable browsers.", "success")
+    return redirect(url_for('admin.users'))

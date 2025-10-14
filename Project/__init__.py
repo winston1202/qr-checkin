@@ -5,6 +5,7 @@ from .extensions import db, bcrypt, mail, sess
 from datetime import datetime, timezone
 import os
 import stripe
+from flask_migrate import Migrate
 
 def create_app():
     app = Flask(__name__, instance_relative_config=False, template_folder='templates', static_folder='static')
@@ -23,6 +24,8 @@ def create_app():
     app.config['SESSION_COOKIE_SECURE'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'
     app.config['SESSION_COOKIE_HTTPONLY'] = True
+
+    
     # --- END OF SESSION CONFIGURATION ---
 
     # --- OTHER CONFIGURATIONS ---
@@ -39,6 +42,7 @@ def create_app():
     bcrypt.init_app(app)
     mail.init_app(app)
     sess.init_app(app)
+    migrate = Migrate(app, db)
 
     # --- APPLICATION CONTEXT ---
     with app.app_context():

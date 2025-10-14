@@ -36,6 +36,8 @@ class User(db.Model):
     
     device_token = db.Column(db.String(36), unique=True, nullable=True)
     show_upgrade_success = db.Column(db.Boolean, default=False)
+    # New column to indicate floating (not tied to a specific device)
+    is_floating = db.Column(db.Boolean, nullable=False, default=False)
     
     # This relationship links back to the "owner_id" on the Team model
     owned_team = db.relationship('Team', foreign_keys=[Team.owner_id], backref='owner', uselist=False)

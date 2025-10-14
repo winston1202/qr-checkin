@@ -31,6 +31,19 @@
                                 <button type="submit" class="text-blue-600 font-semibold hover:text-blue-800">Clear Token</button>
                             </form>
 
+                            <!-- === FLOAT/UNFLOAT FORM === -->
+                            <form action="{{ url_for('admin.toggle_floating_user', user_id=user.id) }}" method="POST">
+                                {% if user.is_floating %}
+                                    <button type="submit" class="text-gray-500 font-semibold hover:text-gray-800" title="Disable Floating Mode. This will re-lock the user's name to their next device.">
+                                        Unfloat
+                                    </button>
+                                {% else %}
+                                    <button type="submit" class="text-orange-600 font-semibold hover:text-orange-800" title="Enable Floating Mode. This allows the user to clock in from any device by name, bypassing the device lock. Use for unreliable browsers.">
+                                        Float
+                                    </button>
+                                {% endif %}
+                            </form>
+
                             <!-- === THIS IS THE MODIFIED SECTION === -->
                             <form action="{{ url_for('admin.set_user_role', user_id=user.id) }}" method="POST">
                                 {% if user.role == 'User' %}

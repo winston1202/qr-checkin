@@ -88,27 +88,44 @@ def scan():
         team_id = session.get('join_team_id')
 
         if not team_id:
-            flash("You must use a valid invitation link to join a team.", "error")
+            flash("You must use a valid invitation link.", "error")
             return redirect(url_for('auth.home'))
 
-        # First, find the user by the name they entered on this specific team.
+        # Find the user by the name they entered.
         user_by_name = User.query.filter_by(name=name, team_id=team_id).first()
-        
-        if user_by_name:
-            # The user exists. It doesn't matter if they are on a new device.
-            # We will now "claim" or "update" their device token.
-            user_by_name.device_token = device_token
-            db.session.commit()
-            
-            # Now, proceed directly to the clock-in confirmation. This is seamless.
-            prepare_and_store_action(user_by_name)
-            return redirect(url_for('employee.confirm_entry'))
-        
-        else:
-            # The user does not exist on this team. They are a brand new employee.
-            # Send them to the name confirmation page.
+
+        if not user_by_name:
+            # The user does not exist on this team. They are brand new.
             session['new_user_registration'] = {'name': name}
             return redirect(url_for('employee.register'))
+
+        # --- THE FINAL, CORRECT LOGIC ---
+        # The user exists. Now, let's figure out the security.
+
+        # If the user is a "Floating User", they bypass the strict token checks.
+        if user_by_name.is_floating:
+            user_by_name.device_token = device_token # Update token for convenience
+            db.session.commit()
+            prepare_and_store_action(user_by_name)
+            return redirect(url_for('employee.confirm_entry'))
+
+        # For NORMAL users, we enforce strict security.
+        # Check if this device is already registered to a different user.
+        user_by_token = User.query.filter_by(device_token=device_token).first()
+        if user_by_token and user_by_token.id != user_by_name.id:
+            session['typo_conflict'] = {'correct_name': user_by_token.name}
+            return redirect(url_for('employee.handle_typo'))
+        
+        # Check if this user is already locked to a different device.
+        if user_by_name.device_token and user_by_name.device_token != device_token:
+            flash(f"<strong>Security Alert:</strong> This name is registered to a different device. Please ask an admin to click 'Clear Token' for {name}.", "error")
+            return redirect(url_for('employee.scan'))
+        
+        # All checks passed. This is a secure login.
+        user_by_name.device_token = device_token
+        db.session.commit()
+        prepare_and_store_action(user_by_name)
+        return redirect(url_for('employee.confirm_entry'))
 
     return render_template("scan.html", team_name=session.get('join_team_name'), admin_name=session.get('join_admin_name'))
 
