@@ -195,7 +195,11 @@ def login():
         user = User.query.filter_by(email=email).first()
 
         if user and user.password and bcrypt.check_password_hash(user.password, password):
+            # Log the user in
             session['user_id'] = user.id
+            # Clear any pending action so a freshly-logged-in user isn't immediately
+            # redirected to the clock-in/confirm page (this caused confusion).
+            session.pop('pending_action', None)
 
             # --- NEW: Super Admin Check ---
             # Get the Super Admin email from environment variables
